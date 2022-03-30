@@ -89,6 +89,15 @@ impl AppLibraryWindow {
 
         self_
     }
+    
+    fn setup_shortcuts(&self) {
+        let window = self.clone().upcast::<gtk4::Window>();
+        let action_quit = gio::SimpleAction::new("quit", None);
+        action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
+            window.close();
+        }));
+        self.add_action(&action_quit);
+    }
 
     fn setup_shortcuts(&self) {
         let window = self.clone().upcast::<gtk4::Window>();
