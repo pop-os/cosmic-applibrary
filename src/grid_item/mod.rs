@@ -1,21 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;
-use gdk4::ContentProvider;
-use gdk4::Display;
-use gio::File;
-use gio::Icon;
-use gtk4::pango::EllipsizeMode;
-use gtk4::prelude::*;
-use gtk4::subclass::prelude::*;
-use gtk4::traits::WidgetExt;
-use gtk4::Align;
-use gtk4::Button;
-use gtk4::DragSource;
-use gtk4::IconTheme;
-use gtk4::Image;
-use gtk4::Label;
-use gtk4::Orientation;
-use gtk4::{gio, glib};
+use gtk4::{
+    gdk::{self, ContentProvider, Display},
+    gio::{self, File, Icon},
+    glib,
+    pango::EllipsizeMode,
+    prelude::*,
+    subclass::prelude::*,
+    traits::WidgetExt,
+    Align, Button, DragSource, IconTheme, Image, Label, Orientation,
+};
 
 use crate::app_group::AppGroup;
 use crate::app_group::BoxedAppGroupType;
@@ -78,7 +72,7 @@ impl GridItem {
 
         let drag_controller = DragSource::builder()
             .name("application library drag source")
-            .actions(gdk4::DragAction::COPY)
+            .actions(gdk::DragAction::COPY)
             // .content()
             .build();
         self.add_controller(&drag_controller);
@@ -92,7 +86,7 @@ impl GridItem {
             .unwrap_or(Icon::for_string("image-missing").expect("Failed to set default icon"));
         self_.image.borrow().set_from_gicon(&icon);
         drag_controller.connect_drag_begin(glib::clone!(@weak icon, => move |_self, drag| {
-            drag.set_selected_action(gdk4::DragAction::MOVE);
+            drag.set_selected_action(gdk::DragAction::MOVE);
             // set drag source icon if possible...
             // gio Icon is not easily converted to a Paintable, but this seems to be the correct method
             if let Some(default_display) = &Display::default() {
@@ -131,9 +125,13 @@ impl GridItem {
                     .margin_end(12)
                     .margin_start(12)
                     .build();
-
+                popover_menu.add_css_class("background");
                 // build menu
-                let dialog_entry = gtk4::Entry::new();
+                let dialog_entry = cascade! {
+                    gtk4::Entry::new();
+                    ..add_css_class("background-component");
+                    ..add_css_class("border-radius-medium");
+                };
                 let label = cascade! {
                     Label::new(Some("Name"));
                     ..set_justify(gtk4::Justification::Left);
@@ -143,12 +141,17 @@ impl GridItem {
                 popover_menu.append(&dialog_entry);
                 let btn_container = cascade! {
                     gtk4::Box::new(Orientation::Horizontal, 8);
+                    ..add_css_class("background");
                 };
                 let ok_btn = cascade! {
                     Button::with_label("Ok");
+                    ..add_css_class("suggested-action");
+                    ..add_css_class("border-radius-medium");
                 };
                 let cancel_btn = cascade! {
                     Button::with_label("Cancel");
+                    ..add_css_class("destructive-action");
+                    ..add_css_class("border-radius-medium");
                 };
                 btn_container.append(&ok_btn);
                 btn_container.append(&cancel_btn);

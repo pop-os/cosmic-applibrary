@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use gtk4::gdk::Display;
-use gtk4::prelude::*;
-use gtk4::CssProvider;
-use gtk4::StyleContext;
-
+use gtk4::{gdk::Display, glib, prelude::*, CssProvider, StyleContext};
 use window::AppLibraryWindow;
 
 mod app_grid;
@@ -38,6 +34,12 @@ fn load_css() {
         &provider,
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
+
+    glib::MainContext::default().spawn_local(async move {
+        if let Err(e) = cosmic_theme::load_cosmic_gtk_theme().await {
+            eprintln!("{}", e);
+        }
+    });
 }
 
 fn build_ui(app: &gtk4::Application) {

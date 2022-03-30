@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use crate::window_inner::AppLibraryWindowInner;
 use cascade::cascade;
-use gdk4::subclass::prelude::ObjectSubclassExt;
 use gdk4_x11::X11Display;
-use glib::Object;
-use gtk4::prelude::*;
-use gtk4::Application;
-use gtk4::{gdk, gio, glib};
+use gtk4::{
+    gdk, gio,
+    glib::{self, Object},
+    prelude::*,
+    subclass::prelude::*,
+    Application,
+};
 use libcosmic::x;
 
 pub fn create(app: &Application, monitor: gdk::Monitor) {
     //quit shortcut
-    app.set_accels_for_action("app.quit", &["<primary>W", "Escape"]);
-    setup_shortcuts(app);
+    app.set_accels_for_action("win.quit", &["<primary>W", "Escape"]);
 
     #[cfg(feature = "layer-shell")]
     if let Some(wayland_monitor) = monitor.downcast_ref() {
@@ -24,14 +25,6 @@ pub fn create(app: &Application, monitor: gdk::Monitor) {
         AppLibraryWindow::new(&app);
         ..show();
     };
-}
-
-fn setup_shortcuts(app: &Application) {
-    let action_quit = gio::SimpleAction::new("quit", None);
-    action_quit.connect_activate(glib::clone!(@weak app => move |_, _| {
-        app.quit();
-    }));
-    app.add_action(&action_quit);
 }
 
 #[cfg(feature = "layer-shell")]
@@ -91,9 +84,19 @@ impl AppLibraryWindow {
         self_.set_child(Some(&app_library));
         imp.inner.set(app_library).unwrap();
 
-        Self::setup_callbacks(&self_);
+        self_.setup_callbacks();
+        self_.setup_shortcuts();
 
         self_
+    }
+
+    fn setup_shortcuts(&self) {
+        let window = self.clone().upcast::<gtk4::Window>();
+        let action_quit = gio::SimpleAction::new("quit", None);
+        action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
+            window.close();
+        }));
+        self.add_action(&action_quit);
     }
 
     fn setup_callbacks(&self) {

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
-use std::cell::RefCell;
-use std::rc::Rc;
-
-use gdk4::glib::ParamSpecBoxed;
-use glib::{ParamFlags, ParamSpec, Value};
-use gtk4::glib;
-use gtk4::prelude::*;
-use gtk4::subclass::prelude::*;
+use gtk4::{
+    gdk::glib::ParamSpecBoxed,
+    glib::{self, ParamFlags, ParamSpec, Value},
+    prelude::*,
+    subclass::prelude::*,
+};
 use once_cell::sync::Lazy;
+use std::{cell::RefCell, rc::Rc};
 
 use super::BoxedAppGroupType;
 

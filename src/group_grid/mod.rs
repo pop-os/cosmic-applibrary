@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;
-use glib::Object;
-use gtk4::prelude::*;
-use gtk4::subclass::prelude::*;
-use gtk4::{gio, glib, GridView, PolicyType, ScrolledWindow, SignalListItemFactory};
+use gtk4::{
+    gio,
+    glib::{self, Object},
+    prelude::*,
+    subclass::prelude::*,
+    GridView, PolicyType, ScrolledWindow, SignalListItemFactory,
+};
 use std::fs::File;
 
 use crate::app_group::{AppGroup, AppGroupData, BoxedAppGroupType};
@@ -38,6 +41,7 @@ impl GroupGrid {
             ..set_min_content_height(150);
             ..set_max_content_height(300);
             ..set_hexpand(true);
+            ..add_css_class("primary_container");
         };
         self_.append(&group_window);
 
@@ -45,6 +49,7 @@ impl GroupGrid {
             GridView::default();
             ..set_min_columns(8);
             ..set_max_columns(8);
+            ..add_css_class("primary_container");
         };
         group_window.set_child(Some(&group_grid_view));
 
@@ -142,6 +147,7 @@ impl GroupGrid {
                 .downcast::<gtk4::SingleSelection>()
                 .unwrap()
                 .model()
+                .unwrap()
                 .downcast::<gio::ListStore>()
                 .expect("could not downcast app group view selection model to list store model");
             // update the application filter

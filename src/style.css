@@ -1,21 +1,29 @@
-child:selected {
-    transition: 100ms;
-    background: #AAAAAA;
+/* child:selected { */
+/*     transition: 100ms; */
+/*     background: #AAAAAA; */
+/* } */
+
+/* gridview child { */
+/*     transition: 100ms; */
+/*     border-radius: 5px; */
+/* } */
+
+/* gridview { */
+/*     background: #333333; */
+/* } */
+
+/* box.app_library_container { */
+/*     background: #333333; */
+/*     padding: 12px; */
+/*     border-radius: 12px; */
+/* } */
+
+popover {
+    background: rgba(50, 50, 50, 0.0);
 }
 
-gridview child {
-    transition: 100ms;
-    border-radius: 5px;
-}
-
-gridview {
-    background: #333333;
-}
-
-box.app_library_container {
-    background: #333333;
-    padding: 12px;
-    border-radius: 12px;
+popover contents.background {
+    background: rgba(50, 50, 50, 0.0);
 }
 
 window.root_window {
