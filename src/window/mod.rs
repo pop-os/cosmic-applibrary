@@ -39,6 +39,8 @@ fn wayland_create(app: &Application, monitor: &gdk4_wayland::WaylandMonitor) {
         // ..set_decorated(false);
         ..set_keyboard_interactivity(KeyboardInteractivity::OnDemand);
         ..add_css_class("root_window");
+        ..add_css_class("padding-medium");
+        ..add_css_class("border-radius-medium");
         ..set_anchor(Anchor::empty());
         ..show();
     };
@@ -79,6 +81,8 @@ impl AppLibraryWindow {
             ..set_title(Some("Cosmic App Library"));
             ..set_decorated(false);
             ..add_css_class("root_window");
+            ..add_css_class("padding-medium");
+            ..add_css_class("border-radius-medium");
         };
         let app_library = AppLibraryWindowInner::new();
         self_.set_child(Some(&app_library));
@@ -89,7 +93,7 @@ impl AppLibraryWindow {
 
         self_
     }
-   
+
     fn setup_shortcuts(&self) {
         let window = self.clone().upcast::<gtk4::Window>();
         let action_quit = gio::SimpleAction::new("quit", None);

@@ -125,7 +125,6 @@ impl GridItem {
                     .margin_end(12)
                     .margin_start(12)
                     .build();
-                popover_menu.add_css_class("background");
                 // build menu
                 let dialog_entry = cascade! {
                     gtk4::Entry::new();
