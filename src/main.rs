@@ -1,60 +1,34 @@
-// SPDX-License-Identifier: GPL-3.0-only
-use gtk4::{gdk::Display, glib, prelude::*, CssProvider, StyleContext};
-use window::AppLibraryWindow;
-
+mod application;
+#[rustfmt::skip]
+mod config;
+mod window;
 mod app_grid;
 mod app_group;
 mod grid_item;
 mod group_grid;
 mod utils;
-mod window;
 mod window_inner;
 
+use gettextrs::{gettext, LocaleCategory};
+use gtk4::{gio, glib};
+
+use self::application::CosmicAppLibraryApplication;
+use self::config::{GETTEXT_PACKAGE, LOCALEDIR, RESOURCES_FILE};
+
 fn main() {
-    let app = gtk4::Application::new(Some("com.cosmic.app_library"), Default::default());
-    app.connect_startup(|_app| {
-        load_css();
-    });
+    // Initialize logger
+    pretty_env_logger::init();
 
-    app.connect_activate(|app| {
-        build_ui(app);
-    });
+    // Prepare i18n
+    gettextrs::setlocale(LocaleCategory::LcAll, "");
+    gettextrs::bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
+    gettextrs::textdomain(GETTEXT_PACKAGE).expect("Unable to switch to the text domain");
 
+    glib::set_application_name(&gettext("Cosmic App Library"));
+
+    let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
+    gio::resources_register(&res);
+
+    let app = CosmicAppLibraryApplication::new();
     app.run();
-}
-
-fn load_css() {
-    // Load the css file and add it to the provider
-    let provider = CssProvider::new();
-    provider.load_from_data(include_bytes!("style.css"));
-
-    // Add the provider to the default screen
-    StyleContext::add_provider_for_display(
-        &Display::default().expect("Error initializing GTK CSS provider."),
-        &provider,
-        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
-
-    let theme_provider = CssProvider::new();
-    // Add the provider to the default screen
-    StyleContext::add_provider_for_display(
-        &Display::default().expect("Error initializing GTK CSS provider."),
-        &theme_provider,
-        gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
-
-    glib::MainContext::default().spawn_local(async move {
-        if let Err(e) = cosmic_theme::load_cosmic_gtk_theme(theme_provider).await {
-            eprintln!("{}", e);
-        }
-    });
-}
-
-fn build_ui(app: &gtk4::Application) {
-    // Create a new custom window and show it
-    let display = Display::default().unwrap();
-    window::create(app, display.monitors().item(0).unwrap().downcast().unwrap());
-    // let window = AppLibraryWindow::new(app);
-
-    // window.show();
 }

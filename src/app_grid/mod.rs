@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;
 use gtk4::prelude::*;
@@ -60,32 +62,26 @@ impl AppGrid {
         // Get state and set model
         let imp = imp::AppGrid::from_instance(self);
 
+
         // A sorter used to sort AppInfo in the model by their name
         xdg::BaseDirectories::new()
             .expect("could not access XDG Base directory")
-            .get_data_dirs()
-            .iter_mut()
-            .for_each(|xdg_data_path| {
-                xdg_data_path.push("applications");
-                // dbg!(&xdg_data_path);
-                if let Ok(dir_iter) = std::fs::read_dir(xdg_data_path) {
-                    dir_iter.for_each(|dir_entry| {
-                        if let Ok(dir_entry) = dir_entry {
-                            if let Some(path) = dir_entry.path().file_name() {
-                                if let Some(path) = path.to_str() {
-                                    if let Some(app_info) = gio::DesktopAppInfo::new(path) {
-                                        if app_info.should_show() {
-                                            app_model.append(&app_info)
-                                        } else {
-                                            // println!("Ignoring {}", path);
-                                        }
-                                    } else {
-                                        // println!("error loading {}", path);
-                                    }
-                                }
+            .list_data_files("applications")
+            .into_iter()
+            .for_each(|dir_entry| {
+
+                if let Some(path) = dir_entry.file_name() {
+                    if let Some(path) = path.to_str() {
+                        if let Some(app_info) = gio::DesktopAppInfo::new(path) {
+                            if app_info.should_show() {
+                                app_model.append(&app_info)
+                            } else {
+                                // println!("Ignoring {}", path);
                             }
+                        } else {
+                            // println!("error loading {}", path);
                         }
-                    })
+                    }
                 }
             });
 

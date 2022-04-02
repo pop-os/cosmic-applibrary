@@ -1,4 +1,6 @@
-// SPDX-License-Identifier: GPL-3.0-only
+use crate::application::CosmicAppLibraryApplication;
+use crate::config::{APP_ID, PROFILE};
+
 use crate::window_inner::AppLibraryWindowInner;
 use cascade::cascade;
 use gdk4_x11::X11Display;
@@ -11,7 +13,44 @@ use gtk4::{
 };
 use libcosmic::x;
 
-pub fn create(app: &Application, monitor: gdk::Monitor) {
+mod imp {
+    use super::*;
+    // SPDX-License-Identifier: GPL-3.0-only
+    use crate::window_inner::AppLibraryWindowInner;
+    use gtk4::glib;
+    use gtk4::subclass::prelude::*;
+    use once_cell::sync::OnceCell;
+
+    // Object holding the state
+    #[derive(Default)]
+
+    pub struct CosmicAppLibraryWindow {
+        pub(super) inner: OnceCell<AppLibraryWindowInner>,
+    }
+
+    // The central trait for subclassing a GObject
+    #[glib::object_subclass]
+    impl ObjectSubclass for CosmicAppLibraryWindow {
+        // `NAME` needs to match `class` attribute of template
+        const NAME: &'static str = "CosmicAppLibraryWindow";
+        type Type = super::CosmicAppLibraryWindow;
+        type ParentType = gtk4::ApplicationWindow;
+    }
+
+    // Trait shared by all GObjects
+    impl ObjectImpl for CosmicAppLibraryWindow {}
+
+    // Trait shared by all widgets
+    impl WidgetImpl for CosmicAppLibraryWindow {}
+
+    // Trait shared by all windows
+    impl WindowImpl for CosmicAppLibraryWindow {}
+
+    // Trait shared by all application
+    impl ApplicationWindowImpl for CosmicAppLibraryWindow {}
+}
+
+pub fn create(app: &CosmicAppLibraryApplication, monitor: gdk::Monitor) {
     //quit shortcut
     app.set_accels_for_action("win.quit", &["<primary>W", "Escape"]);
 
@@ -22,7 +61,7 @@ pub fn create(app: &Application, monitor: gdk::Monitor) {
     }
 
     cascade! {
-        AppLibraryWindow::new(&app);
+        CosmicAppLibraryWindow::new(&app);
         ..show();
     };
 }
@@ -60,20 +99,18 @@ fn wayland_create(app: &Application, monitor: &gdk4_wayland::WaylandMonitor) {
     unsafe { window.set_data("cosmic-app-hold", app.hold()) };
 }
 
-mod imp;
-
 glib::wrapper! {
-    pub struct AppLibraryWindow(ObjectSubclass<imp::AppLibraryWindow>)
+    pub struct CosmicAppLibraryWindow(ObjectSubclass<imp::CosmicAppLibraryWindow>)
         @extends gtk4::ApplicationWindow, gtk4::Window, gtk4::Widget,
         @implements gio::ActionGroup, gio::ActionMap, gtk4::Accessible, gtk4::Buildable,
                     gtk4::ConstraintTarget, gtk4::Native, gtk4::Root, gtk4::ShortcutManager;
 }
 
-impl AppLibraryWindow {
-    pub fn new(app: &Application) -> Self {
+impl CosmicAppLibraryWindow {
+    pub fn new(app: &CosmicAppLibraryApplication) -> Self {
         let self_: Self =
-            Object::new(&[("application", app)]).expect("Failed to create `AppLibraryWindow`.");
-        let imp = imp::AppLibraryWindow::from_instance(&self_);
+            Object::new(&[("application", app)]).expect("Failed to create `CosmicAppLibraryWindow`.");
+        let imp = imp::CosmicAppLibraryWindow::from_instance(&self_);
 
         cascade! {
             &self_;
@@ -162,7 +199,7 @@ impl AppLibraryWindow {
             }
         });
 
-        let imp = imp::AppLibraryWindow::from_instance(&self);
+        let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
         let inner = imp.inner.get().unwrap();
         window.connect_is_active_notify(glib::clone!(@weak inner => move |win| {
             let app = win
