@@ -9,10 +9,13 @@ use gtk4::{
 };
 use std::fs::File;
 
-use crate::app_group::{AppGroup, AppGroupData, BoxedAppGroupType};
 use crate::grid_item::GridItem;
 use crate::utils::data_path;
 use crate::utils::set_group_scroll_policy;
+use crate::{
+    app_group::{AppGroup, AppGroupData, BoxedAppGroupType},
+    desktop_entry_data::DesktopEntryData,
+};
 
 mod imp;
 
@@ -162,17 +165,15 @@ impl GroupGrid {
 
                 let new_filter: gtk4::CustomFilter = gtk4::CustomFilter::new(move |obj| {
                     let app = obj
-                        .downcast_ref::<gio::DesktopAppInfo>()
+                        .downcast_ref::<DesktopEntryData>()
                         .expect("The Object needs to be of type AppInfo");
                     if data.app_names.len() > 0 {
                         return data.app_names.contains(&String::from(app.name().as_str()));
                     }
-                    match app.categories() {
-                        Some(categories) => {
-                            categories.to_string().to_lowercase().contains(&category)
-                        }
-                        None => false,
-                    }
+                    app.categories()
+                        .to_string()
+                        .to_lowercase()
+                        .contains(&category)
                 });
                 self_clone.emit_by_name::<()>("group-changed", &[&new_filter]);
             } else {

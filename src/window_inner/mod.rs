@@ -5,6 +5,7 @@ use gtk4::subclass::prelude::*;
 use gtk4::{gio, glib, Align, CustomFilter, Orientation, SearchEntry, Separator};
 
 use crate::app_grid::AppGrid;
+use crate::desktop_entry_data::DesktopEntryData;
 use crate::group_grid::GroupGrid;
 
 mod imp;
@@ -105,14 +106,14 @@ impl AppLibraryWindowInner {
             glib::clone!(@weak app_grid => move |search: &gtk4::SearchEntry| {
                 let search_text = search.text().to_string().to_lowercase();
                 let new_filter: gtk4::CustomFilter = gtk4::CustomFilter::new(move |obj| {
-                    let search_res = obj.downcast_ref::<gio::DesktopAppInfo>()
+                    let search_res = obj.downcast_ref::<DesktopEntryData>()
                         .expect("The Object needs to be of type AppInfo");
                     search_res.name().to_string().to_lowercase().contains(&search_text)
                 });
                 let search_text = search.text().to_string().to_lowercase();
                 let new_sorter: gtk4::CustomSorter = gtk4::CustomSorter::new(move |obj1, obj2| {
-                    let app_info1 = obj1.downcast_ref::<gio::DesktopAppInfo>().unwrap();
-                    let app_info2 = obj2.downcast_ref::<gio::DesktopAppInfo>().unwrap();
+                    let app_info1 = obj1.downcast_ref::<DesktopEntryData>().unwrap();
+                    let app_info2 = obj2.downcast_ref::<DesktopEntryData>().unwrap();
                     if search_text == "" {
                         return app_info1
                             .name()

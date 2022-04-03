@@ -1,12 +1,20 @@
-use std::path::PathBuf;
+use std::{
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;
+use freedesktop_desktop_entry::DesktopEntry;
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::*;
-use gtk4::{gio, glib, GridView, PolicyType, ScrolledWindow, SignalListItemFactory};
+use gtk4::{gdk, gio, glib, GridView, PolicyType, ScrolledWindow, SignalListItemFactory};
+use walkdir::WalkDir;
 
-use crate::grid_item::GridItem;
+use crate::utils;
+use crate::{desktop_entry_data::DesktopEntryData, grid_item::GridItem};
 
 mod imp;
 
@@ -47,6 +55,24 @@ impl AppGrid {
         library_window.set_child(Some(&library_grid));
 
         imp.app_grid_view.set(library_grid).unwrap();
+        let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
+
+        let icon_theme = gtk4::IconTheme::for_display(&gdk::Display::default().unwrap());
+        let mut data_dirs = xdg_base.get_data_dirs();
+        data_dirs.push(xdg_base.get_data_home());
+        if utils::in_flatpak() {
+            for p in data_dirs {
+                if p.starts_with("/usr") {
+                    let stripped_path = p.strip_prefix("/").unwrap_or(&p);
+                    let mut data_dir = Path::new("/var/run/host").join(stripped_path);
+                    data_dir.push("icons");
+                    icon_theme.add_search_path(data_dir);
+                }
+            }
+        }
+        // dbg!(icon_theme.search_path());
+        // dbg!(icon_theme.icon_names());
+        imp.icon_theme.set(icon_theme).unwrap();
 
         // Setup
         self_.setup_model();
@@ -58,36 +84,76 @@ impl AppGrid {
 
     fn setup_model(&self) {
         // Create new model
-        let app_model = gio::ListStore::new(gio::DesktopAppInfo::static_type());
+        let app_model = gio::ListStore::new(DesktopEntryData::static_type());
         // Get state and set model
         let imp = imp::AppGrid::from_instance(self);
 
+        let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
 
-        // A sorter used to sort AppInfo in the model by their name
-        xdg::BaseDirectories::new()
-            .expect("could not access XDG Base directory")
-            .list_data_files("applications")
-            .into_iter()
-            .for_each(|dir_entry| {
+        let mut data_dirs = xdg_base.get_data_dirs();
+        data_dirs.push(xdg_base.get_data_home());
 
-                if let Some(path) = dir_entry.file_name() {
-                    if let Some(path) = path.to_str() {
-                        if let Some(app_info) = gio::DesktopAppInfo::new(path) {
-                            if app_info.should_show() {
-                                app_model.append(&app_info)
-                            } else {
-                                // println!("Ignoring {}", path);
-                            }
-                        } else {
-                            // println!("error loading {}", path);
-                        }
-                    }
+        if utils::in_flatpak() {
+            data_dirs.iter_mut().for_each(|p| {
+                if p.starts_with("/usr") {
+                    let stripped_path = p.strip_prefix("/").unwrap_or(&p);
+                    *p = Path::new("/var/run/host").join(stripped_path);
                 }
             });
+        }
 
+        data_dirs.iter_mut().for_each(|xdg_data_path| {
+            for entry in WalkDir::new(xdg_data_path)
+                .max_depth(2)
+                .into_iter()
+                .filter_map(|e| {
+                    if let Ok(e) = e {
+                        let p = e.into_path();
+                        if p.extension() == Some(OsStr::new("desktop")) {
+                            Some(p)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+            {
+                if let Ok(bytes) = fs::read_to_string(&entry) {
+                    if let Ok(de) = DesktopEntry::decode(&entry, &bytes) {
+                        let name: String = de.name(None).unwrap_or_default().into();
+                        if name.eq("".into()) || de.no_display() {
+                            continue;
+                        };
+                        // dbg!(de.appid);
+                        let app_info = DesktopEntryData::new();
+                        app_info.set_data(
+                            entry
+                                .file_stem()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .into(),
+                            entry.clone(),
+                            name,
+                            de.icon().map(|s| String::from(s)),
+                            de.categories().unwrap_or_default().into(),
+                        );
+                        // dbg!((
+                        //     &app_info.appid(),
+                        //     &app_info.name(),
+                        //     &app_info.icon(),
+                        //     &app_info.categories(),
+                        // ));
+                        app_model.append(&app_info);
+                    }
+                }
+            }
+        });
+
+        // A sorter used to sort AppInfo in the model by their name
         let sorter = gtk4::CustomSorter::new(move |obj1, obj2| {
-            let app_info1 = obj1.downcast_ref::<gio::DesktopAppInfo>().unwrap();
-            let app_info2 = obj2.downcast_ref::<gio::DesktopAppInfo>().unwrap();
+            let app_info1 = obj1.downcast_ref::<DesktopEntryData>().unwrap();
+            let app_info2 = obj2.downcast_ref::<DesktopEntryData>().unwrap();
 
             app_info1
                 .name()
@@ -135,9 +201,10 @@ impl AppGrid {
             // Launch the application when an item of the list is activated
             let model = list_view.model().unwrap();
             if let Some(item) = model.item(i) {
-                let app_info = item.downcast::<gio::DesktopAppInfo>().unwrap();
+                let app_info = item.downcast::<DesktopEntryData>().unwrap();
+                // TODO include context in launch
                 let context = list_view.display().app_launch_context();
-                if let Err(err) = app_info.launch(&[], Some(&context)) {
+                if let Err(err) = app_info.launch() {
                     gtk4::MessageDialog::builder()
                         .text(&format!("Failed to start {}", app_info.name()))
                         .secondary_text(&err.to_string())
@@ -151,11 +218,14 @@ impl AppGrid {
     }
 
     fn setup_factory(&self) {
+        let imp = imp::AppGrid::from_instance(&self);
         let app_factory = SignalListItemFactory::new();
-        app_factory.connect_setup(move |_factory, item| {
-            let row = GridItem::new();
-            item.set_child(Some(&row));
-        });
+        let icon_theme = &imp.icon_theme.get().unwrap();
+        app_factory.connect_setup(glib::clone!(@weak icon_theme => move |_factory, item| {
+            let grid_item = GridItem::new();
+            grid_item.set_icon_theme(icon_theme);
+            item.set_child(Some(&grid_item));
+        }));
 
         let imp = imp::AppGrid::from_instance(self);
         // the bind stage is used for "binding" the data to the created widgets on the "setup" stage
@@ -165,10 +235,10 @@ impl AppGrid {
                 let app_info = grid_item
                     .item()
                     .unwrap()
-                    .downcast::<gio::DesktopAppInfo>()
+                    .downcast::<DesktopEntryData>()
                     .unwrap();
                 let child = grid_item.child().unwrap().downcast::<GridItem>().unwrap();
-                child.set_app_info(&app_info);
+                child.set_desktop_entry_data(&app_info);
             }),
         );
         // Set the factory of the list view

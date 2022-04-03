@@ -2,6 +2,7 @@
 use std::path::PathBuf;
 
 use gtk4::glib;
+use gtk4::IconPaintable;
 use gtk4::ScrolledWindow;
 
 pub fn data_path() -> PathBuf {
@@ -19,3 +20,18 @@ pub fn set_group_scroll_policy(scroll_window: &ScrolledWindow, group_cnt: u32) {
         scroll_window.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Never);
     }
 }
+
+pub fn in_flatpak() -> bool {
+    std::env::var("FLATPAK_ID").is_ok()
+}
+
+#[derive(Clone, Debug)]
+pub struct DesktopEntryData {
+    pub name: String,
+    pub appid: String,
+    pub icon: String,
+}
+
+#[derive(Clone, Debug, Default, glib::Boxed)]
+#[boxed_type(name = "BoxedDesktopEntryData")]
+pub struct BoxedDesktopEntryData(pub Option<DesktopEntryData>);

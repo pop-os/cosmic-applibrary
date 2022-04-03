@@ -108,8 +108,8 @@ glib::wrapper! {
 
 impl CosmicAppLibraryWindow {
     pub fn new(app: &CosmicAppLibraryApplication) -> Self {
-        let self_: Self =
-            Object::new(&[("application", app)]).expect("Failed to create `CosmicAppLibraryWindow`.");
+        let self_: Self = Object::new(&[("application", app)])
+            .expect("Failed to create `CosmicAppLibraryWindow`.");
         let imp = imp::CosmicAppLibraryWindow::from_instance(&self_);
 
         cascade! {

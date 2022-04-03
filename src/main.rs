@@ -1,12 +1,13 @@
 mod application;
 #[rustfmt::skip]
 mod config;
-mod window;
 mod app_grid;
 mod app_group;
+mod desktop_entry_data;
 mod grid_item;
 mod group_grid;
 mod utils;
+mod window;
 mod window_inner;
 
 use gettextrs::{gettext, LocaleCategory};

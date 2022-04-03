@@ -2,9 +2,9 @@ use gettextrs::gettext;
 use log::{debug, info};
 
 use glib::clone;
-use gtk4::{prelude::*, CssProvider, StyleContext};
 use gtk4::subclass::prelude::*;
 use gtk4::{gdk::Display, gio, glib};
+use gtk4::{prelude::*, CssProvider, StyleContext};
 
 use crate::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
 use crate::window::CosmicAppLibraryWindow;
@@ -110,14 +110,14 @@ impl CosmicAppLibraryApplication {
         // Load the css file and add it to the provider
         let provider = CssProvider::new();
         provider.load_from_data(include_bytes!("style.css"));
-    
+
         // Add the provider to the default screen
         StyleContext::add_provider_for_display(
             &Display::default().expect("Error initializing GTK CSS provider."),
             &provider,
             gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
-    
+
         let theme_provider = CssProvider::new();
         // Add the provider to the default screen
         StyleContext::add_provider_for_display(
@@ -125,7 +125,7 @@ impl CosmicAppLibraryApplication {
             &theme_provider,
             gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
-    
+
         glib::MainContext::default().spawn_local(async move {
             if let Err(e) = cosmic_theme::load_cosmic_gtk_theme(theme_provider).await {
                 eprintln!("{}", e);

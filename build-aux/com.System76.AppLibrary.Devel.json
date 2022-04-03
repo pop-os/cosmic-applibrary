@@ -6,7 +6,7 @@
     "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
     "command": "cosmic-app-library",
     "finish-args" : [
-	    "--filesystem=xdg-data/applications:ro",
+	    "--filesystem=xdg-data/*:ro",
         "--filesystem=xdg-desktop:ro",
         "--filesystem=xdg-config/cosmic-theme:ro",
 	    "--filesystem=xdg-data/cosmic-theme:ro",
@@ -14,6 +14,8 @@
 	    "--filesystem=xdg-data/com.System76.CosmicAppLibrary:create",
 	    "--filesystem=host",
 	    "--filesystem=home",
+	    "--talk-name=org.freedesktop.Flatpak",
+
         "--socket=fallback-x11",
         "--socket=wayland",
         "--device=dri",

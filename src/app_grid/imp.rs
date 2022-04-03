@@ -10,6 +10,7 @@ pub struct AppGrid {
     pub app_sort_model: OnceCell<gtk4::SortListModel>,
     pub search_filter_model: OnceCell<gtk4::FilterListModel>,
     pub group_filter_model: OnceCell<gtk4::FilterListModel>,
+    pub icon_theme: OnceCell<gtk4::IconTheme>,
 }
 
 #[glib::object_subclass]

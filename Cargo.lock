@@ -205,9 +205,11 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 name = "cosmic-app-library"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cascade",
  "cosmic-theme",
- "dirs",
+ "dirs 4.0.0",
+ "freedesktop-desktop-entry",
  "gdk4-wayland",
  "gdk4-x11",
  "gettext-rs",
@@ -220,6 +222,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "walkdir",
  "wayland-client",
  "wayland-protocols",
  "x11",
@@ -232,7 +235,7 @@ version = "0.1.0"
 source = "git+https://github.com/pop-os/cosmic-theme#c7dc4ee17348c753be22b979175065cebe550b35"
 dependencies = [
  "anyhow",
- "dirs",
+ "dirs 4.0.0",
  "float-cmp",
  "futures",
  "gdk-pixbuf",
@@ -311,6 +314,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c86f7e25f518f4b81808a2cf1c50996a61f5c2eb394b2393bd87f2a4780a432f"
 dependencies = [
  "adler32",
+]
+
+[[package]]
+name = "dirs"
+version = "3.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30baa043103c9d0c2a57cf537cc2f35623889dc0d405e6c3cccfadbc81c71309"
+dependencies = [
+ "dirs-sys",
 ]
 
 [[package]]
@@ -446,6 +458,19 @@ dependencies = [
  "nanorand",
  "pin-project",
  "spin",
+]
+
+[[package]]
+name = "freedesktop-desktop-entry"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45157175a725e81f3f594382430b6b78af5f8f72db9bd51b94f0785f80fc6d29"
+dependencies = [
+ "dirs 3.0.2",
+ "gettext-rs",
+ "memchr",
+ "thiserror",
+ "xdg",
 ]
 
 [[package]]
@@ -2187,7 +2212,7 @@ version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c4583db5cbd4c4c0303df2d15af80f0539db703fa1c68802d4cbbd2dd0f88f6"
 dependencies = [
- "dirs",
+ "dirs 4.0.0",
 ]
 
 [[package]]

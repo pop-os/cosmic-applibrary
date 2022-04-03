@@ -25,6 +25,9 @@ xdg = "2.4.0"
 #cosmic-theme = { path = "../cosmic-theme" }
 cosmic-theme = { git = "https://github.com/pop-os/cosmic-theme" }
 dirs = "4.0.0"
+walkdir = "2.3.2"
+freedesktop-desktop-entry = "0.5.0"
+anyhow = "1.0.56"
 
 [profile.release]
 incremental = true

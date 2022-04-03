@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use glib::subclass::Signal;
 use gtk4::subclass::prelude::*;
+use gtk4::IconTheme;
 use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -14,6 +16,7 @@ pub struct GridItem {
     pub(super) image: Rc<RefCell<gtk4::Image>>,
     pub(super) index: Cell<u32>,
     pub(super) popover: Rc<RefCell<Option<Popover>>>,
+    pub(super) icon_theme: OnceCell<IconTheme>,
 }
 
 #[glib::object_subclass]
