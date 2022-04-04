@@ -88,7 +88,11 @@ impl GridItem {
         // TODO set text direction, scale and theme for icons
         let icon_theme = self_.icon_theme.get().unwrap();
         let icon_name = desktop_entry_data.icon().unwrap_or_default();
-        let icon_size = icon_theme.icon_sizes(&icon_name).into_iter().max().unwrap_or_default();
+        let icon_size = icon_theme
+            .icon_sizes(&icon_name)
+            .into_iter()
+            .max()
+            .unwrap_or_default();
         let icon = self_.icon_theme.get().unwrap().lookup_icon(
             &icon_name,
             &[],
