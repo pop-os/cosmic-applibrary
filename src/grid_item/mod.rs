@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;
+use gettextrs::gettext;
 use gtk4::{
-    gdk::{self, ContentProvider, Display},
-    gio::{self, File, Icon},
+    gdk::{self, ContentProvider},
+    gio::File,
     glib,
     pango::EllipsizeMode,
     prelude::*,
@@ -119,7 +120,7 @@ impl GridItem {
             }
             BoxedAppGroupType::NewGroup(popover_active) => {
                 // else must be add group
-                imp.name.borrow().set_text("New Group");
+                imp.name.borrow().set_text(&gettext("New Group"));
                 imp.image.borrow().set_from_icon_name(Some("folder-new"));
 
                 let popover_menu = gtk4::Box::builder()
@@ -138,7 +139,7 @@ impl GridItem {
                     ..add_css_class("border-radius-medium");
                 };
                 let label = cascade! {
-                    Label::new(Some("Name"));
+                    Label::new(Some(&gettext("Name")));
                     ..set_justify(gtk4::Justification::Left);
                     ..set_xalign(0.0);
                 };
@@ -149,12 +150,12 @@ impl GridItem {
                     ..add_css_class("background");
                 };
                 let ok_btn = cascade! {
-                    Button::with_label("Ok");
+                    Button::with_label(&gettext("Ok"));
                     ..add_css_class("suggested-action");
                     ..add_css_class("border-radius-medium");
                 };
                 let cancel_btn = cascade! {
-                    Button::with_label("Cancel");
+                    Button::with_label(&gettext("Cancel"));
                     ..add_css_class("destructive-action");
                     ..add_css_class("border-radius-medium");
                 };

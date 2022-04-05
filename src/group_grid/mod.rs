@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;
+use gettextrs::gettext;
 use gtk4::{
     gio,
     glib::{self, Object},
@@ -78,7 +79,7 @@ impl GroupGrid {
         vec![
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
-                name: "Library Home".to_string(),
+                name: gettext("Library Home"),
                 icon: "user-home".to_string(),
                 mutable: false,
                 app_names: Vec::new(),
@@ -86,7 +87,7 @@ impl GroupGrid {
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
-                name: "System".to_string(),
+                name: gettext("System"),
                 icon: "folder".to_string(),
                 mutable: false,
                 app_names: Vec::new(),
@@ -94,7 +95,7 @@ impl GroupGrid {
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
-                name: "Utilities".to_string(),
+                name: gettext("Utilities"),
                 icon: "folder".to_string(),
                 mutable: false,
                 app_names: Vec::new(),

@@ -1,0 +1,52 @@
+# British English translation for Cosmic App Library.
+# Copyright (C) 2022 System76
+# This file is distributed under the same license as the Cosmic App Library package.
+# Ashley Wulber <ashley@System76.com>, 2022.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: cosmic app library flatpak\n"
+"Report-Msgid-Bugs-To: https://github.com/pop-os/cosmic-applibrary/issues\n"
+"POT-Creation-Date: 2022-04-05\n"
+"PO-Revision-Date: 2022-04-05\n"
+"Last-Translator: Ashley Wulber <ashley@System76.com>\n"
+"Language-Team: English <ashley@System76.com>\n"
+"Language: en_GB\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Gtranslator 3.32.1\n"
+
+
+#: cosmic-app-library/src/widgets/window.rs:68
+msgid "Cosmic App Library"
+msgstr "Cosmic App Library"
+
+#: cosmic-app-library/src/group_grid/mod.rs:82
+msgid "Library Home"
+msgstr "Library Home"
+
+#: cosmic-app-library/src/group_grid/mod.rs:90
+msgid "System"
+msgstr "System"
+
+#: cosmic-app-library/src/group_grid/mod.rs:98
+msgid "Utilities"
+msgstr "Utilities"
+
+#: cosmic-app-library/src/grid_item/mod.rs:123
+msgid "New Group"
+msgstr "New Group"
+
+#: cosmic-app-library/src/grid_item/mod.rs:142
+msgid "Name"
+msgstr "Name"
+
+#: cosmic-app-library/src/grid_item/mod.rs:153
+msgid "Ok"
+msgstr "Ok"
+
+#: cosmic-app-library/src/grid_item/mod.rs:158
+msgid "Cancel"
+msgstr "Cancel"
