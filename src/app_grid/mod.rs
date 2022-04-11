@@ -1,8 +1,4 @@
-use std::{
-    ffi::OsStr,
-    fs,
-    path::Path,
-};
+use std::{ffi::OsStr, fs, path::Path};
 
 // SPDX-License-Identifier: GPL-3.0-only
 use cascade::cascade;

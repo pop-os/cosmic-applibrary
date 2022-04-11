@@ -26,10 +26,18 @@ pub fn in_flatpak() -> bool {
 }
 
 pub fn xdg_data_dirs() -> Vec<PathBuf> {
-    std::str::from_utf8(&std::process::Command::new("flatpak-spawn")
-    .args(["--host", "printenv", "XDG_DATA_DIRS"])
-    .output().unwrap().stdout[..]).unwrap_or_default()
-    .trim().split(":").map(|p| PathBuf::from(p)).collect()
+    std::str::from_utf8(
+        &std::process::Command::new("flatpak-spawn")
+            .args(["--host", "printenv", "XDG_DATA_DIRS"])
+            .output()
+            .unwrap()
+            .stdout[..],
+    )
+    .unwrap_or_default()
+    .trim()
+    .split(":")
+    .map(|p| PathBuf::from(p))
+    .collect()
 }
 
 #[derive(Clone, Debug)]
