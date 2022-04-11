@@ -161,6 +161,7 @@ impl CosmicAppLibraryWindow {
                 .expect("no active window available, closing app library.");
             if win == &active_window && !win.is_active() && !inner.is_popup_active() {
                 win.close();
+                win.application().unwrap().quit();
             }
         }));
     }
