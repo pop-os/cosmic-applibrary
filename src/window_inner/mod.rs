@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: MPL-2.0-only
 use cascade::cascade;
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::*;

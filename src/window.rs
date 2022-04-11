@@ -15,7 +15,7 @@ use libcosmic::x;
 
 mod imp {
     use super::*;
-    // SPDX-License-Identifier: GPL-3.0-only
+    // SPDX-License-Identifier: MPL-2.0-only
     use crate::window_inner::AppLibraryWindowInner;
     use gtk4::glib;
     use once_cell::sync::OnceCell;

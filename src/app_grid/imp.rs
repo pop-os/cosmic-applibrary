@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: MPL-2.0-only
+
 use gtk4::subclass::prelude::*;
 use gtk4::{gio, glib, GridView};
 use once_cell::sync::OnceCell;
