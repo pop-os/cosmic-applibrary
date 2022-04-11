@@ -62,8 +62,13 @@ impl AppGrid {
                     let stripped_path = p.strip_prefix("/").unwrap_or(&p);
                     p = Path::new("/var/run/host").join(stripped_path);
                 }
-                p.push("icons");
-                icon_theme.add_search_path(p);
+                let mut icons = p.clone();
+                icons.push("icons");
+                let mut pixmaps = p.clone();
+                pixmaps.push("pixmaps");
+
+                icon_theme.add_search_path(icons);
+                icon_theme.add_search_path(pixmaps);
             }
         }
         // dbg!(icon_theme.search_path());

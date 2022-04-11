@@ -11,6 +11,7 @@ use gtk4::{
     traits::WidgetExt,
     Align, Button, DragSource, IconTheme, Image, Label, Orientation,
 };
+use std::path::{Path, PathBuf};
 
 use crate::app_group::BoxedAppGroupType;
 use crate::{app_group::AppGroup, desktop_entry_data::DesktopEntryData};
@@ -89,25 +90,33 @@ impl GridItem {
         // TODO set text direction, scale and theme for icons
         let icon_theme = self_.icon_theme.get().unwrap();
         let icon_name = desktop_entry_data.icon().unwrap_or_default();
-        let icon_size = icon_theme
-            .icon_sizes(&icon_name)
-            .into_iter()
-            .max()
-            .unwrap_or_default();
-        let icon = self_.icon_theme.get().unwrap().lookup_icon(
-            &icon_name,
-            &[],
-            icon_size,
-            1,
-            gtk4::TextDirection::Ltr,
-            gtk4::IconLookupFlags::PRELOAD,
-        );
-
-        self_.image.borrow().set_paintable(Some(&icon));
-        drag_controller.connect_drag_begin(glib::clone!(@weak icon, => move |_self, drag| {
-            drag.set_selected_action(gdk::DragAction::MOVE);
-            _self.set_icon(Some(&icon), 32, 32);
-        }));
+        let mut p = PathBuf::from(&icon_name);
+        if p.has_root() {
+            if p.starts_with("/usr") {
+                let stripped_path = p.strip_prefix("/").unwrap_or(&p);
+                p = Path::new("/var/run/host").join(stripped_path);
+            }
+            self_.image.borrow().set_from_file(Some(p));
+        } else {
+            let icon_size = icon_theme
+                .icon_sizes(&icon_name)
+                .into_iter()
+                .max()
+                .unwrap_or(1);
+            let icon = self_.icon_theme.get().unwrap().lookup_icon(
+                &icon_name,
+                &[],
+                icon_size,
+                1,
+                gtk4::TextDirection::Ltr,
+                gtk4::IconLookupFlags::PRELOAD,
+            );
+            self_.image.borrow().set_paintable(Some(&icon));
+            drag_controller.connect_drag_begin(glib::clone!(@weak icon, => move |_self, drag| {
+                drag.set_selected_action(gdk::DragAction::MOVE);
+                _self.set_icon(Some(&icon), 32, 32);
+            }));
+        };
     }
 
     pub fn set_group_info(&self, app_group: AppGroup) {
