@@ -6,7 +6,8 @@
     "sdk-extensions": ["org.freedesktop.Sdk.Extension.rust-stable"],
     "command": "cosmic-app-library",
     "finish-args" : [
-	    "--filesystem=xdg-data/*:ro",
+	    "--filesystem=xdg-data/flatpak:ro",
+	    "--filesystem=xdg-data:ro",
         "--filesystem=xdg-desktop:ro",
         "--filesystem=xdg-config/cosmic-theme:ro",
 	    "--filesystem=xdg-data/cosmic-theme:ro",

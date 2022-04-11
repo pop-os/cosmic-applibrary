@@ -1,8 +1,7 @@
 use std::{
     ffi::OsStr,
     fs,
-    path::{Path, PathBuf},
-    process::Command,
+    path::Path,
 };
 
 // SPDX-License-Identifier: GPL-3.0-only
@@ -58,16 +57,17 @@ impl AppGrid {
         let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
 
         let icon_theme = gtk4::IconTheme::for_display(&gdk::Display::default().unwrap());
-        let mut data_dirs = xdg_base.get_data_dirs();
+        let mut data_dirs = utils::xdg_data_dirs();
+
         data_dirs.push(xdg_base.get_data_home());
         if utils::in_flatpak() {
-            for p in data_dirs {
+            for mut p in data_dirs {
                 if p.starts_with("/usr") {
                     let stripped_path = p.strip_prefix("/").unwrap_or(&p);
-                    let mut data_dir = Path::new("/var/run/host").join(stripped_path);
-                    data_dir.push("icons");
-                    icon_theme.add_search_path(data_dir);
+                    p = Path::new("/var/run/host").join(stripped_path);
                 }
+                p.push("icons");
+                icon_theme.add_search_path(p);
             }
         }
         // dbg!(icon_theme.search_path());
@@ -90,9 +90,8 @@ impl AppGrid {
 
         let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
 
-        let mut data_dirs = xdg_base.get_data_dirs();
+        let mut data_dirs = utils::xdg_data_dirs();
         data_dirs.push(xdg_base.get_data_home());
-
         if utils::in_flatpak() {
             data_dirs.iter_mut().for_each(|p| {
                 if p.starts_with("/usr") {

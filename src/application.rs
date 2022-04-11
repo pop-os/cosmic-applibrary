@@ -127,7 +127,7 @@ impl CosmicAppLibraryApplication {
         );
 
         glib::MainContext::default().spawn_local(async move {
-            if let Err(e) = cosmic_theme::load_cosmic_gtk_theme(theme_provider).await {
+            if let Err(e) = cosmic_theme::load_cosmic_gtk4_theme(theme_provider).await {
                 eprintln!("{}", e);
             }
         });
