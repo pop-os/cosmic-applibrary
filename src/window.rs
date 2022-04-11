@@ -86,7 +86,8 @@ impl CosmicAppLibraryWindow {
         let action_quit = gio::SimpleAction::new("quit", None);
         action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
             window.close();
-            window.application().unwrap().quit();
+            window.application().map(|a| a.quit());
+            std::process::exit(0);
         }));
         self.add_action(&action_quit);
     }
@@ -161,7 +162,8 @@ impl CosmicAppLibraryWindow {
                 .expect("no active window available, closing app library.");
             if win == &active_window && !win.is_active() && !inner.is_popup_active() {
                 win.close();
-                win.application().unwrap().quit();
+                win.application().map(|a| a.quit());
+                std::process::exit(0);
             }
         }));
     }
