@@ -86,6 +86,7 @@ impl CosmicAppLibraryWindow {
         let action_quit = gio::SimpleAction::new("quit", None);
         action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
             window.close();
+            window.application().unwrap().quit();
         }));
         self.add_action(&action_quit);
     }
