@@ -45,7 +45,7 @@ impl GroupGrid {
             ..set_min_content_height(150);
             ..set_max_content_height(300);
             ..set_hexpand(true);
-            ..add_css_class("primary_container");
+            ..add_css_class("primary-container");
         };
         self_.append(&group_window);
 
@@ -53,7 +53,7 @@ impl GroupGrid {
             GridView::default();
             ..set_min_columns(8);
             ..set_max_columns(8);
-            ..add_css_class("primary_container");
+            ..add_css_class("primary-container");
         };
         group_window.set_child(Some(&group_grid_view));
 

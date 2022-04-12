@@ -2,6 +2,6 @@
 <gresources>
   <gresource prefix="/com/System76/AppLibrary/">
     <!-- see https://gtk-rs.org/gtk4-rs/git/docs/gtk4/struct.Application.html#automatic-resources -->
-    <file compressed="true">base.css</file>
+    <file compressed="true">style.css</file>
   </gresource>
 </gresources>

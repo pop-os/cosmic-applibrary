@@ -36,7 +36,7 @@ impl AppGrid {
             ..set_min_content_height(520);
             ..set_hexpand(true);
             ..set_margin_top(12);
-            ..add_css_class("primary_container");
+            ..add_css_class("primary-container");
         };
         self_.append(&library_window);
 
@@ -45,7 +45,7 @@ impl AppGrid {
             ..set_min_columns(7);
             ..set_max_columns(7);
             ..set_single_click_activate(true);
-            ..add_css_class("primary_container");
+            ..add_css_class("primary-container");
         };
         library_window.set_child(Some(&library_grid));
 
