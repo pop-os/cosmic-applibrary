@@ -203,16 +203,16 @@ impl AppGrid {
             if let Some(item) = model.item(i) {
                 let app_info = item.downcast::<DesktopEntryData>().unwrap();
                 // TODO include context in launch
-                let context = list_view.display().app_launch_context();
-                if let Err(err) = app_info.launch() {
-                    gtk4::MessageDialog::builder()
-                        .text(&format!("Failed to start {}", app_info.name()))
-                        .secondary_text(&err.to_string())
-                        .message_type(gtk4::MessageType::Error)
-                        .modal(true)
-                        .build()
-                        .show();
+                if let Err(_) = app_info.launch() {
+                    log::error!("Failed to start {}", app_info.name());
                 }
+                if let Some(Ok(Some(app))) = list_view.root().map(|root| {
+                    root.downcast::<gtk4::ApplicationWindow>()
+                        .map(|appwindow| appwindow.application())
+                }) {
+                    app.quit();
+                }
+                std::process::exit(1);
             }
         });
     }
