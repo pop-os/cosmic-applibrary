@@ -1,4 +1,4 @@
-Source: cosmic-applibrary
+Source: cosmic-app-library
 Section: admin
 Priority: optional
 Maintainer: System76 <info@system76.com>
@@ -12,9 +12,9 @@ Build-Depends:
   ninja-build,
   pkg-config,
 Standards-Version: 4.3.0
-Homepage: https://github.com/pop-os/cosmic-applibrary
+Homepage: https://github.com/pop-os/cosmic-app-library
 
-Package: cosmic-applibrary
+Package: cosmic-app-library
 Architecture: amd64 arm64
 Depends:
   ${misc:Depends},
