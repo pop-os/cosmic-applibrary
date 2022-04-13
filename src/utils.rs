@@ -2,7 +2,6 @@
 use std::path::PathBuf;
 
 use gtk4::glib;
-use gtk4::IconPaintable;
 use gtk4::ScrolledWindow;
 
 pub fn data_path() -> PathBuf {
@@ -41,7 +40,7 @@ pub fn xdg_data_dirs() -> Vec<PathBuf> {
         .collect()
     } else {
         let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
-        let mut data_dirs = xdg_base.get_data_dirs();
+        let data_dirs = xdg_base.get_data_dirs();
         data_dirs
     }
 }
