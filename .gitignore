@@ -11,3 +11,5 @@ src/config.rs
 vendor
 repo
 flatpak_app
+.flatpak-builder
+.*

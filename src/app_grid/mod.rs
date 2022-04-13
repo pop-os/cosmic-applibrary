@@ -55,7 +55,6 @@ impl AppGrid {
         let icon_theme = gtk4::IconTheme::for_display(&gdk::Display::default().unwrap());
         let mut data_dirs = utils::xdg_data_dirs();
 
-        data_dirs.push(xdg_base.get_data_home());
         if utils::in_flatpak() {
             for mut p in data_dirs {
                 if p.starts_with("/usr") {
@@ -88,11 +87,8 @@ impl AppGrid {
         let app_model = gio::ListStore::new(DesktopEntryData::static_type());
         // Get state and set model
         let imp = imp::AppGrid::from_instance(self);
-
-        let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
-
         let mut data_dirs = utils::xdg_data_dirs();
-        data_dirs.push(xdg_base.get_data_home());
+        dbg!(&data_dirs);
         if utils::in_flatpak() {
             data_dirs.iter_mut().for_each(|p| {
                 if p.starts_with("/usr") {
@@ -102,7 +98,9 @@ impl AppGrid {
             });
         }
 
+        let mut apps = std::collections::HashSet::new();
         data_dirs.iter_mut().for_each(|xdg_data_path| {
+            xdg_data_path.push("applications");
             for entry in WalkDir::new(xdg_data_path)
                 .max_depth(2)
                 .into_iter()
@@ -110,7 +108,14 @@ impl AppGrid {
                     if let Ok(e) = e {
                         let p = e.into_path();
                         if p.extension() == Some(OsStr::new("desktop")) {
-                            Some(p)
+                            let name = String::from(p.file_name().unwrap().to_string_lossy());
+                            if !apps.contains(&name.clone()) {
+                                apps.insert(name);
+                                dbg!(&p);
+                                Some(p)
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }

@@ -89,7 +89,7 @@ gridview.primary-container child {
 
 gridview.primary-container child:selected {
   transition-duration: 50ms;
-  background-color: rgb(60, 57, 70, 0);
+  background-color: rgb(60, 57, 70);
   border-color: #9bccd1ff;
   outline-color: #9bccd1ff;
   color: #ededed;

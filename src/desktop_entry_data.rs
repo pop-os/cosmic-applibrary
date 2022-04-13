@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::rc::Rc;
 
+use crate::utils;
+
 mod imp {
 
     use super::*;
@@ -98,16 +100,28 @@ impl DesktopEntryData {
                 .borrow()
                 .clone()
         );
-        Command::new("flatpak-spawn")
-            .arg("--host")
-            .arg("gtk-launch")
-            .arg(
-                imp::DesktopEntryData::from_instance(self)
-                    .appid
-                    .borrow()
-                    .clone(),
-            )
-            .spawn()
-            .map_err(anyhow::Error::msg)
+        if utils::in_flatpak() {
+            Command::new("flatpak-spawn")
+                .arg("--host")
+                .arg("gtk-launch")
+                .arg(
+                    imp::DesktopEntryData::from_instance(self)
+                        .appid
+                        .borrow()
+                        .clone(),
+                )
+                .spawn()
+                .map_err(anyhow::Error::msg)
+        } else {
+            Command::new("gtk-launch")
+                .arg(
+                    imp::DesktopEntryData::from_instance(self)
+                        .appid
+                        .borrow()
+                        .clone(),
+                )
+                .spawn()
+                .map_err(anyhow::Error::msg)
+        }
     }
 }
