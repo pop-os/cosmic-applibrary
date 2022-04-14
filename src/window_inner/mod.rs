@@ -2,7 +2,7 @@
 use cascade::cascade;
 use gtk4::prelude::*;
 use gtk4::subclass::prelude::*;
-use gtk4::{gio, glib, Align, CustomFilter, Orientation, SearchEntry, Separator};
+use gtk4::{glib, Align, CustomFilter, Orientation, SearchEntry, Separator};
 
 use crate::app_grid::AppGrid;
 use crate::desktop_entry_data::DesktopEntryData;

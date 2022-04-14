@@ -1,4 +1,3 @@
-use gettextrs::gettext;
 use log::{debug, info};
 
 use glib::clone;
@@ -6,7 +5,7 @@ use gtk4::subclass::prelude::*;
 use gtk4::{gdk::Display, gio, glib};
 use gtk4::{prelude::*, CssProvider, StyleContext};
 
-use crate::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
+use crate::config::{APP_ID, VERSION};
 use crate::window::CosmicAppLibraryWindow;
 
 mod imp {
@@ -74,7 +73,10 @@ impl CosmicAppLibraryApplication {
         glib::Object::new(&[
             ("application-id", &Some(APP_ID)),
             ("flags", &gio::ApplicationFlags::empty()),
-            ("resource-base-path", &Some("/com/System76/AppLibrary/")),
+            (
+                "resource-base-path",
+                &Some("/com/System76/CosmicAppLibrary/"),
+            ),
         ])
         .expect("Application initialization failed...")
     }
@@ -141,7 +143,7 @@ impl CosmicAppLibraryApplication {
             // .website("https://gitlab.gnome.org/bilelmoussaoui/cosmic-app-library/")
             .version(VERSION)
             .transient_for(&self.main_window())
-            .translator_credits(&gettext("translator-credits"))
+            .translator_credits("translator-credits")
             .modal(true)
             .authors(vec!["Ashley Wulber".into()])
             .artists(vec!["Ashley Wulber".into()])
@@ -152,8 +154,7 @@ impl CosmicAppLibraryApplication {
 
     pub fn run(&self) {
         info!("Cosmic App Library ({})", APP_ID);
-        info!("Version: {} ({})", VERSION, PROFILE);
-        info!("Datadir: {}", PKGDATADIR);
+        info!("Version: {}", VERSION);
 
         ApplicationExtManual::run(self);
     }

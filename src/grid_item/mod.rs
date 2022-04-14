@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0-only
+use crate::{
+    app_group::{AppGroup, BoxedAppGroupType},
+    desktop_entry_data::DesktopEntryData,
+    fl, utils,
+};
 use cascade::cascade;
-use gettextrs::gettext;
 use gtk4::{
     gdk::{self, ContentProvider, Display},
     gio::{DesktopAppInfo, File, Icon},
@@ -12,9 +16,6 @@ use gtk4::{
     Align, Button, DragSource, IconTheme, Image, Label, Orientation,
 };
 use std::path::{Path, PathBuf};
-
-use crate::{app_group::AppGroup, desktop_entry_data::DesktopEntryData};
-use crate::{app_group::BoxedAppGroupType, utils};
 
 mod imp;
 
@@ -154,7 +155,7 @@ impl GridItem {
             }
             BoxedAppGroupType::NewGroup(popover_active) => {
                 // else must be add group
-                imp.name.borrow().set_text(&gettext("New Group"));
+                imp.name.borrow().set_text(&fl!("new-group"));
                 imp.image.borrow().set_from_icon_name(Some("folder-new"));
 
                 let popover_menu = gtk4::Box::builder()
@@ -173,7 +174,7 @@ impl GridItem {
                     ..add_css_class("border-radius-medium");
                 };
                 let label = cascade! {
-                    Label::new(Some(&gettext("Name")));
+                    Label::new(Some(&fl!("name")));
                     ..set_justify(gtk4::Justification::Left);
                     ..set_xalign(0.0);
                 };
@@ -184,12 +185,12 @@ impl GridItem {
                     ..add_css_class("background");
                 };
                 let ok_btn = cascade! {
-                    Button::with_label(&gettext("Ok"));
+                    Button::with_label(&fl!("ok"));
                     ..add_css_class("suggested-action");
                     ..add_css_class("border-radius-medium");
                 };
                 let cancel_btn = cascade! {
-                    Button::with_label(&gettext("Cancel"));
+                    Button::with_label(&fl!("cancel"));
                     ..add_css_class("destructive-action");
                     ..add_css_class("border-radius-medium");
                 };

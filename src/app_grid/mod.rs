@@ -50,10 +50,9 @@ impl AppGrid {
         library_window.set_child(Some(&library_grid));
 
         imp.app_grid_view.set(library_grid).unwrap();
-        let xdg_base = xdg::BaseDirectories::new().expect("could not access XDG Base directory");
 
         let icon_theme = gtk4::IconTheme::for_display(&gdk::Display::default().unwrap());
-        let mut data_dirs = utils::xdg_data_dirs();
+        let data_dirs = utils::xdg_data_dirs();
 
         if utils::in_flatpak() {
             for mut p in data_dirs {
@@ -88,7 +87,6 @@ impl AppGrid {
         // Get state and set model
         let imp = imp::AppGrid::from_instance(self);
         let mut data_dirs = utils::xdg_data_dirs();
-        dbg!(&data_dirs);
         if utils::in_flatpak() {
             data_dirs.iter_mut().for_each(|p| {
                 if p.starts_with("/usr") {
@@ -111,7 +109,6 @@ impl AppGrid {
                             let name = String::from(p.file_name().unwrap().to_string_lossy());
                             if !apps.contains(&name.clone()) {
                                 apps.insert(name);
-                                dbg!(&p);
                                 Some(p)
                             } else {
                                 None

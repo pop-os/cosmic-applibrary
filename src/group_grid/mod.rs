@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0-only
 use cascade::cascade;
-use gettextrs::gettext;
 use gtk4::{
     gio,
     glib::{self, Object},
@@ -10,13 +9,13 @@ use gtk4::{
 };
 use std::fs::File;
 
-use crate::grid_item::GridItem;
 use crate::utils::data_path;
 use crate::utils::set_group_scroll_policy;
 use crate::{
     app_group::{AppGroup, AppGroupData, BoxedAppGroupType},
     desktop_entry_data::DesktopEntryData,
 };
+use crate::{fl, grid_item::GridItem};
 
 mod imp;
 
@@ -79,7 +78,7 @@ impl GroupGrid {
         vec![
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
-                name: gettext("Library Home"),
+                name: fl!("library-home"),
                 icon: "user-home".to_string(),
                 mutable: false,
                 app_names: Vec::new(),
@@ -87,7 +86,7 @@ impl GroupGrid {
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
-                name: gettext("System"),
+                name: fl!("system"),
                 icon: "folder".to_string(),
                 mutable: false,
                 app_names: Vec::new(),
@@ -95,7 +94,7 @@ impl GroupGrid {
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
-                name: gettext("Utilities"),
+                name: fl!("utilities"),
                 icon: "folder".to_string(),
                 mutable: false,
                 app_names: Vec::new(),

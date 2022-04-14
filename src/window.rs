@@ -1,10 +1,6 @@
-use crate::application::CosmicAppLibraryApplication;
-use crate::config::{APP_ID, PROFILE};
-
-use crate::window_inner::AppLibraryWindowInner;
+use crate::{application::CosmicAppLibraryApplication, fl, window_inner::AppLibraryWindowInner};
 use cascade::cascade;
 use gdk4_x11::X11Display;
-use gettextrs::gettext;
 use gtk4::{
     gio,
     glib::{self, Object},
@@ -65,7 +61,7 @@ impl CosmicAppLibraryWindow {
         cascade! {
             &self_;
             ..set_width_request(1200);
-            ..set_title(Some(&gettext("Cosmic App Library")));
+            ..set_title(Some(&fl!("cosmic-app-library")));
             ..set_decorated(false);
             ..add_css_class("root_window");
             ..add_css_class("padding-medium");

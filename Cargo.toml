@@ -28,10 +28,14 @@ dirs = "4.0.0"
 walkdir = "2.3.2"
 freedesktop-desktop-entry = "0.5.0"
 anyhow = "1.0.56"
+i18n-embed = { version = "0.13.4", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.6.4"
+rust-embed = "6.3.0"
 
 [profile.release]
 incremental = true
 debug = 1
 
 [features]
-layer-shell = ["gdk4-wayland", "wayland-client", "wayland-protocols"]
+default = ["dev"]
+dev = []
