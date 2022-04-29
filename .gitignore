@@ -4,11 +4,15 @@ target/
 build/
 _build/
 builddir/
+vendor/
+vendor.tar
+
 build-aux/app
 build-aux/.flatpak-builder/
 .flatpak/
 flatpak_app
 .flatpak-builder
+
 .*
 debian/*
 !debian/*install
