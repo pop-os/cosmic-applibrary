@@ -14,7 +14,6 @@ mod window_inner;
 use gtk4::{gio, glib};
 
 use self::application::CosmicAppLibraryApplication;
-use self::config::RESOURCES_FILE;
 
 pub fn localize() {
     let localizer = crate::localize::localizer();
@@ -35,8 +34,7 @@ fn main() {
 
     localize();
 
-    let res = gio::Resource::load(RESOURCES_FILE).expect("Could not load gresource file");
-    gio::resources_register(&res);
+    gio::resources_register_include!("compiled.gresource").unwrap();
 
     let app = CosmicAppLibraryApplication::new();
     app.run();
