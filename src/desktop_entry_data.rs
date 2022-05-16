@@ -93,13 +93,6 @@ impl DesktopEntryData {
     }
 
     pub fn launch(&self) -> Result<Child> {
-        println!(
-            "starting {}",
-            imp::DesktopEntryData::from_instance(self)
-                .appid
-                .borrow()
-                .clone()
-        );
         if utils::in_flatpak() {
             Command::new("flatpak-spawn")
                 .arg("--host")

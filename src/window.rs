@@ -93,7 +93,6 @@ impl CosmicAppLibraryWindow {
         let window = self.clone().upcast::<gtk4::Window>();
 
         window.connect_realize(move |window| {
-            println!("gtk window setup");
             if let Some((display, surface)) = x::get_window_x11(window) {
                 // ignore all x11 errors...
                 let xdisplay = display
@@ -143,7 +142,7 @@ impl CosmicAppLibraryWindow {
                     glib::source::idle_add_local_once(resize.clone());
                 });
             } else {
-                println!("failed to get X11 window");
+                eprintln!("failed to get X11 window");
             }
         });
 

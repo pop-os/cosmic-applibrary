@@ -143,7 +143,6 @@ impl GroupGrid {
         let self_clone = self.clone();
         group_grid_view.connect_activate(move |group_grid_view, i| {
             // on activation change the group filter model to use the app names, and category
-            println!("grid view activated. {}", i);
             let group_model = group_grid_view
                 .model()
                 .unwrap()
@@ -267,7 +266,7 @@ impl GroupGrid {
             self.group_model().splice(3, 0, &app_group_objects);
             set_group_scroll_policy(&scroll_window, self.group_model().n_items());
         } else {
-            println!("Backup file does not exist yet {:?}", data_path());
+            eprintln!("Backup file does not exist yet {:?}", data_path());
         }
     }
     pub fn store_data(&self) {
