@@ -75,7 +75,7 @@ impl CosmicAppLibraryApplication {
             ("flags", &gio::ApplicationFlags::empty()),
             (
                 "resource-base-path",
-                &Some("/com/System76/CosmicAppLibrary/"),
+                &Some("/com/system76/CosmicAppLibrary/"),
             ),
         ])
         .expect("Application initialization failed...")

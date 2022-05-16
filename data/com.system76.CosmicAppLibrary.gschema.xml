@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <schemalist>
-  <schema path="/com/System76/CosmicAppLibrary/" id="com.System76.CosmicAppLibrary">
+  <schema path="/com/system76/CosmicAppLibrary/" id="com.system76.CosmicAppLibrary">
     <key name="window-width" type="i">
       <default>600</default>
       <summary>Default window width</summary>

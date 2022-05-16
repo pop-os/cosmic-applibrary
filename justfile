@@ -8,7 +8,7 @@ vendor_args := if vendor == '1' { '--frozen --offline' } else { '' }
 debug_args := if debug == '1' { '' } else { '--release' }
 cargo_args := vendor_args + ' ' + debug_args
 
-id := 'com.System76.CosmicAppLibrary'
+id := 'com.system76.CosmicAppLibrary'
 
 sharedir := rootdir + prefix + '/share'
 iconsdir := sharedir + '/icons/hicolor/scalable/apps'
