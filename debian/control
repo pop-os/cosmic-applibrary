@@ -11,7 +11,7 @@ Build-Depends:
   just,
   pkg-config,
 Standards-Version: 4.3.0
-Homepage: https://github.com/pop-os/cosmic-app-library
+Homepage: https://github.com/pop-os/cosmic-applibrary
 
 Package: cosmic-app-library
 Architecture: amd64 arm64
