@@ -72,21 +72,21 @@ impl CosmicAppLibraryWindow {
         imp.inner.set(app_library).unwrap();
 
         self_.setup_callbacks();
-        self_.setup_shortcuts();
+        // self_.setup_shortcuts();
 
         self_
     }
 
-    fn setup_shortcuts(&self) {
-        let window = self.clone().upcast::<gtk4::Window>();
-        let action_quit = gio::SimpleAction::new("quit", None);
-        action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
-            window.close();
-            window.application().map(|a| a.quit());
-            std::process::exit(0);
-        }));
-        self.add_action(&action_quit);
-    }
+    // fn setup_shortcuts(&self) {
+        // let window = self.clone().upcast::<gtk4::Window>();
+        // let action_quit = gio::SimpleAction::new("quit", None);
+        // action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
+        //     window.close();
+        //     window.application().map(|a| a.quit());
+        //     std::process::exit(0);
+        // }));
+        // self.add_action(&action_quit);
+    // }
 
     fn setup_callbacks(&self) {
         // Get state
@@ -146,20 +146,20 @@ impl CosmicAppLibraryWindow {
             }
         });
 
-        let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
-        let inner = imp.inner.get().unwrap();
-        window.connect_is_active_notify(glib::clone!(@weak inner => move |win| {
-            let app = win
-                .application()
-                .expect("could not get application from window");
-            let active_window = app
-                .active_window()
-                .expect("no active window available, closing app library.");
-            if win == &active_window && !win.is_active() && !inner.is_popup_active() {
-                win.close();
-                win.application().map(|a| a.quit());
-                std::process::exit(0);
-            }
-        }));
+        // let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
+        // let inner = imp.inner.get().unwrap();
+        // window.connect_is_active_notify(glib::clone!(@weak inner => move |win| {
+        //     let app = win
+        //         .application()
+        //         .expect("could not get application from window");
+        //     let active_window = app
+        //         .active_window()
+        //         .expect("no active window available, closing app library.");
+        //     if win == &active_window && !win.is_active() && !inner.is_popup_active() {
+        //         win.close();
+        //         win.application().map(|a| a.quit());
+        //         std::process::exit(0);
+        //     }
+        // }));
     }
 }

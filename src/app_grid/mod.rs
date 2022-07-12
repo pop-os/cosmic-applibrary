@@ -208,13 +208,13 @@ impl AppGrid {
                 if let Err(_) = app_info.launch() {
                     log::error!("Failed to start {}", app_info.name());
                 }
-                if let Some(Ok(Some(app))) = list_view.root().map(|root| {
-                    root.downcast::<gtk4::ApplicationWindow>()
-                        .map(|appwindow| appwindow.application())
-                }) {
-                    app.quit();
-                }
-                std::process::exit(1);
+                // if let Some(Ok(Some(app))) = list_view.root().map(|root| {
+                //     root.downcast::<gtk4::ApplicationWindow>()
+                //         .map(|appwindow| appwindow.application())
+                // }) {
+                    // app.quit();
+                // }
+                // std::process::exit(1);
             }
         });
     }

@@ -55,7 +55,6 @@ mod imp {
 
             app.setup_css();
             app.setup_gactions();
-            app.setup_accels();
         }
     }
 
@@ -104,9 +103,9 @@ impl CosmicAppLibraryApplication {
     }
 
     // Sets up keyboard shortcuts
-    fn setup_accels(&self) {
-        self.set_accels_for_action("app.quit", &["<Control>w", "Escape"]);
-    }
+    // fn setup_accels(&self) {
+    //     self.set_accels_for_action("app.quit", &["<Control>w", "Escape"]);
+    // }
 
     fn setup_css(&self) {
         // Load the css file and add it to the provider
