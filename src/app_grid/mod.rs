@@ -81,6 +81,17 @@ impl AppGrid {
         self_
     }
 
+    pub fn reset(&self) {
+        let imp = imp::AppGrid::from_instance(&self);
+
+        let app_model = imp.app_grid_view.get().unwrap()
+            .model()
+            .unwrap()
+            .downcast::<gtk4::SingleSelection>()
+            .unwrap();
+        app_model.set_selected(0);
+    }
+
     fn setup_model(&self) {
         // Create new model
         let app_model = gio::ListStore::new(DesktopEntryData::static_type());

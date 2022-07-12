@@ -71,6 +71,13 @@ impl AppLibraryWindowInner {
         self_
     }
 
+    pub fn clear(&self) {
+        let imp = imp::AppLibraryWindowInner::from_instance(self);
+        imp.entry.get().unwrap().set_text("");
+        imp.app_grid.get().unwrap().reset();
+        imp.group_grid.get().unwrap().reset();
+    }
+
     pub fn group_grid(&self) -> Option<&GroupGrid> {
         let imp = imp::AppLibraryWindowInner::from_instance(self);
         imp.group_grid.get()

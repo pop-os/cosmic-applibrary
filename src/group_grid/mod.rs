@@ -69,6 +69,16 @@ impl GroupGrid {
         self_
     }
 
+    pub fn reset(&self) {
+        let imp = imp::GroupGrid::from_instance(&self);
+        let group_model = imp.group_grid_view.get().unwrap()
+            .model()
+            .unwrap()
+            .downcast::<gtk4::SingleSelection>()
+            .unwrap();
+        group_model.set_selected(0);
+    }
+
     fn setup_model(&self) {
         let imp = imp::GroupGrid::from_instance(&self);
         let group_model = gio::ListStore::new(AppGroup::static_type());

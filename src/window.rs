@@ -146,20 +146,18 @@ impl CosmicAppLibraryWindow {
             }
         });
 
-        // let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
-        // let inner = imp.inner.get().unwrap();
-        // window.connect_is_active_notify(glib::clone!(@weak inner => move |win| {
-        //     let app = win
-        //         .application()
-        //         .expect("could not get application from window");
-        //     let active_window = app
-        //         .active_window()
-        //         .expect("no active window available, closing app library.");
-        //     if win == &active_window && !win.is_active() && !inner.is_popup_active() {
-        //         win.close();
-        //         win.application().map(|a| a.quit());
-        //         std::process::exit(0);
-        //     }
-        // }));
+        let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
+        let inner = imp.inner.get().unwrap();
+        window.connect_is_active_notify(glib::clone!(@weak inner => move |win| {
+            let app = win
+                .application()
+                .expect("could not get application from window");
+            let active_window = app
+                .active_window()
+                .expect("no active window available, closing app library.");
+            if win == &active_window && !win.is_active() && !inner.is_popup_active() {
+                inner.clear();
+            }
+        }));
     }
 }
