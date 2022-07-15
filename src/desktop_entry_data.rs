@@ -93,6 +93,11 @@ impl DesktopEntryData {
     }
 
     pub fn launch(&self) -> Result<Child> {
+        let wayland_display = if let Ok(display) = std::env::var("HOST_WAYLAND_DISPLAY") {
+            Some(("WAYLAND_DISPLAY", display))
+        } else {
+            None
+        };
         if utils::in_flatpak() {
             Command::new("flatpak-spawn")
                 .arg("--host")
@@ -103,6 +108,7 @@ impl DesktopEntryData {
                         .borrow()
                         .clone(),
                 )
+                .envs(wayland_display)
                 .spawn()
                 .map_err(anyhow::Error::msg)
         } else {
@@ -113,6 +119,7 @@ impl DesktopEntryData {
                         .borrow()
                         .clone(),
                 )
+                .envs(wayland_display)
                 .spawn()
                 .map_err(anyhow::Error::msg)
         }
