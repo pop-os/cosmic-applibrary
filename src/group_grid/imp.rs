@@ -23,15 +23,10 @@ impl ObjectSubclass for GroupGrid {
 impl ObjectImpl for GroupGrid {
     fn signals() -> &'static [Signal] {
         static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
-            vec![Signal::builder(
-                // Signal name
-                "group-changed",
-                // Types of the values which will be sent to the signal handler
-                &[CustomFilter::static_type().into()],
-                // Type of the value the signal handler sends back
-                <()>::static_type().into(),
-            )
-            .build()]
+            vec![Signal::builder("group-changed")
+                .param_types(&[CustomFilter::static_type().into()])
+                .return_type::<()>()
+                .build()]
         });
         SIGNALS.as_ref()
     }

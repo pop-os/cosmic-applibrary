@@ -30,24 +30,10 @@ impl ObjectImpl for GridItem {
     fn signals() -> &'static [Signal] {
         static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
             vec![
-                Signal::builder(
-                    // Signal name
-                    "new-group",
-                    // Types of the values which will be sent to the signal handler
-                    &[String::static_type().into()],
-                    // Type of the value the signal handler sends back
-                    <()>::static_type().into(),
-                )
-                .build(),
-                Signal::builder(
-                    // Signal name
-                    "popover-closed",
-                    // Types of the values which will be sent to the signal handler
-                    &[],
-                    // Type of the value the signal handler sends back
-                    <()>::static_type().into(),
-                )
-                .build(),
+                Signal::builder("new-group")
+                    .param_types(&[String::static_type().into()])
+                    .build(),
+                Signal::builder("popover-closed").build(),
             ]
         });
         SIGNALS.as_ref()

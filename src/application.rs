@@ -125,12 +125,6 @@ impl CosmicAppLibraryApplication {
             &theme_provider,
             gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
         );
-
-        glib::MainContext::default().spawn_local(async move {
-            if let Err(e) = cosmic_theme::load_cosmic_gtk4_theme(theme_provider).await {
-                eprintln!("{}", e);
-            }
-        });
     }
 
     fn show_about_dialog(&self) {

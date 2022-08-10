@@ -1,13 +1,11 @@
 use crate::{application::CosmicAppLibraryApplication, fl, window_inner::AppLibraryWindowInner};
 use cascade::cascade;
-use gdk4_x11::X11Display;
 use gtk4::{
     gio,
     glib::{self, Object},
     prelude::*,
     subclass::prelude::*,
 };
-use libcosmic::x;
 
 mod imp {
     use super::*;
@@ -77,74 +75,9 @@ impl CosmicAppLibraryWindow {
         self_
     }
 
-    // fn setup_shortcuts(&self) {
-        // let window = self.clone().upcast::<gtk4::Window>();
-        // let action_quit = gio::SimpleAction::new("quit", None);
-        // action_quit.connect_activate(glib::clone!(@weak window => move |_, _| {
-        //     window.close();
-        //     window.application().map(|a| a.quit());
-        //     std::process::exit(0);
-        // }));
-        // self.add_action(&action_quit);
-    // }
-
     fn setup_callbacks(&self) {
         // Get state
         let window = self.clone().upcast::<gtk4::Window>();
-
-        window.connect_realize(move |window| {
-            if let Some((display, surface)) = x::get_window_x11(window) {
-                // ignore all x11 errors...
-                let xdisplay = display
-                    .clone()
-                    .downcast::<X11Display>()
-                    .expect("Failed to downgrade X11 Display.");
-                xdisplay.error_trap_push();
-                unsafe {
-                    x::change_property(
-                        &display,
-                        &surface,
-                        "_NET_WM_WINDOW_TYPE",
-                        x::PropMode::Replace,
-                        &[x::Atom::new(&display, "_NET_WM_WINDOW_TYPE_DIALOG").unwrap()],
-                    );
-                }
-                let resize = glib::clone!(@weak window => move || {
-                    let height = window.height();
-                    let width = window.width();
-
-                    if let Some((display, _surface)) = x::get_window_x11(&window) {
-                        let geom = display
-                            .primary_monitor().geometry();
-                        let monitor_x = geom.x();
-                        let monitor_y = geom.y();
-                        let monitor_width = geom.width();
-                        let monitor_height = geom.height();
-                        // dbg!(monitor_width);
-                        // dbg!(monitor_height);
-                        // dbg!(width);
-                        // dbg!(height);
-                        unsafe { x::set_position(&display, &surface,
-                            monitor_x + monitor_width / 2 - width / 2,
-                                                 monitor_y + monitor_height / 2 - height / 2)};
-                    }
-                });
-                let s = window.surface();
-                let resize_height = resize.clone();
-                s.connect_height_notify(move |_s| {
-                    glib::source::idle_add_local_once(resize_height.clone());
-                });
-                let resize_width = resize.clone();
-                s.connect_width_notify(move |_s| {
-                    glib::source::idle_add_local_once(resize_width.clone());
-                });
-                s.connect_scale_factor_notify(move |_s| {
-                    glib::source::idle_add_local_once(resize.clone());
-                });
-            } else {
-                eprintln!("failed to get X11 window");
-            }
-        });
 
         let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
         let inner = imp.inner.get().unwrap();

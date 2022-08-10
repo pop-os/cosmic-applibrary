@@ -84,7 +84,10 @@ impl AppGrid {
     pub fn reset(&self) {
         let imp = imp::AppGrid::from_instance(&self);
 
-        let app_model = imp.app_grid_view.get().unwrap()
+        let app_model = imp
+            .app_grid_view
+            .get()
+            .unwrap()
             .model()
             .unwrap()
             .downcast::<gtk4::SingleSelection>()
@@ -223,7 +226,7 @@ impl AppGrid {
                 //     root.downcast::<gtk4::ApplicationWindow>()
                 //         .map(|appwindow| appwindow.application())
                 // }) {
-                    // app.quit();
+                // app.quit();
                 // }
                 // std::process::exit(1);
             }

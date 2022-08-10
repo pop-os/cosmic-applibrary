@@ -71,7 +71,10 @@ impl GroupGrid {
 
     pub fn reset(&self) {
         let imp = imp::GroupGrid::from_instance(&self);
-        let group_model = imp.group_grid_view.get().unwrap()
+        let group_model = imp
+            .group_grid_view
+            .get()
+            .unwrap()
             .model()
             .unwrap()
             .downcast::<gtk4::SingleSelection>()
