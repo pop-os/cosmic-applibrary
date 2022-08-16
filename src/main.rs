@@ -28,10 +28,11 @@ pub fn localize() {
 }
 
 fn main() {
-    let _ = gtk4::init();
-    adw::init();
     // Initialize logger
     pretty_env_logger::init();
+    
+    let _ = libcosmic::init();
+
     glib::set_application_name("Cosmic App Library");
 
     localize();
