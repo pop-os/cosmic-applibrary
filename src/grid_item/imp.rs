@@ -31,7 +31,7 @@ impl ObjectImpl for GridItem {
         static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
             vec![
                 Signal::builder("new-group")
-                    .param_types(&[String::static_type().into()])
+                    .param_types(Some(String::static_type()))
                     .build(),
                 Signal::builder("popover-closed").build(),
             ]

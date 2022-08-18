@@ -24,7 +24,7 @@ impl ObjectImpl for GroupGrid {
     fn signals() -> &'static [Signal] {
         static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
             vec![Signal::builder("group-changed")
-                .param_types(&[CustomFilter::static_type().into()])
+                .param_types(Some(CustomFilter::static_type()))
                 .return_type::<()>()
                 .build()]
         });
