@@ -31,7 +31,7 @@ fn main() {
     // Initialize logger
     pretty_env_logger::init();
     
-    let _ = libcosmic::init();
+    let _monitors = libcosmic::init();
 
     glib::set_application_name("Cosmic App Library");
 
