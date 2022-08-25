@@ -5,11 +5,11 @@ use gtk4::{
     glib::{self, Object},
     prelude::*,
     subclass::prelude::*,
-    GridView, PolicyType, ScrolledWindow, SignalListItemFactory,
+    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, INVALID_LIST_POSITION,
 };
 use std::fs::File;
 
-use crate::utils::data_path;
+use crate::{utils::data_path, app_group::FilterType};
 use crate::utils::set_group_scroll_policy;
 use crate::{
     app_group::{AppGroup, AppGroupData, BoxedAppGroupType},
@@ -79,7 +79,7 @@ impl GroupGrid {
             .unwrap()
             .downcast::<gtk4::SingleSelection>()
             .unwrap();
-        group_model.set_selected(0);
+        group_model.set_selected(INVALID_LIST_POSITION);
     }
 
     fn setup_model(&self) {
@@ -94,34 +94,22 @@ impl GroupGrid {
                 name: fl!("library-home"),
                 icon: "user-home".to_string(),
                 mutable: false,
-                app_names: Vec::new(),
-                category: "".to_string(),
+                filter: FilterType::None,
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
                 name: fl!("system"),
                 icon: "folder".to_string(),
                 mutable: false,
-                app_names: Vec::new(),
-                category: "System".to_string(),
+                filter: FilterType::Categories(vec!["System".to_string()]),
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
                 name: fl!("utilities"),
                 icon: "folder".to_string(),
                 mutable: false,
-                app_names: Vec::new(),
-                category: "Utility".to_string(),
+                filter: FilterType::Categories(vec!["Utility".to_string()]),
             })),
-            // Example of group with app name
-            // AppGroup::new(AppGroupData {
-            //     id: 0,
-            //     name: "Custom Web".to_string(),
-            //     icon: "folder".to_string(),
-            //     mutable: true,
-            //     app_names: vec!["Firefox Web Browser".to_string()],
-            //     category: "".to_string(),
-            // }),
             AppGroup::new(BoxedAppGroupType::NewGroup(false)),
         ]
         .iter()
@@ -173,19 +161,20 @@ impl GroupGrid {
                 .unwrap()
                 .group_data()
             {
-                let category = data.category.to_lowercase();
+                let filter = data.filter;
 
                 let new_filter: gtk4::CustomFilter = gtk4::CustomFilter::new(move |obj| {
                     let app = obj
                         .downcast_ref::<DesktopEntryData>()
                         .expect("The Object needs to be of type AppInfo");
-                    if data.app_names.len() > 0 {
-                        return data.app_names.contains(&String::from(app.name().as_str()));
-                    }
-                    app.categories()
+                    match filter {
+                        crate::app_group::FilterType::AppNames(ref names) => names.contains(&String::from(app.name().as_str())),
+                        crate::app_group::FilterType::Categories(ref requested_categories) => requested_categories.iter().any(|category| app.categories()
                         .to_string()
                         .to_lowercase()
-                        .contains(&category)
+                        .contains(&category.to_lowercase())),
+                        crate::app_group::FilterType::None => true,
+                    }
                 });
                 self_clone.emit_by_name::<()>("group-changed", &[&new_filter]);
             } else {
@@ -224,8 +213,7 @@ impl GroupGrid {
                                 name: name,
                                 icon: "folder".to_string(),
                                 mutable: false,
-                                app_names: Vec::new(),
-                                category: "".to_string(),
+                                filter: FilterType::AppNames(Vec::new())
                             })).upcast::<Object>();
 
                             m.insert(m.n_items() - 1, &new_group);
@@ -264,7 +252,7 @@ impl GroupGrid {
         if let Ok(file) = File::open(data_path()) {
             // Deserialize data from file to vector
             let backup_data: Vec<AppGroupData> =
-                serde_json::from_reader(file).expect("Could not get backup data from json file.");
+                serde_json::from_reader(file).unwrap_or_default();
 
             let app_group_objects: Vec<Object> = backup_data
                 .into_iter()
@@ -278,8 +266,6 @@ impl GroupGrid {
             // Insert restored objects into model
             self.group_model().splice(3, 0, &app_group_objects);
             set_group_scroll_policy(&scroll_window, self.group_model().n_items());
-        } else {
-            eprintln!("Backup file does not exist yet {:?}", data_path());
         }
     }
     pub fn store_data(&self) {

@@ -110,7 +110,7 @@ impl CosmicAppLibraryApplication {
     fn setup_css(&self) {
         // Load the css file and add it to the provider
         let provider = CssProvider::new();
-        provider.load_from_data(include_bytes!("style.css"));
+        provider.load_from_resource("/com/system76/CosmicAppLibrary/style.css");
         // Add the provider to the default screen
         StyleContext::add_provider_for_display(
             &Display::default().expect("Error initializing GTK CSS provider."),

@@ -76,6 +76,19 @@ impl Default for BoxedAppGroupType {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub enum FilterType {
+    AppNames(Vec<String>),
+    Categories(Vec<String>),
+    None,
+}
+
+impl Default for FilterType {
+    fn default() -> Self {
+        FilterType::AppNames(Vec::new())
+    }
+}
+
 // Object holding the state
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AppGroupData {
@@ -83,7 +96,6 @@ pub struct AppGroupData {
     pub name: String,
     pub icon: String,
     pub mutable: bool,
-    pub app_names: Vec<String>,
-    pub category: String,
+    pub filter: FilterType,
     // pub popup: bool,
 }

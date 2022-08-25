@@ -2,7 +2,7 @@
 
 use cascade::cascade;
 use freedesktop_desktop_entry::DesktopEntry;
-use gtk4::prelude::*;
+use gtk4::{prelude::*, INVALID_LIST_POSITION};
 use gtk4::subclass::prelude::*;
 use gtk4::{gdk, gio, glib, GridView, PolicyType, ScrolledWindow, SignalListItemFactory};
 use std::{ffi::OsStr, fs, path::Path};
@@ -92,7 +92,7 @@ impl AppGrid {
             .unwrap()
             .downcast::<gtk4::SingleSelection>()
             .unwrap();
-        app_model.set_selected(0);
+        app_model.set_selected(INVALID_LIST_POSITION);
     }
 
     fn setup_model(&self) {
