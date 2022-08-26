@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0-only
 use crate::{
-    app_group::{AppGroup, BoxedAppGroupType},
-    desktop_entry_data::DesktopEntryData,
-    fl, utils,
+    desktop_entry_data::DesktopEntryData, utils,
 };
 use cascade::cascade;
 use gtk4::{
@@ -13,28 +11,28 @@ use gtk4::{
     prelude::*,
     subclass::prelude::*,
     traits::WidgetExt,
-    Align, Button, DragSource, IconTheme, Image, Label, Orientation,
+    Align, DragSource, IconTheme, Image, Label, Orientation,
 };
 use std::path::{Path, PathBuf};
 
 mod imp;
 
 glib::wrapper! {
-pub struct GridItem(ObjectSubclass<imp::GridItem>)
+pub struct AppItem(ObjectSubclass<imp::AppItem>)
         @extends gtk4::Widget, gtk4::Box,
         @implements gtk4::Accessible, gtk4::Buildable, gtk4::ConstraintTarget, gtk4::Orientable;
 }
 
-impl Default for GridItem {
+impl Default for AppItem {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl GridItem {
+impl AppItem {
     pub fn new() -> Self {
         let self_ = glib::Object::new(&[]).expect("Failed to create GridItem");
-        let imp = imp::GridItem::from_instance(&self_);
+        let imp = imp::AppItem::from_instance(&self_);
 
         cascade! {
             &self_;
@@ -70,12 +68,12 @@ impl GridItem {
     }
 
     pub fn set_icon_theme(&self, icon_theme: IconTheme) {
-        let imp = imp::GridItem::from_instance(self);
+        let imp = imp::AppItem::from_instance(self);
         imp.icon_theme.set(icon_theme).unwrap();
     }
 
     pub fn set_desktop_entry_data(&self, desktop_entry_data: &DesktopEntryData) {
-        let self_ = imp::GridItem::from_instance(self);
+        let self_ = imp::AppItem::from_instance(self);
         self_.name.borrow().set_text(&desktop_entry_data.name());
 
         let drag_controller = DragSource::builder()
@@ -145,100 +143,9 @@ impl GridItem {
         }
     }
 
-    pub fn set_group_info(&self, app_group: AppGroup) {
-        // if data type set name and icon to values in data
-        let imp = imp::GridItem::from_instance(self);
-        match app_group.property::<BoxedAppGroupType>("inner") {
-            BoxedAppGroupType::Group(data) => {
-                imp.name.borrow().set_text(&data.name);
-                imp.image.borrow().set_from_icon_name(Some(&data.icon));
-            }
-            BoxedAppGroupType::NewGroup(popover_active) => {
-                // else must be add group
-                imp.name.borrow().set_text(&fl!("new-group"));
-                imp.image.borrow().set_from_icon_name(Some("folder-new"));
-
-                let popover_menu = gtk4::Box::builder()
-                    .spacing(12)
-                    .hexpand(true)
-                    .orientation(gtk4::Orientation::Vertical)
-                    .margin_top(12)
-                    .margin_bottom(12)
-                    .margin_end(12)
-                    .margin_start(12)
-                    .build();
-                // build menu
-                let dialog_entry = cascade! {
-                    gtk4::Entry::new();
-                    ..add_css_class("background-component");
-                    ..add_css_class("border-radius-medium");
-                };
-                let label = cascade! {
-                    Label::new(Some(&fl!("name")));
-                    ..set_justify(gtk4::Justification::Left);
-                    ..set_xalign(0.0);
-                };
-                popover_menu.append(&label);
-                popover_menu.append(&dialog_entry);
-                let btn_container = cascade! {
-                    gtk4::Box::new(Orientation::Horizontal, 8);
-                    ..add_css_class("background");
-                };
-                let ok_btn = cascade! {
-                    Button::with_label(&fl!("ok"));
-                    ..add_css_class("suggested-action");
-                    ..add_css_class("border-radius-medium");
-                };
-                let cancel_btn = cascade! {
-                    Button::with_label(&fl!("cancel"));
-                    ..add_css_class("destructive-action");
-                    ..add_css_class("border-radius-medium");
-                };
-                btn_container.append(&ok_btn);
-                btn_container.append(&cancel_btn);
-                popover_menu.append(&btn_container);
-                let popover = cascade! {
-                    gtk4::Popover::new();
-                    ..set_autohide(true);
-                    ..set_child(Some(&popover_menu));
-                };
-                self.append(&popover);
-
-                popover.connect_closed(
-                    glib::clone!(@weak self as self_, @weak dialog_entry => move |_| {
-                        dialog_entry.set_text("");
-                        self_.emit_by_name::<()>("popover-closed", &[]);
-                    }),
-                );
-                ok_btn.connect_clicked(
-                    glib::clone!(@weak self as self_, @weak dialog_entry, @weak popover => move |_| {
-                        let new_name = dialog_entry.text().to_string();
-                        popover.popdown();
-                        glib::idle_add_local_once(glib::clone!(@weak self_ => move || {
-                            self_.emit_by_name::<()>("new-group", &[&new_name]);
-                        }));
-                    }),
-                );
-                cancel_btn.connect_clicked(glib::clone!(@weak popover => move |_| {
-                    popover.popdown();
-                }));
-                if popover_active {
-                    popover.popup();
-                }
-
-                imp.popover.replace(Some(popover));
-            }
-        }
-    }
-
     pub fn set_index(&self, index: u32) {
-        imp::GridItem::from_instance(self).index.set(index);
+        imp::AppItem::from_instance(self).index.set(index);
     }
 
-    pub fn popup(&self) {
-        let imp = imp::GridItem::from_instance(self);
-        if let Some(popover) = imp.popover.borrow().as_ref() {
-            popover.popup();
-        }
-    }
+
 }

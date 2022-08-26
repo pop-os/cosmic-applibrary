@@ -9,7 +9,7 @@ use std::{ffi::OsStr, fs, path::Path};
 use walkdir::WalkDir;
 
 use crate::utils;
-use crate::{desktop_entry_data::DesktopEntryData, grid_item::GridItem};
+use crate::{desktop_entry_data::DesktopEntryData, app_item::AppItem};
 
 mod imp;
 
@@ -238,7 +238,7 @@ impl AppGrid {
         let app_factory = SignalListItemFactory::new();
         let icon_theme = &imp.icon_theme.get().unwrap();
         app_factory.connect_setup(glib::clone!(@weak icon_theme => move |_factory, item| {
-            let grid_item = GridItem::new();
+            let grid_item = AppItem::new();
             grid_item.set_icon_theme(icon_theme);
             item.set_child(Some(&grid_item));
         }));
@@ -253,7 +253,7 @@ impl AppGrid {
                     .unwrap()
                     .downcast::<DesktopEntryData>()
                     .unwrap();
-                let child = grid_item.child().unwrap().downcast::<GridItem>().unwrap();
+                let child = grid_item.child().unwrap().downcast::<AppItem>().unwrap();
                 child.set_desktop_entry_data(&app_info);
             }),
         );

@@ -5,7 +5,7 @@ use gtk4::{
     glib::{self, Object},
     prelude::*,
     subclass::prelude::*,
-    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, INVALID_LIST_POSITION,
+    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, ToggleButton,
 };
 use std::fs::File;
 
@@ -15,7 +15,7 @@ use crate::{
     app_group::{AppGroup, AppGroupData, BoxedAppGroupType},
     desktop_entry_data::DesktopEntryData,
 };
-use crate::{fl, grid_item::GridItem};
+use crate::{fl, group_item::GroupItem};
 
 mod imp;
 
@@ -70,16 +70,7 @@ impl GroupGrid {
     }
 
     pub fn reset(&self) {
-        let imp = imp::GroupGrid::from_instance(&self);
-        let group_model = imp
-            .group_grid_view
-            .get()
-            .unwrap()
-            .model()
-            .unwrap()
-            .downcast::<gtk4::SingleSelection>()
-            .unwrap();
-        group_model.set_selected(INVALID_LIST_POSITION);
+        self.group_model().items_changed(0, 1, 1);
     }
 
     fn setup_model(&self) {
@@ -116,7 +107,7 @@ impl GroupGrid {
         .for_each(|group| {
             group_model.append(group);
         });
-        let group_selection = gtk4::SingleSelection::new(Some(&group_model));
+        let group_selection = gtk4::NoSelection::new(Some(&group_model));
         imp.group_grid_view
             .get()
             .unwrap()
@@ -131,7 +122,6 @@ impl GroupGrid {
 
     fn setup_callbacks(&self) {
         let imp = imp::GroupGrid::from_instance(self);
-        let group_grid_view = &imp.group_grid_view.get().unwrap();
 
         let scroll_window = &imp.group_scroll_window.get().unwrap();
         // dynamically set scroll method
@@ -140,50 +130,6 @@ impl GroupGrid {
                 set_group_scroll_policy(&scroll_window, scroll_list_model.n_items());
             }),
         );
-
-        let self_clone = self.clone();
-        group_grid_view.connect_activate(move |group_grid_view, i| {
-            // on activation change the group filter model to use the app names, and category
-            let group_model = group_grid_view
-                .model()
-                .unwrap()
-                .downcast::<gtk4::SingleSelection>()
-                .unwrap()
-                .model()
-                .unwrap()
-                .downcast::<gio::ListStore>()
-                .expect("could not downcast app group view selection model to list store model");
-            // update the application filter
-            if let Some(data) = group_model
-                .item(i)
-                .unwrap()
-                .downcast::<AppGroup>()
-                .unwrap()
-                .group_data()
-            {
-                let filter = data.filter;
-
-                let new_filter: gtk4::CustomFilter = gtk4::CustomFilter::new(move |obj| {
-                    let app = obj
-                        .downcast_ref::<DesktopEntryData>()
-                        .expect("The Object needs to be of type AppInfo");
-                    match filter {
-                        crate::app_group::FilterType::AppNames(ref names) => names.contains(&String::from(app.name().as_str())),
-                        crate::app_group::FilterType::Categories(ref requested_categories) => requested_categories.iter().any(|category| app.categories()
-                        .to_string()
-                        .to_lowercase()
-                        .contains(&category.to_lowercase())),
-                        crate::app_group::FilterType::None => true,
-                    }
-                });
-                self_clone.emit_by_name::<()>("group-changed", &[&new_filter]);
-            } else {
-                // don't change filter, instead show dialog for adding new group!
-                let item = group_model.item(i).unwrap().downcast::<AppGroup>().unwrap();
-                item.popup();
-                group_model.items_changed(i, 0, 0);
-            }
-        });
     }
 
     pub fn is_popup_active(&self) -> bool {
@@ -198,10 +144,13 @@ impl GroupGrid {
     }
 
     fn setup_factory(&self) {
+        let dummy_toggle = ToggleButton::new();
         let imp = imp::GroupGrid::from_instance(&self);
         let group_factory = SignalListItemFactory::new();
-        group_factory.connect_setup(glib::clone!(@weak self as self_ => move |_factory, item| {
-            let obj = GridItem::new();
+        group_factory.connect_setup(glib::clone!(@weak self as self_, @strong dummy_toggle => move |_factory, item| {
+            item.set_activatable(false);
+            let obj = GroupItem::new(&dummy_toggle);
+            obj.set_hexpand(true);
             item.set_child(Some(&obj));
             obj
                 .connect_local("new-group", false, glib::clone!(@weak self_ => @default-return None, move |args| {
@@ -232,14 +181,54 @@ impl GroupGrid {
                     });
                     None
                 }));
+
+            obj.connect_closure("group-selected", false, glib::closure_local!(@weak-allow-none self_,  => move |_: GroupItem, i: u32| {
+                    // on activation change the group filter model to use the app names, and category
+                    let self_ = match self_ {
+                        Some(s) => s,
+                        None => return,
+                    };
+                    let group_model = self_.group_model();
+                    // update the application filter
+                    if let Some(data) = group_model
+                        .item(i)
+                        .unwrap()
+                        .downcast::<AppGroup>()
+                        .unwrap()
+                        .group_data()
+                    {
+                        let filter = data.filter;
+        
+                        let new_filter: gtk4::CustomFilter = gtk4::CustomFilter::new(move |obj| {
+                            let app = obj
+                                .downcast_ref::<DesktopEntryData>()
+                                .expect("The Object needs to be of type AppInfo");
+                            match filter {
+                                crate::app_group::FilterType::AppNames(ref names) => names.contains(&String::from(app.name().as_str())),
+                                crate::app_group::FilterType::Categories(ref requested_categories) => requested_categories.iter().any(|category| app.categories()
+                                .to_string()
+                                .to_lowercase()
+                                .contains(&category.to_lowercase())),
+                                crate::app_group::FilterType::None => true,
+                            }
+                        });
+                        self_.emit_by_name::<()>("group-changed", &[&new_filter]);
+                    } else {
+                        // don't change filter, instead show dialog for adding new group!
+                        let item = group_model.item(i).unwrap().downcast::<AppGroup>().unwrap();
+                        item.popup();
+                        group_model.items_changed(i, 0, 0);
+                    }
+            }));
         }));
 
         // the bind stage is used for "binding" the data to the created widgets on the "setup" stage
         group_factory.connect_bind(move |_factory, grid_item| {
             let group_info = grid_item.item().unwrap().downcast::<AppGroup>().unwrap();
 
-            let child = grid_item.child().unwrap().downcast::<GridItem>().unwrap();
+            let child = grid_item.child().unwrap().downcast::<GroupItem>().unwrap();
             child.set_group_info(group_info);
+            child.set_position(grid_item.position())
         });
         // Set the factory of the list view
         imp.group_grid_view

@@ -73,7 +73,11 @@ impl AppLibraryWindowInner {
 
     pub fn clear(&self) {
         let imp = imp::AppLibraryWindowInner::from_instance(self);
-        imp.entry.get().unwrap().set_text("");
+
+        let entry = imp.entry.get().unwrap();
+        entry.set_text("");
+        entry.grab_focus();
+
         imp.app_grid.get().unwrap().reset();
         imp.group_grid.get().unwrap().reset();
     }

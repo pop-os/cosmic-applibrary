@@ -11,22 +11,22 @@ use std::rc::Rc;
 use gtk4::{glib, prelude::*, Popover};
 
 #[derive(Debug, Default)]
-pub struct GridItem {
+pub struct AppItem {
     pub(super) name: Rc<RefCell<gtk4::Label>>,
     pub(super) image: Rc<RefCell<gtk4::Image>>,
     pub(super) index: Cell<u32>,
-    pub(super) popover: Rc<RefCell<Option<Popover>>>,
+    pub(super) _popover: Rc<RefCell<Option<Popover>>>,
     pub(super) icon_theme: OnceCell<IconTheme>,
 }
 
 #[glib::object_subclass]
-impl ObjectSubclass for GridItem {
-    const NAME: &'static str = "GridItem";
-    type Type = super::GridItem;
+impl ObjectSubclass for AppItem {
+    const NAME: &'static str = "AppItem";
+    type Type = super::AppItem;
     type ParentType = gtk4::Box;
 }
 
-impl ObjectImpl for GridItem {
+impl ObjectImpl for AppItem {
     fn signals() -> &'static [Signal] {
         static SIGNALS: Lazy<Vec<Signal>> = Lazy::new(|| {
             vec![
@@ -40,6 +40,6 @@ impl ObjectImpl for GridItem {
     }
 }
 
-impl WidgetImpl for GridItem {}
+impl WidgetImpl for AppItem {}
 
-impl BoxImpl for GridItem {}
+impl BoxImpl for AppItem {}
