@@ -5,7 +5,7 @@ use gtk4::{
     glib::{self, Object},
     prelude::*,
     subclass::prelude::*,
-    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, ToggleButton,
+    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, ToggleButton, ListItem,
 };
 use std::fs::File;
 
@@ -157,6 +157,18 @@ impl GroupGrid {
                     let m = self_.group_model();
                     match args[1].get::<String>() {
                         Ok(name) => {
+                            let mut i = 0;
+                            while let Some(item_name) = m.item(i).and_then(|i| i.downcast::<AppGroup>().ok()).and_then(|g| match g.property::<BoxedAppGroupType>("inner") {
+                                BoxedAppGroupType::Group(g) => Some(g.name),
+                                BoxedAppGroupType::NewGroup(_) => None,
+                            }) {
+                                if &item_name == &name
+                                {
+                                    // TODO: toast that the name already exists.
+                                    return None;
+                                }
+                                i += 1;
+                            }
                             let new_group = AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                                 id: 0,
                                 name: name,
@@ -164,7 +176,6 @@ impl GroupGrid {
                                 mutable: false,
                                 filter: FilterType::AppNames(Vec::new())
                             })).upcast::<Object>();
-
                             m.insert(m.n_items() - 1, &new_group);
                             self_.store_data();
                         }
