@@ -115,7 +115,7 @@ impl GroupItem {
                 popover_menu.append(&dialog_entry);
                 let btn_container = cascade! {
                     gtk4::Box::new(Orientation::Horizontal, 8);
-                    ..add_css_class("background");
+                    ..set_halign(Align::Center);
                 };
                 let ok_btn = cascade! {
                     Button::with_label(&fl!("ok"));
@@ -137,6 +137,14 @@ impl GroupItem {
                 };
                 self.append(&popover);
 
+                ok_btn.set_sensitive(false);
+                dialog_entry.connect_text_notify(glib::clone!(@weak ok_btn => move |entry| {
+                    if entry.text().is_empty() {
+                        ok_btn.set_sensitive(false);
+                    } else {
+                        ok_btn.set_sensitive(true);
+                    }
+                }));
                 popover.connect_closed(
                     glib::clone!(@weak self as self_, @weak dialog_entry => move |_| {
                         dialog_entry.set_text("");

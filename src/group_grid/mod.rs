@@ -176,9 +176,8 @@ impl GroupGrid {
                 .connect_local("popover-closed", false, glib::clone!(@weak self_ => @default-return None, move |_| {
                     let m = self_.group_model();
                     let group = m.item(m.n_items() - 1).unwrap().downcast::<AppGroup>().unwrap();
-                    glib::idle_add_local_once(move || {
-                        group.popdown();
-                    });
+                    group.popdown();
+                    self_.reset();
                     None
                 }));
 
