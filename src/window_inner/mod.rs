@@ -30,19 +30,14 @@ impl AppLibraryWindowInner {
         cascade! {
             &self_;
             ..set_orientation(Orientation::Vertical);
-            ..add_css_class("background");
-            ..add_css_class("padding-medium");
-            ..add_css_class("border-radius-medium");
         };
 
         let entry = cascade! {
             SearchEntry::new();
-            ..set_width_request(300);
+            ..set_width_request(460);
             ..set_halign(Align::Center);
-            ..set_margin_top(12);
-            ..set_margin_bottom(12);
-            ..add_css_class("background-container-component");
-            ..add_css_class("border-radius-medium");
+            ..set_margin_bottom(16);
+            ..add_css_class("search-entry");
             ..set_placeholder_text(Some(" Type to search"));
         };
         self_.append(&entry);
@@ -53,9 +48,7 @@ impl AppLibraryWindowInner {
         let separator = cascade! {
             Separator::new(Orientation::Horizontal);
             ..set_hexpand(true);
-            ..set_margin_bottom(12);
-            ..set_margin_top(12);
-            ..add_css_class("background-divider");
+            ..set_margin_bottom(16);
         };
         self_.append(&separator);
 

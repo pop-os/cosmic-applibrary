@@ -5,7 +5,7 @@ use gtk4::{
     glib::{self, Object},
     prelude::*,
     subclass::prelude::*,
-    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, ToggleButton, ListItem,
+    GridView, PolicyType, ScrolledWindow, SignalListItemFactory, ToggleButton,
 };
 use std::fs::File;
 
@@ -44,7 +44,6 @@ impl GroupGrid {
             ..set_min_content_height(150);
             ..set_max_content_height(300);
             ..set_hexpand(true);
-            ..add_css_class("primary-container");
         };
         self_.append(&group_window);
 
@@ -52,7 +51,7 @@ impl GroupGrid {
             GridView::default();
             ..set_min_columns(8);
             ..set_max_columns(8);
-            ..add_css_class("primary-container");
+            ..add_css_class("group-grid");
         };
         group_window.set_child(Some(&group_grid_view));
 
@@ -83,21 +82,28 @@ impl GroupGrid {
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
                 name: fl!("library-home"),
-                icon: "user-home".to_string(),
+                icon: "user-home-symbolic".to_string(),
                 mutable: false,
                 filter: FilterType::None,
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
+                name: fl!("office"),
+                icon: "folder-symbolic".to_string(),
+                mutable: false,
+                filter: FilterType::Categories(vec!["Office".to_string()]),
+            })),
+            AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
+                id: 0,
                 name: fl!("system"),
-                icon: "folder".to_string(),
+                icon: "folder-symbolic".to_string(),
                 mutable: false,
                 filter: FilterType::Categories(vec!["System".to_string()]),
             })),
             AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                 id: 0,
                 name: fl!("utilities"),
-                icon: "folder".to_string(),
+                icon: "folder-symbolic".to_string(),
                 mutable: false,
                 filter: FilterType::Categories(vec!["Utility".to_string()]),
             })),
@@ -172,7 +178,7 @@ impl GroupGrid {
                             let new_group = AppGroup::new(BoxedAppGroupType::Group(AppGroupData {
                                 id: 0,
                                 name: name,
-                                icon: "folder".to_string(),
+                                icon: "folder-symbolic".to_string(),
                                 mutable: false,
                                 filter: FilterType::AppNames(Vec::new())
                             })).upcast::<Object>();
@@ -263,13 +269,13 @@ impl GroupGrid {
                 .unwrap();
 
             // Insert restored objects into model
-            self.group_model().splice(3, 0, &app_group_objects);
+            self.group_model().splice(4, 0, &app_group_objects);
             set_group_scroll_policy(&scroll_window, self.group_model().n_items());
         }
     }
     pub fn store_data(&self) {
         let mut backup_data = Vec::new();
-        let mut position = 3;
+        let mut position = 4;
         while let Some(item) = self.group_model().item(position) {
             if position == self.group_model().n_items() - 1 {
                 break;

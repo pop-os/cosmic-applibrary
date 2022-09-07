@@ -21,13 +21,6 @@ impl GroupItem {
         cascade! {
             &self_;
             ..set_orientation(Orientation::Vertical);
-            // ..set_halign(Align::Center);
-            ..set_hexpand(true);
-            ..set_margin_top(4);
-            ..set_margin_bottom(4);
-            ..set_margin_end(4);
-            ..set_margin_start(4);
-            ..add_css_class("test")
         };
 
         view! {
@@ -41,12 +34,13 @@ impl GroupItem {
                     append: image = &Image {
                         set_margin_bottom: 4,
                         set_margin_top: 4,
-                        set_pixel_size: 64,
+                        set_pixel_size: 32,
                     },
                     append: name = &Label {
                         set_halign: Align::Center,
                         set_hexpand: true,
-                        set_ellipsize: EllipsizeMode::End,      
+                        set_ellipsize: EllipsizeMode::End,
+                        set_width_request: 96,      
                     }
                 }
             }
@@ -89,7 +83,7 @@ impl GroupItem {
             BoxedAppGroupType::NewGroup(popover_active) => {
                 // else must be add group
                 imp.name.borrow().set_text(&fl!("new-group"));
-                imp.image.borrow().set_from_icon_name(Some("folder-new"));
+                imp.image.borrow().set_from_icon_name(Some("folder-new-symbolic"));
 
                 let popover_menu = gtk4::Box::builder()
                     .spacing(12)

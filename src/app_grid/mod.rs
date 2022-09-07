@@ -35,18 +35,20 @@ impl AppGrid {
             ..set_hscrollbar_policy(PolicyType::Never);
             ..set_min_content_height(520);
             ..set_hexpand(true);
-            ..set_margin_top(12);
-            ..add_css_class("primary-container");
+            ..set_margin_end(32);
+            ..set_margin_start(32);
         };
         self_.append(&library_window);
+
 
         let library_grid = cascade! {
             GridView::default();
             ..set_min_columns(7);
             ..set_max_columns(7);
             ..set_single_click_activate(true);
-            ..add_css_class("primary-container");
+            ..add_css_class("app-grid");
         };
+
         library_window.set_child(Some(&library_grid));
 
         imp.app_grid_view.set(library_grid).unwrap();

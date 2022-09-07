@@ -11,7 +11,7 @@ use gtk4::{
     prelude::*,
     subclass::prelude::*,
     traits::WidgetExt,
-    Align, DragSource, IconTheme, Image, Label, Orientation,
+    DragSource, IconTheme, Image, Label, Orientation,
 };
 use std::path::{Path, PathBuf};
 
@@ -37,26 +37,20 @@ impl AppItem {
         cascade! {
             &self_;
             ..set_orientation(Orientation::Vertical);
-            ..set_halign(Align::Center);
             ..set_hexpand(true);
-            ..set_margin_top(4);
-            ..set_margin_bottom(4);
-            ..set_margin_end(4);
-            ..set_margin_start(4);
         };
 
         let image = cascade! {
             Image::new();
-            ..set_margin_top(4);
-            ..set_margin_bottom(4);
-            ..set_pixel_size(64);
+            ..set_margin_bottom(8);
+            ..set_pixel_size(72);
         };
         self_.append(&image);
 
         let name = cascade! {
             Label::new(None);
-            ..set_halign(Align::Center);
-            ..set_hexpand(true);
+            ..set_width_request(120);
+            ..set_height_request(40);
             ..set_ellipsize(EllipsizeMode::End);
             ..add_css_class("title-5");
         };
@@ -64,6 +58,13 @@ impl AppItem {
 
         imp.name.replace(name);
         imp.image.replace(image);
+
+        self_.connect_parent_notify(|self_| {
+            if let Some(parent) = self_.parent() {
+                parent.set_margin_bottom(16);
+            }
+        });
+
         self_
     }
 
