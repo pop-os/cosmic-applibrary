@@ -4,8 +4,9 @@ use gtk4::{
     gio,
     glib::{self, Object},
     prelude::*,
-    subclass::prelude::*,
+    subclass::prelude::*, gdk,
 };
+use zbus::Connection;
 
 mod imp {
     use super::*;
@@ -13,12 +14,14 @@ mod imp {
     use crate::window_inner::AppLibraryWindowInner;
     use gtk4::glib;
     use once_cell::sync::OnceCell;
+    use std::rc::Rc;
 
     // Object holding the state
     #[derive(Default)]
 
     pub struct CosmicAppLibraryWindow {
         pub(super) inner: OnceCell<AppLibraryWindowInner>,
+        pub dbus_conn: Rc<OnceCell<Connection>>,
     }
 
     // The central trait for subclassing a GObject
@@ -54,6 +57,11 @@ impl CosmicAppLibraryWindow {
     pub fn new(app: &CosmicAppLibraryApplication) -> Self {
         let self_: Self = Object::new(&[("application", app)])
             .expect("Failed to create `CosmicAppLibraryWindow`.");
+        glib::MainContext::default().spawn_local(glib::clone!(@weak self_ => async move {
+            let connection = Connection::session().await.unwrap();
+            let imp = self_.imp();
+            imp.dbus_conn.set(connection).unwrap();
+        }));
         let imp = imp::CosmicAppLibraryWindow::from_instance(&self_);
 
         cascade! {
@@ -77,20 +85,46 @@ impl CosmicAppLibraryWindow {
 
     fn setup_callbacks(&self) {
         // Get state
-        let window = self.clone().upcast::<gtk4::Window>();
+        self.connect_realize(|window| {
+            window.surface().downcast::<gdk::Toplevel>().unwrap().connect_state_notify(glib::clone!( @weak window => move |toplevel| {
+                let state = toplevel.state();
+                if state.contains(gdk::ToplevelState::FOCUSED) {
+                    window.show();
+                } else {
+                    window.clear()
+                }
+            }));
+        });
+        self.connect_is_active_notify(|win| {
+            if !win.is_active() {
+                win.clear();
+            }
+        });
 
-        let imp = imp::CosmicAppLibraryWindow::from_instance(&self);
-        let inner = imp.inner.get().unwrap();
-        window.connect_is_active_notify(glib::clone!(@weak inner => move |win| {
-            let app = win
-                .application()
-                .expect("could not get application from window");
-            let active_window = app
-                .active_window()
-                .expect("no active window available, closing app library.");
-            if win == &active_window && !win.is_active() && !inner.is_popup_active() {
-                inner.clear();
+        let action_quit = gio::SimpleAction::new("quit", None);
+        // TODO clear state instead of closing
+        let conn = &self.imp().dbus_conn;
+        action_quit.connect_activate(glib::clone!(@weak conn  => move |_, _| {
+            glib::MainContext::default().spawn_local(glib::clone!(@weak conn => async move {
+                if let Some(conn) = conn.get() {
+                    let _ = conn.call_method(Some("com.system76.CosmicAppletHost"), "/com/system76/CosmicAppletHost", Some("com.system76.CosmicAppletHost"), "Hide", &("com.system76.CosmicAppLibrary")).await;
+                }
+            }));
+        }));
+        self.add_action(&action_quit);
+    }
+
+    pub fn clear(&self) {
+        self.hide();
+        if let Some(inner) = self.imp().inner.get() {
+            inner.clear();
+        }
+        let conn = &self.imp().dbus_conn;
+        glib::MainContext::default().spawn_local(glib::clone!(@weak conn => async move {
+            if let Some(conn) = conn.get() {
+                let _ = conn.call_method(Some("com.system76.CosmicAppletHost"), "/com/system76/CosmicAppletHost", Some("com.system76.CosmicAppletHost"), "Hide", &("com.system76.CosmicAppLibrary")).await;
             }
         }));
+        self.show();
     }
 }

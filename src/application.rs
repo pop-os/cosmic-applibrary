@@ -86,13 +86,7 @@ impl CosmicAppLibraryApplication {
 
     fn setup_gactions(&self) {
         // Quit
-        let action_quit = gio::SimpleAction::new("quit", None);
-        action_quit.connect_activate(clone!(@weak self as app => move |_, _| {
-            // This is needed to trigger the delete event and saving the window state
-            app.main_window().close();
-            app.quit();
-        }));
-        self.add_action(&action_quit);
+        self.set_accels_for_action("win.quit", &["<primary>W", "Escape"]);
 
         // About
         let action_about = gio::SimpleAction::new("about", None);

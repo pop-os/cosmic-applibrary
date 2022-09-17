@@ -215,7 +215,6 @@ impl AppGrid {
 
         app_grid_view.connect_activate(move |list_view, i| {
             // on activation change the group filter model to use the app names, and category
-            // println!("selected app {}", i);
             // Launch the application when an item of the list is activated
             let model = list_view.model().unwrap();
             if let Some(item) = model.item(i) {
