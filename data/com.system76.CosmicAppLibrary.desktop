@@ -10,4 +10,4 @@ Keywords=Gnome;GTK;
 Icon=com.system76.CosmicAppLibrary.svg
 StartupNotify=true
 NoDisplay=true
-HostWaylandDisplay=true
+X-HostWaylandDisplay=true
