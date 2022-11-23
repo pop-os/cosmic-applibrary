@@ -26,5 +26,5 @@ ron = "0.8.0"
 notify = "*"
 anyhow = "1.0"
 itertools = "0.10"
-# freedesktop-icons = {git = "https://github.com/wash2/freedestkop-icons"}
-freedesktop-icons = {path = "../freedestkop-icons"}
+freedesktop-icons = {git = "https://github.com/wash2/freedestkop-icons"}
+# freedesktop-icons = {path = "../freedestkop-icons"}

@@ -199,16 +199,16 @@ impl Application for CosmicAppLibrary {
     fn view(&self, id: SurfaceIdWrapper) -> Element<Message> {
         match id {
             SurfaceIdWrapper::LayerSurface(_) => {
-                let text_input = text_input(
-                    "Type something...",
-                    &self.input_value,
-                    Message::InputChanged,
-                )
-                .width(Length::Units(400))
-                .size(20)
-                .id(INPUT_ID.clone());
+                // let text_input = text_input(
+                //     "Type something...",
+                //     &self.input_value,
+                //     Message::InputChanged,
+                // )
+                // .width(Length::Units(400))
+                // .size(20)
+                // .id(INPUT_ID.clone());
 
-                let clear_button = button!("X").padding(10).on_press(Message::Clear);
+                // let clear_button = button!("X").on_press(Message::Clear);
 
                 // TODO grid widget in libcosmic
                 let app_grid_list: Vec<_> = self
@@ -304,10 +304,8 @@ impl Application for CosmicAppLibrary {
                 };
 
                 let content = column![
-                    row![text_input, clear_button].spacing(8),
-                    column![app_scrollable, horizontal_rule(1), group_row]
-                        .spacing(16)
-                        .align_items(Alignment::Center),
+                    // row![text_input, clear_button].spacing(8),
+                    app_scrollable, horizontal_rule(1), group_row
                 ]
                 .spacing(16)
                 .align_items(Alignment::Center)

@@ -474,7 +474,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
- "freedesktop-icons 0.2.1",
+ "freedesktop-icons",
  "futures",
  "glob",
  "i18n-embed",
@@ -1028,24 +1028,13 @@ dependencies = [
 [[package]]
 name = "freedesktop-icons"
 version = "0.2.1"
+source = "git+https://github.com/wash2/freedestkop-icons#8d746aecdb90e9a7b27dad7a4170f9f2d7baf9b4"
 dependencies = [
  "dirs 4.0.0",
  "once_cell",
  "rust-ini",
  "thiserror",
  "xdg",
-]
-
-[[package]]
-name = "freedesktop-icons"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "420b2cb0cf0ab0d5f34c068830f3b5c17b378ab3c2acaf7ca4bfde671d70be51"
-dependencies = [
- "dirs 4.0.0",
- "once_cell",
- "rust-ini",
- "thiserror",
 ]
 
 [[package]]
@@ -1531,7 +1520,7 @@ dependencies = [
 [[package]]
 name = "iced"
 version = "0.5.2"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "iced_core",
  "iced_futures",
@@ -1547,7 +1536,7 @@ dependencies = [
 [[package]]
 name = "iced_core"
 version = "0.6.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "bitflags",
  "palette",
@@ -1557,7 +1546,7 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.5.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "futures",
  "log",
@@ -1568,7 +1557,7 @@ dependencies = [
 [[package]]
 name = "iced_glow"
 version = "0.4.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "bytemuck",
  "euclid",
@@ -1583,7 +1572,7 @@ dependencies = [
 [[package]]
 name = "iced_graphics"
 version = "0.4.0"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "bitflags",
  "bytemuck",
@@ -1603,7 +1592,7 @@ dependencies = [
 [[package]]
 name = "iced_lazy"
 version = "0.2.0"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "iced_native",
  "ouroboros",
@@ -1612,7 +1601,7 @@ dependencies = [
 [[package]]
 name = "iced_native"
 version = "0.6.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "iced_core",
  "iced_futures",
@@ -1645,7 +1634,7 @@ dependencies = [
 [[package]]
 name = "iced_style"
 version = "0.5.0"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "iced_core",
  "once_cell",
@@ -1655,7 +1644,7 @@ dependencies = [
 [[package]]
 name = "iced_wgpu"
 version = "0.6.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#7e4b4923650b0135dc5503f514e3dc6c9dd4c01a"
+source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#6b65ccf443b464b4c7acfcd7fdd178592eb5595e"
 dependencies = [
  "bitflags",
  "bytemuck",
@@ -1874,12 +1863,12 @@ checksum = "fc7fcc620a3bff7cdd7a365be3376c97191aeaccc2a603e600951e452615bf89"
 [[package]]
 name = "libcosmic"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic/?branch=sctk-cosmic-design-system#a8c753d4293a5e103da2d32b21d40da195a3e9f7"
+source = "git+https://github.com/pop-os/libcosmic/?branch=sctk-cosmic-design-system#e87fe7056d09530c35e2c39d470205c6a7a920c6"
 dependencies = [
  "apply",
  "cosmic-theme",
  "derive_setters",
- "freedesktop-icons 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "freedesktop-icons",
  "iced",
  "iced_core",
  "iced_lazy",
