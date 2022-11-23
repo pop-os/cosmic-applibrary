@@ -1,45 +1,27 @@
-mod application;
 #[rustfmt::skip]
 mod config;
-mod app_grid;
+mod app;
 mod app_group;
-mod desktop_entry_data;
-mod app_item;
-mod group_grid;
-mod group_item;
 mod localize;
-mod utils;
-mod window;
-mod window_inner;
+mod subscriptions;
 
-use gtk4::{gio, glib};
+use config::APP_ID;
+use log::info;
 
-use self::application::CosmicAppLibraryApplication;
+use localize::localize;
 
-pub fn localize() {
-    let localizer = crate::localize::localizer();
-    let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
+use crate::config::{PROFILE, VERSION};
 
-    if let Err(error) = localizer.select(&requested_languages) {
-        eprintln!(
-            "Error while loading language for pop-desktop-widget {}",
-            error
-        );
-    }
-}
+// TODO watch the desktop dirs for changes and update the list of apps on change
 
-fn main() {
+fn main() -> cosmic::iced::Result {
     // Initialize logger
     pretty_env_logger::init();
-    
-    let _monitors = libcosmic::init();
+    info!("Cosmic App Library ({})", APP_ID);
+    info!("Version: {} ({})", VERSION, PROFILE);
 
-    glib::set_application_name("Cosmic App Library");
-
+    // Prepare i18n
     localize();
 
-    gio::resources_register_include!("compiled.gresource").unwrap();
-
-    let app = CosmicAppLibraryApplication::new();
-    app.run();
+    app::run()
 }

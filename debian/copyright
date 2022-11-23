@@ -1,6 +1,6 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: cosmic-applibrary
-Source: https://github.com/pop-os/cosmic-applibrary
+Upstream-Name: cosmic-app-library
+Source: https://github.com/pop-os/cosmic-app-library
 
 Files: *
 Copyright: Copyright 2022 System76
