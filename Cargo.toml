@@ -28,3 +28,11 @@ anyhow = "1.0"
 itertools = "0.10"
 freedesktop-icons = {git = "https://github.com/wash2/freedestkop-icons"}
 # freedesktop-icons = {path = "../freedestkop-icons"}
+current_locale = "0.1.1"
+
+[dependencies.iced]
+git = "https://github.com/pop-os/iced.git"
+branch = "sctk-cosmic"
+# path = "../iced"
+default-features = false
+features = ["image", "svg", "tokio", "wayland"]

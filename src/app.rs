@@ -15,6 +15,7 @@ use cosmic::widget::widget::svg;
 use cosmic::widget::{icon, image_icon};
 use cosmic::{settings, Element, Theme};
 use freedesktop_desktop_entry::DesktopEntry;
+use iced::widget::horizontal_space;
 use iced_sctk::application::SurfaceIdWrapper;
 use iced_sctk::command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
 use iced_sctk::commands::layer_surface::{Anchor, KeyboardInteractivity, Layer};
@@ -52,11 +53,12 @@ struct CosmicAppLibrary {
     input_value: String,
     entry_path_input: Vec<(PathBuf, String)>,
     groups: Vec<AppGroup>,
-    cur_group: Option<usize>,
+    cur_group: usize,
     selected_app: Option<usize>,
     selected_group: Option<usize>,
     active_surface: Option<SurfaceId>,
     theme: Theme,
+    locale: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +83,7 @@ impl Application for CosmicAppLibrary {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
             CosmicAppLibrary {
+                locale: current_locale::current_locale().ok(),
                 groups: vec![
                     AppGroup {
                         name: fl!("library-home"),
@@ -152,10 +155,28 @@ impl Application for CosmicAppLibrary {
                 // TODO reset application list based on group
             }
             Message::ActivateApp(i) => {
-                // TODO activate the app at index i
+                if let Some(de) = self
+                    .entry_path_input
+                    .get(i)
+                    .and_then(|(path, input)| DesktopEntry::decode(path, input).ok())
+                {
+                    let mut exec = match de.exec() {
+                        Some(exec_str) => shlex::Shlex::new(exec_str),
+                        None => return Command::none(),
+                    };
+                    let mut cmd = match exec.next() {
+                        Some(cmd) => tokio::process::Command::new(cmd),
+                        None => return Command::none(),
+                    };
+                    for arg in exec {
+                        cmd.arg(arg);
+                    }
+                    let _ = cmd.spawn();
+                    return Command::perform(async {}, |_| Message::Hide);
+                }
             }
             Message::SelectGroup(i) => {
-                // TODO select the group at index i
+                self.cur_group = i;
             }
             Message::Toggle => {
                 if let Some(id) = self.active_surface {
@@ -199,77 +220,115 @@ impl Application for CosmicAppLibrary {
     fn view(&self, id: SurfaceIdWrapper) -> Element<Message> {
         match id {
             SurfaceIdWrapper::LayerSurface(_) => {
-                // let text_input = text_input(
-                //     "Type something...",
-                //     &self.input_value,
-                //     Message::InputChanged,
-                // )
-                // .width(Length::Units(400))
-                // .size(20)
-                // .id(INPUT_ID.clone());
+                let text_input = text_input(
+                    "Type something...",
+                    &self.input_value,
+                    Message::InputChanged,
+                )
+                .width(Length::Units(400))
+                .size(20)
+                .id(INPUT_ID.clone());
 
-                // let clear_button = button!("X").on_press(Message::Clear);
+                let clear_button = button!("X").on_press(Message::Clear);
 
                 // TODO grid widget in libcosmic
                 let app_grid_list: Vec<_> = self
                     .entry_path_input
                     .iter()
-                    .filter_map(|(path, input)| {
-                        DesktopEntry::decode(path, input)
-                            .ok()
-                            .filter(|de| !de.no_display())
-                            .and_then(|de| {
-                                if let Some(image) =
-                                    freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
-                                        .with_size(72)
-                                        .with_cache()
-                                        .find()
-                                {
-                                    let name = &de.name(None).unwrap_or(Cow::Borrowed(de.appid));
-                                    let name = if name.len() > 10 {
-                                        format!("{:.10}...", name)
-                                    } else {
-                                        name.to_string()
-                                    };
-                                    let mut btn_column = column![];
-                                    btn_column = if image.extension() == Some(&OsStr::new("svg")) {
-                                        btn_column.push(
-                                            svg::Svg::from_path(image)
-                                                .width(Length::Units(72))
-                                                .height(Length::Units(72)),
-                                        )
-                                    } else {
-                                        btn_column.push(
-                                            Image::new(image)
-                                                .width(Length::Units(72))
-                                                .height(Length::Units(72)),
-                                        )
-                                    };
-                                    btn_column = btn_column
-                                        .push(text(name).horizontal_alignment(Horizontal::Center));
-                                    Some(
-                                        button!(btn_column
-                                            .spacing(8)
-                                            .align_items(Alignment::Center)
-                                            .width(Length::Fill))
-                                        .width(Length::FillPortion(1))
-                                        .style(Button::Secondary)
-                                        .padding(16)
-                                        .into(),
+                    .enumerate()
+                    .filter_map(|(i, (path, input))| {
+                        DesktopEntry::decode(path, input).ok().and_then(|de| {
+                            let name = de
+                                .name(self.locale.as_ref().map(|x| &**x))
+                                .unwrap_or(Cow::Borrowed(de.appid))
+                                .to_string();
+                            let group_filter = &self.groups[self.cur_group];
+                            let mut keep_de = !de.no_display()
+                                && match &group_filter.filter {
+                                    FilterType::AppNames(names) => names.contains(&name),
+                                    FilterType::Categories(categories) => {
+                                        categories.into_iter().any(|cat| {
+                                            de.categories()
+                                                .map(|cats| {
+                                                    cats.to_lowercase()
+                                                        .contains(&cat.to_lowercase())
+                                                })
+                                                .unwrap_or_default()
+                                        })
+                                    }
+                                    FilterType::None => true,
+                                };
+                            if keep_de && self.input_value.len() > 0 {
+                                keep_de = name
+                                    .to_lowercase()
+                                    .contains(&self.input_value.to_lowercase())
+                                    || de
+                                        .categories()
+                                        .map(|cats| {
+                                            cats.to_lowercase()
+                                                .contains(&self.input_value.to_lowercase())
+                                        })
+                                        .unwrap_or_default()
+                            }
+
+                            if !keep_de {
+                                None
+                            } else if let Some(image) =
+                                freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
+                                    .with_size(72)
+                                    .with_cache()
+                                    .find()
+                            {
+                                let name = if name.len() > 10 {
+                                    format!("{:.10}...", name)
+                                } else {
+                                    name.to_string()
+                                };
+                                let mut btn_column = column![];
+                                btn_column = if image.extension() == Some(&OsStr::new("svg")) {
+                                    btn_column.push(
+                                        svg::Svg::from_path(image)
+                                            .width(Length::Units(72))
+                                            .height(Length::Units(72)),
                                     )
                                 } else {
-                                    // TODO maybe want to log the missing icons somewhere
-                                    None
-                                }
-                            })
+                                    btn_column.push(
+                                        Image::new(image)
+                                            .width(Length::Units(72))
+                                            .height(Length::Units(72)),
+                                    )
+                                };
+                                btn_column = btn_column
+                                    .push(text(name).horizontal_alignment(Horizontal::Center));
+                                Some(
+                                    button!(btn_column
+                                        .spacing(8)
+                                        .align_items(Alignment::Center)
+                                        .width(Length::Fill))
+                                    .width(Length::FillPortion(1))
+                                    .style(Button::Text)
+                                    .padding(16)
+                                    .on_press(Message::ActivateApp(i))
+                                    .into(),
+                                )
+                            } else {
+                                // TODO maybe want to log the missing icons somewhere
+                                None
+                            }
+                        })
                     })
                     .chunks(7)
                     .into_iter()
                     .map(|row_chunk| {
-                        row(row_chunk.collect_vec())
-                            .spacing(8)
-                            .padding([0, 16, 0, 0])
-                            .into()
+                        let mut new_row = row_chunk.collect_vec();
+                        let missing = 7 - new_row.len();
+                        if missing > 0 {
+                            new_row.push(
+                                horizontal_space(Length::FillPortion(missing.try_into().unwrap()))
+                                    .into(),
+                            );
+                        }
+                        row(new_row).spacing(8).padding([0, 16, 0, 0]).into()
                     })
                     .collect();
                 // let rows = app_grid_list.chunks(7).into_iter().map(|row_chunk| row(row_chunk));
@@ -283,29 +342,33 @@ impl Application for CosmicAppLibrary {
                         .height(Length::Units(100))
                         .spacing(8)
                         .align_items(Alignment::Center);
-                    for group in &self.groups {
-                        group_row = group_row.push(
-                            button!(
-                                column![
-                                    icon(&group.icon, 32),
-                                    text(&group.name).horizontal_alignment(Horizontal::Center)
-                                ]
-                                .spacing(8)
-                                .align_items(Alignment::Center)
-                                .width(Length::Fill)
-                            )
-                            .height(Length::Fill)
-                            .width(Length::Units(128))
-                            .style(Button::Secondary)
-                            .padding([16, 8]),
-                        );
+                    for (i, group) in self.groups.iter().enumerate() {
+                        let mut group_button = button!(column![
+                            icon(&group.icon, 32),
+                            text(&group.name).horizontal_alignment(Horizontal::Center)
+                        ]
+                        .spacing(8)
+                        .align_items(Alignment::Center)
+                        .width(Length::Fill))
+                        .height(Length::Fill)
+                        .width(Length::Units(128))
+                        .style(Button::Primary)
+                        .padding([16, 8]);
+                        if i != self.cur_group {
+                            group_button = group_button
+                                .on_press(Message::SelectGroup(i))
+                                .style(Button::Secondary);
+                        }
+                        group_row = group_row.push(group_button);
                     }
                     group_row
                 };
 
                 let content = column![
-                    // row![text_input, clear_button].spacing(8),
-                    app_scrollable, horizontal_rule(1), group_row
+                    row![text_input, clear_button].spacing(8),
+                    app_scrollable,
+                    horizontal_rule(1),
+                    group_row
                 ]
                 .spacing(16)
                 .align_items(Alignment::Center)
