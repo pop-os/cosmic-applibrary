@@ -279,8 +279,8 @@ impl Application for CosmicAppLibrary {
                                     .with_cache()
                                     .find()
                             {
-                                let name = if name.len() > 10 {
-                                    format!("{:.10}...", name)
+                                let name = if name.len() > 27 {
+                                    format!("{:.24}...", name)
                                 } else {
                                     name.to_string()
                                 };
@@ -299,7 +299,7 @@ impl Application for CosmicAppLibrary {
                                     )
                                 };
                                 btn_column = btn_column
-                                    .push(text(name).horizontal_alignment(Horizontal::Center));
+                                    .push(text(name).horizontal_alignment(Horizontal::Center).size(16));
                                 Some(
                                     button!(btn_column
                                         .spacing(8)
