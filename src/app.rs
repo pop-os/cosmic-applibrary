@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use cosmic::button;
 use cosmic::iced::widget::{
-    button, column, container, horizontal_rule, row, scrollable, text, text_input, vertical_space,
+    column, container, horizontal_rule, row, scrollable, text, text_input,
     Image,
 };
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
@@ -12,7 +12,7 @@ use cosmic::iced_native::window::Id as SurfaceId;
 use cosmic::iced_style::application::{self, Appearance};
 use cosmic::theme::{Button, Container};
 use cosmic::widget::widget::svg;
-use cosmic::widget::{icon, image_icon};
+use cosmic::widget::icon;
 use cosmic::{settings, Element, Theme};
 use freedesktop_desktop_entry::DesktopEntry;
 use iced::widget::horizontal_space;
@@ -54,8 +54,6 @@ struct CosmicAppLibrary {
     entry_path_input: Vec<(PathBuf, String)>,
     groups: Vec<AppGroup>,
     cur_group: usize,
-    selected_app: Option<usize>,
-    selected_group: Option<usize>,
     active_surface: Option<SurfaceId>,
     theme: Theme,
     locale: Option<String>,
@@ -162,14 +160,17 @@ impl Application for CosmicAppLibrary {
                 {
                     let mut exec = match de.exec() {
                         Some(exec_str) => shlex::Shlex::new(exec_str),
-                        None => return Command::none(),
+                        _ => return Command::none(),
                     };
                     let mut cmd = match exec.next() {
-                        Some(cmd) => tokio::process::Command::new(cmd),
-                        None => return Command::none(),
+                        Some(cmd) if !cmd.contains("=") => tokio::process::Command::new(cmd),
+                        _ => return Command::none(),
                     };
                     for arg in exec {
-                        cmd.arg(arg);
+                        // TODO handle "%" args here if necessary?
+                        if !arg.starts_with("%") {
+                            cmd.arg(arg);
+                        }
                     }
                     let _ = cmd.spawn();
                     return Command::perform(async {}, |_| Message::Hide);

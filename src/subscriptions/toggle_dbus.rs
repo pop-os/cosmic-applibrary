@@ -25,10 +25,10 @@ async fn start_listening<I: Copy>(id: I, state: State) -> (Option<(I, DbusEvent)
             let (tx, rx) = unbounded();
             if let Some(conn) = ConnectionBuilder::session()
                 .ok()
-                .and_then(|conn| conn.name("com.system76.IcedAppLibrary").ok())
+                .and_then(|conn| conn.name("com.system76.CosmicAppLibrary").ok())
                 .and_then(|conn| {
                     conn.serve_at(
-                        "/com/system76/IcedAppLibrary",
+                        "/com/system76/CosmicAppLibrary",
                         CosmicAppLibraryServer { tx },
                     )
                     .ok()
@@ -62,7 +62,7 @@ pub(crate) struct CosmicAppLibraryServer {
     pub(crate) tx: UnboundedSender<DbusEvent>,
 }
 
-#[dbus_interface(name = "com.system76.IcedAppLibrary")]
+#[dbus_interface(name = "com.system76.CosmicAppLibrary")]
 impl CosmicAppLibraryServer {
     async fn toggle(&self) {
         self.tx.unbounded_send(DbusEvent::Toggle).unwrap();

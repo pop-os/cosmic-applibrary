@@ -1,4 +1,3 @@
-use freedesktop_desktop_entry::DesktopEntry;
 use iced_sctk::subscription;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fmt::Debug;

@@ -23,10 +23,11 @@ pub struct AppGroup {
     // pub popup: bool,
 }
 
-pub fn save(groups: Vec<AppGroup>) -> anyhow::Result<()> {
-    todo!()
-}
+// TODO
+// pub fn save(_groups: Vec<AppGroup>) -> anyhow::Result<()> {
+//     todo!()
+// }
 
-pub fn load() -> Vec<AppGroup> {
-    todo!()
-}
+// pub fn load() -> Vec<AppGroup> {
+//     todo!()
+// }
