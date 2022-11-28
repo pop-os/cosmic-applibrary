@@ -1,0 +1,9 @@
+cosmic-app-library = 코스믹 프로그램 라이브러리
+library-home = 라이브러리 홈
+office = 오피스
+system = 시스템
+utilities = 유틸리티
+new-group = 폴더 만들기
+name = 이름
+ok = 확인
+cancel = 취소
