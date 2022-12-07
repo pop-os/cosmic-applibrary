@@ -5,7 +5,7 @@ authors = ["Ashley Wulber <ashley@system76.com>"]
 edition = "2021"
 
 [dependencies]
-libcosmic = { git = "https://github.com/pop-os/libcosmic/", branch = "sctk-cosmic-design-system", default-features = false, features = ["wayland"] }
+libcosmic = { git = "https://github.com/pop-os/libcosmic/", branch = "master", default-features = false, features = ["wayland"] }
 iced_sctk = { git = "https://github.com/pop-os/iced-sctk" }
 tokio = { version = "1.17.0", features = ["sync", "rt", "rt-multi-thread", "process"] }
 pretty_env_logger = "0.4"

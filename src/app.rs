@@ -2,20 +2,17 @@ use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
-use cosmic::button;
 use cosmic::iced::widget::{
-    column, container, horizontal_rule, row, scrollable, text, text_input,
-    Image,
+    column, container, horizontal_rule, row, scrollable, text, text_input, Image,
 };
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
 use cosmic::iced_native::window::Id as SurfaceId;
 use cosmic::iced_style::application::{self, Appearance};
 use cosmic::theme::{Button, Container};
-use cosmic::widget::widget::svg;
 use cosmic::widget::icon;
-use cosmic::{settings, Element, Theme};
+use cosmic::{settings, Element, Theme, Renderer};
 use freedesktop_desktop_entry::DesktopEntry;
-use iced::widget::horizontal_space;
+use iced::widget::{horizontal_space, svg};
 use iced_sctk::application::SurfaceIdWrapper;
 use iced_sctk::command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
 use iced_sctk::commands::layer_surface::{Anchor, KeyboardInteractivity, Layer};
@@ -47,11 +44,18 @@ pub fn run() -> cosmic::iced::Result {
     CosmicAppLibrary::run(settings)
 }
 
+#[derive(Debug, Clone)]
+struct MyDesktopEntryData {
+    desktop_entry_path: PathBuf,
+    name: String,
+    icon: PathBuf,
+}
+
 #[derive(Default)]
 struct CosmicAppLibrary {
     id_ctr: u64,
     input_value: String,
-    entry_path_input: Vec<(PathBuf, String)>,
+    entry_path_input: Vec<MyDesktopEntryData>,
     groups: Vec<AppGroup>,
     cur_group: usize,
     active_surface: Option<SurfaceId>,
@@ -70,6 +74,66 @@ enum Message {
     ActivateApp(usize),
     SelectGroup(usize),
     LoadApps,
+}
+
+impl CosmicAppLibrary {
+    pub fn load_apps(&mut self) {
+        self.entry_path_input = freedesktop_desktop_entry::Iter::new(
+            freedesktop_desktop_entry::default_paths(),
+        )
+        .filter_map(|path| {
+            std::fs::read_to_string(&path).ok().and_then(|input| {
+                DesktopEntry::decode(&path, &input).ok().and_then(|de| {
+                    let name = de
+                        .name(self.locale.as_ref().map(|x| &**x))
+                        .unwrap_or(Cow::Borrowed(de.appid))
+                        .to_string();
+                    let group_filter = &self.groups[self.cur_group];
+                    let mut keep_de = !de.no_display()
+                        && match &group_filter.filter {
+                            FilterType::AppNames(names) => names.contains(&name),
+                            FilterType::Categories(categories) => {
+                                categories.into_iter().any(|cat| {
+                                    de.categories()
+                                        .map(|cats| {
+                                            cats.to_lowercase()
+                                                .contains(&cat.to_lowercase())
+                                        })
+                                        .unwrap_or_default()
+                                })
+                            }
+                            FilterType::None => true,
+                        };
+                    if keep_de && self.input_value.len() > 0 {
+                        keep_de = name
+                            .to_lowercase()
+                            .contains(&self.input_value.to_lowercase())
+                            || de
+                                .categories()
+                                .map(|cats| {
+                                    cats.to_lowercase()
+                                        .contains(&self.input_value.to_lowercase())
+                                })
+                                .unwrap_or_default()
+                    }
+                    if keep_de {
+                        freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
+                            .with_size(72)
+                            .with_cache()
+                            .find()
+                            .map(|icon| MyDesktopEntryData {
+                                desktop_entry_path: path.clone(),
+                                name,
+                                icon,
+                            })
+                    } else {
+                        None
+                    }
+                })
+            })
+        })
+        .collect();
+    }
 }
 
 impl Application for CosmicAppLibrary {
@@ -120,7 +184,10 @@ impl Application for CosmicAppLibrary {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::InputChanged(value) => self.input_value = value,
+            Message::InputChanged(value) => {
+                self.input_value = value;
+                self.load_apps();
+            },
             Message::Closed(id) => {
                 if self
                     .active_surface
@@ -150,15 +217,24 @@ impl Application for CosmicAppLibrary {
             }
             Message::Clear => {
                 self.input_value.clear();
+                self.load_apps();
                 // TODO reset application list based on group
             }
             Message::ActivateApp(i) => {
-                if let Some(de) = self
-                    .entry_path_input
-                    .get(i)
-                    .and_then(|(path, input)| DesktopEntry::decode(path, input).ok())
-                {
-                    let mut exec = match de.exec() {
+                if let Some(de) = self.entry_path_input.get(i).and_then(
+                    |MyDesktopEntryData {
+                         desktop_entry_path, ..
+                     }| {
+                        std::fs::read_to_string(&desktop_entry_path)
+                            .ok()
+                            .and_then(|input| {
+                                DesktopEntry::decode(desktop_entry_path, &input)
+                                    .ok()
+                                    .map(|de| de.exec().map(|e| e.to_string()))
+                            })
+                    },
+                ) {
+                    let mut exec = match de.as_ref() {
                         Some(exec_str) => shlex::Shlex::new(exec_str),
                         _ => return Command::none(),
                     };
@@ -178,6 +254,7 @@ impl Application for CosmicAppLibrary {
             }
             Message::SelectGroup(i) => {
                 self.cur_group = i;
+                self.load_apps();
             }
             Message::Toggle => {
                 if let Some(id) = self.active_surface {
@@ -204,15 +281,7 @@ impl Application for CosmicAppLibrary {
                 }
             }
             Message::LoadApps => {
-                self.entry_path_input = freedesktop_desktop_entry::Iter::new(
-                    freedesktop_desktop_entry::default_paths(),
-                )
-                .filter_map(|path| {
-                    std::fs::read_to_string(&path)
-                        .ok()
-                        .map(|input| (path, input))
-                })
-                .collect();
+                self.load_apps();
             }
         }
         Command::none()
@@ -230,94 +299,54 @@ impl Application for CosmicAppLibrary {
                 .size(20)
                 .id(INPUT_ID.clone());
 
-                let clear_button = button!("X").on_press(Message::Clear);
-
                 // TODO grid widget in libcosmic
                 let app_grid_list: Vec<_> = self
                     .entry_path_input
                     .iter()
                     .enumerate()
-                    .filter_map(|(i, (path, input))| {
-                        DesktopEntry::decode(path, input).ok().and_then(|de| {
-                            let name = de
-                                .name(self.locale.as_ref().map(|x| &**x))
-                                .unwrap_or(Cow::Borrowed(de.appid))
-                                .to_string();
-                            let group_filter = &self.groups[self.cur_group];
-                            let mut keep_de = !de.no_display()
-                                && match &group_filter.filter {
-                                    FilterType::AppNames(names) => names.contains(&name),
-                                    FilterType::Categories(categories) => {
-                                        categories.into_iter().any(|cat| {
-                                            de.categories()
-                                                .map(|cats| {
-                                                    cats.to_lowercase()
-                                                        .contains(&cat.to_lowercase())
-                                                })
-                                                .unwrap_or_default()
-                                        })
-                                    }
-                                    FilterType::None => true,
-                                };
-                            if keep_de && self.input_value.len() > 0 {
-                                keep_de = name
-                                    .to_lowercase()
-                                    .contains(&self.input_value.to_lowercase())
-                                    || de
-                                        .categories()
-                                        .map(|cats| {
-                                            cats.to_lowercase()
-                                                .contains(&self.input_value.to_lowercase())
-                                        })
-                                        .unwrap_or_default()
-                            }
-
-                            if !keep_de {
-                                None
-                            } else if let Some(image) =
-                                freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
-                                    .with_size(72)
-                                    .with_cache()
-                                    .find()
-                            {
-                                let name = if name.len() > 27 {
-                                    format!("{:.24}...", name)
-                                } else {
-                                    name.to_string()
-                                };
-                                let mut btn_column = column![];
-                                btn_column = if image.extension() == Some(&OsStr::new("svg")) {
-                                    btn_column.push(
-                                        svg::Svg::from_path(image)
-                                            .width(Length::Units(72))
-                                            .height(Length::Units(72)),
-                                    )
-                                } else {
-                                    btn_column.push(
-                                        Image::new(image)
-                                            .width(Length::Units(72))
-                                            .height(Length::Units(72)),
-                                    )
-                                };
-                                btn_column = btn_column
-                                    .push(text(name).horizontal_alignment(Horizontal::Center).size(16));
-                                Some(
-                                    button!(btn_column
-                                        .spacing(8)
-                                        .align_items(Alignment::Center)
-                                        .width(Length::Fill))
-                                    .width(Length::FillPortion(1))
-                                    .style(Button::Text)
-                                    .padding(16)
-                                    .on_press(Message::ActivateApp(i))
-                                    .into(),
+                    .map(
+                        |(
+                            i,
+                            MyDesktopEntryData {
+                                name, icon: image, ..
+                            },
+                        )| {
+                            let name = if name.len() > 27 {
+                                format!("{:.24}...", name)
+                            } else {
+                                name.to_string()
+                            };
+                            let mut btn_column = column![];
+                            btn_column = if image.extension() == Some(&OsStr::new("svg")) {
+                                let handle = svg::Handle::from_path(image);
+                                btn_column.push(
+                                    svg::Svg::<Renderer>::new(handle)
+                                        .width(Length::Units(72))
+                                        .height(Length::Units(72)),
                                 )
                             } else {
-                                // TODO maybe want to log the missing icons somewhere
-                                None
-                            }
-                        })
-                    })
+                                btn_column.push(
+                                    Image::new(image)
+                                        .width(Length::Units(72))
+                                        .height(Length::Units(72)),
+                                )
+                            };
+                            btn_column = btn_column
+                                .push(text(name).horizontal_alignment(Horizontal::Center).size(16));
+
+                            iced::widget::button(
+                                btn_column
+                                    .spacing(8)
+                                    .align_items(Alignment::Center)
+                                    .width(Length::Fill),
+                            )
+                            .width(Length::FillPortion(1))
+                            .style(Button::Text)
+                            .padding(16)
+                            .on_press(Message::ActivateApp(i))
+                            .into()
+                        },
+                    )
                     .chunks(7)
                     .into_iter()
                     .map(|row_chunk| {
@@ -344,13 +373,15 @@ impl Application for CosmicAppLibrary {
                         .spacing(8)
                         .align_items(Alignment::Center);
                     for (i, group) in self.groups.iter().enumerate() {
-                        let mut group_button = button!(column![
-                            icon(&group.icon, 32),
-                            text(&group.name).horizontal_alignment(Horizontal::Center)
-                        ]
-                        .spacing(8)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill))
+                        let mut group_button = iced::widget::button(
+                            column![
+                                icon(&group.icon, 32),
+                                text(&group.name).horizontal_alignment(Horizontal::Center)
+                            ]
+                            .spacing(8)
+                            .align_items(Alignment::Center)
+                            .width(Length::Fill),
+                        )
                         .height(Length::Fill)
                         .width(Length::Units(128))
                         .style(Button::Primary)
@@ -366,7 +397,7 @@ impl Application for CosmicAppLibrary {
                 };
 
                 let content = column![
-                    row![text_input, clear_button].spacing(8),
+                    row![text_input].spacing(8),
                     app_scrollable,
                     horizontal_rule(1),
                     group_row
