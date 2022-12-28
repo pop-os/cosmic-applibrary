@@ -5,10 +5,11 @@ Maintainer: Ashley Wulber <ashley@system76.com>
 Build-Depends:
   debhelper (>= 11),
   debhelper-compat (= 11),
-  rustc (>=1.57),
+  rustc (>=1.63),
   cargo,
   meson,
   pkg-config,
+  libgtk-4-dev,
   desktop-file-utils,
 Standards-Version: 4.3.0
 Homepage: https://github.com/pop-os/cosmic-app-library

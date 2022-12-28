@@ -26,5 +26,4 @@ notify = "*"
 anyhow = "1.0"
 itertools = "0.10"
 freedesktop-icons = "0.2.2"
-# freedesktop-icons = {path = "../freedestkop-icons"}
 current_locale = "0.1.1"
