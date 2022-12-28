@@ -1,27 +1,26 @@
 use std::borrow::Cow;
-use std::ffi::OsStr;
 use std::path::PathBuf;
 
-use cosmic::iced::widget::{
-    column, container, horizontal_rule, row, scrollable, text, text_input, Image,
+use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
+use cosmic::iced::wayland::layer_surface::{
+    destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
 };
+use cosmic::iced::wayland::{InitialSurface, SurfaceIdWrapper};
+use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
+use cosmic::iced_native::event::wayland::LayerEvent;
+use cosmic::iced_native::event::{wayland, PlatformSpecific};
+use cosmic::iced_native::keyboard::KeyCode;
+use cosmic::iced_native::subscription::events_with;
 use cosmic::iced_native::window::Id as SurfaceId;
+use cosmic::iced_native::Subscription;
 use cosmic::iced_style::application::{self, Appearance};
+use cosmic::iced_style::Color;
 use cosmic::theme::{Button, Container};
 use cosmic::widget::icon;
-use cosmic::{settings, Element, Theme, Renderer};
+use cosmic::{iced, settings, Element, Theme};
 use freedesktop_desktop_entry::DesktopEntry;
-use iced::widget::{horizontal_space, svg};
-use iced_sctk::application::SurfaceIdWrapper;
-use iced_sctk::command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
-use iced_sctk::commands::layer_surface::{Anchor, KeyboardInteractivity, Layer};
-use iced_sctk::event::wayland::LayerEvent;
-use iced_sctk::event::{wayland, PlatformSpecific};
-use iced_sctk::keyboard::KeyCode;
-use iced_sctk::settings::InitialSurface;
-use iced_sctk::subscription::events_with;
-use iced_sctk::{commands, Color, Subscription};
+
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 
@@ -37,7 +36,7 @@ pub fn run() -> cosmic::iced::Result {
     settings.initial_surface = InitialSurface::LayerSurface(SctkLayerSurfaceSettings {
         keyboard_interactivity: KeyboardInteractivity::None,
         namespace: "ignore".into(),
-        size: (Some(1), Some(1)),
+        size: Some((Some(1), Some(1))),
         layer: Layer::Background,
         ..Default::default()
     });
@@ -78,61 +77,60 @@ enum Message {
 
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
-        self.entry_path_input = freedesktop_desktop_entry::Iter::new(
-            freedesktop_desktop_entry::default_paths(),
-        )
-        .filter_map(|path| {
-            std::fs::read_to_string(&path).ok().and_then(|input| {
-                DesktopEntry::decode(&path, &input).ok().and_then(|de| {
-                    let name = de
-                        .name(self.locale.as_ref().map(|x| &**x))
-                        .unwrap_or(Cow::Borrowed(de.appid))
-                        .to_string();
-                    let group_filter = &self.groups[self.cur_group];
-                    let mut keep_de = !de.no_display()
-                        && match &group_filter.filter {
-                            FilterType::AppNames(names) => names.contains(&name),
-                            FilterType::Categories(categories) => {
-                                categories.into_iter().any(|cat| {
-                                    de.categories()
+        self.entry_path_input =
+            freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
+                .filter_map(|path| {
+                    std::fs::read_to_string(&path).ok().and_then(|input| {
+                        DesktopEntry::decode(&path, &input).ok().and_then(|de| {
+                            let name = de
+                                .name(self.locale.as_ref().map(|x| &**x))
+                                .unwrap_or(Cow::Borrowed(de.appid))
+                                .to_string();
+                            let group_filter = &self.groups[self.cur_group];
+                            let mut keep_de = !de.no_display()
+                                && match &group_filter.filter {
+                                    FilterType::AppNames(names) => names.contains(&name),
+                                    FilterType::Categories(categories) => {
+                                        categories.into_iter().any(|cat| {
+                                            de.categories()
+                                                .map(|cats| {
+                                                    cats.to_lowercase()
+                                                        .contains(&cat.to_lowercase())
+                                                })
+                                                .unwrap_or_default()
+                                        })
+                                    }
+                                    FilterType::None => true,
+                                };
+                            if keep_de && self.input_value.len() > 0 {
+                                keep_de = name
+                                    .to_lowercase()
+                                    .contains(&self.input_value.to_lowercase())
+                                    || de
+                                        .categories()
                                         .map(|cats| {
                                             cats.to_lowercase()
-                                                .contains(&cat.to_lowercase())
+                                                .contains(&self.input_value.to_lowercase())
                                         })
                                         .unwrap_or_default()
-                                })
                             }
-                            FilterType::None => true,
-                        };
-                    if keep_de && self.input_value.len() > 0 {
-                        keep_de = name
-                            .to_lowercase()
-                            .contains(&self.input_value.to_lowercase())
-                            || de
-                                .categories()
-                                .map(|cats| {
-                                    cats.to_lowercase()
-                                        .contains(&self.input_value.to_lowercase())
-                                })
-                                .unwrap_or_default()
-                    }
-                    if keep_de {
-                        freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
-                            .with_size(72)
-                            .with_cache()
-                            .find()
-                            .map(|icon| MyDesktopEntryData {
-                                desktop_entry_path: path.clone(),
-                                name,
-                                icon,
-                            })
-                    } else {
-                        None
-                    }
+                            if keep_de {
+                                freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
+                                    .with_size(72)
+                                    .with_cache()
+                                    .find()
+                                    .map(|icon| MyDesktopEntryData {
+                                        desktop_entry_path: path.clone(),
+                                        name,
+                                        icon,
+                                    })
+                            } else {
+                                None
+                            }
+                        })
+                    })
                 })
-            })
-        })
-        .collect();
+                .collect();
     }
 }
 
@@ -174,7 +172,7 @@ impl Application for CosmicAppLibrary {
                 ],
                 ..Default::default()
             },
-            commands::layer_surface::destroy_layer_surface(SurfaceId::new(0)),
+            destroy_layer_surface(SurfaceId::new(0)),
         )
     }
 
@@ -187,7 +185,7 @@ impl Application for CosmicAppLibrary {
             Message::InputChanged(value) => {
                 self.input_value = value;
                 self.load_apps();
-            },
+            }
             Message::Closed(id) => {
                 if self
                     .active_surface
@@ -200,19 +198,19 @@ impl Application for CosmicAppLibrary {
                 // TODO handle popups closed
             }
             Message::Layer(e) => match e {
-                LayerEvent::Focused(_) => {
+                LayerEvent::Focused => {
                     return text_input::focus(INPUT_ID.clone());
                 }
-                LayerEvent::Unfocused(_) => {
+                LayerEvent::Unfocused => {
                     if let Some(id) = self.active_surface {
-                        return commands::layer_surface::destroy_layer_surface(id);
+                        return destroy_layer_surface(id);
                     }
                 }
                 _ => {}
             },
             Message::Hide => {
                 if let Some(id) = self.active_surface {
-                    return commands::layer_surface::destroy_layer_surface(id);
+                    return destroy_layer_surface(id);
                 }
             }
             Message::Clear => {
@@ -258,7 +256,7 @@ impl Application for CosmicAppLibrary {
             }
             Message::Toggle => {
                 if let Some(id) = self.active_surface {
-                    return commands::layer_surface::destroy_layer_surface(id);
+                    return destroy_layer_surface(id);
                 } else {
                     self.id_ctr += 1;
                     let mut cmds = Vec::new();
@@ -267,16 +265,14 @@ impl Application for CosmicAppLibrary {
                     let id = SurfaceId::new(self.id_ctr);
                     self.active_surface.replace(id);
                     cmds.push(text_input::focus(INPUT_ID.clone()));
-                    cmds.push(commands::layer_surface::get_layer_surface(
-                        SctkLayerSurfaceSettings {
-                            id,
-                            keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                            anchor: Anchor::empty(),
-                            namespace: "app-library".into(),
-                            size: (Some(1200), Some(860)),
-                            ..Default::default()
-                        },
-                    ));
+                    cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
+                        id,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::empty(),
+                        namespace: "app-library".into(),
+                        size: Some((Some(1200), Some(860))),
+                        ..Default::default()
+                    }));
                     return Command::batch(cmds);
                 }
             }
@@ -316,29 +312,22 @@ impl Application for CosmicAppLibrary {
                             } else {
                                 name.to_string()
                             };
-                            let mut btn_column = column![];
-                            btn_column = if image.extension() == Some(&OsStr::new("svg")) {
-                                let handle = svg::Handle::from_path(image);
-                                btn_column.push(
-                                    svg::Svg::<Renderer>::new(handle)
-                                        .width(Length::Units(72))
-                                        .height(Length::Units(72)),
-                                )
-                            } else {
-                                btn_column.push(
-                                    Image::new(image)
-                                        .width(Length::Units(72))
-                                        .height(Length::Units(72)),
-                                )
-                            };
-                            btn_column = btn_column
-                                .push(text(name).horizontal_alignment(Horizontal::Center).size(16));
 
                             iced::widget::button(
-                                btn_column
-                                    .spacing(8)
-                                    .align_items(Alignment::Center)
-                                    .width(Length::Fill),
+                                column![
+                                    icon(image.as_path(), 72)
+                                        .width(Length::Units(72))
+                                        .height(Length::FillPortion(72)),
+                                    text(name)
+                                        .horizontal_alignment(Horizontal::Center)
+                                        .size(16)
+                                        .height(Length::FillPortion(40))
+                                ]
+                                .width(Length::Units(120))
+                                .height(Length::Units(120))
+                                .spacing(8)
+                                .align_items(Alignment::Center)
+                                .width(Length::Fill),
                             )
                             .width(Length::FillPortion(1))
                             .style(Button::Text)
@@ -354,8 +343,10 @@ impl Application for CosmicAppLibrary {
                         let missing = 7 - new_row.len();
                         if missing > 0 {
                             new_row.push(
-                                horizontal_space(Length::FillPortion(missing.try_into().unwrap()))
-                                    .into(),
+                                iced::widget::horizontal_space(Length::FillPortion(
+                                    missing.try_into().unwrap(),
+                                ))
+                                .into(),
                             );
                         }
                         row(new_row).spacing(8).padding([0, 16, 0, 0]).into()
@@ -375,7 +366,7 @@ impl Application for CosmicAppLibrary {
                     for (i, group) in self.groups.iter().enumerate() {
                         let mut group_button = iced::widget::button(
                             column![
-                                icon(&group.icon, 32),
+                                icon(&*group.icon, 32),
                                 text(&group.name).horizontal_alignment(Horizontal::Center)
                             ]
                             .spacing(8)
@@ -435,7 +426,7 @@ impl Application for CosmicAppLibrary {
                 }),
                 events_with(|e, _status| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
-                        wayland::Event::Layer(e),
+                        wayland::Event::Layer(e, ..),
                     )) => Some(Message::Layer(e)),
                     cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyReleased {
                         key_code,
@@ -462,7 +453,7 @@ impl Application for CosmicAppLibrary {
         })
     }
 
-    fn close_requested(&self, id: iced_sctk::application::SurfaceIdWrapper) -> Self::Message {
+    fn close_requested(&self, id: SurfaceIdWrapper) -> Self::Message {
         Message::Closed(id)
     }
 }

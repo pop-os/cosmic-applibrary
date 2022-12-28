@@ -1,4 +1,4 @@
-use iced_sctk::subscription;
+use cosmic::iced_native::subscription;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fmt::Debug;
 use std::hash::Hash;
