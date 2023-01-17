@@ -9,8 +9,10 @@ Build-Depends:
   cargo,
   meson,
   pkg-config,
-  libgtk-4-dev,
+  intltool,
+  appstream-util,
   desktop-file-utils,
+  libxkbcommon-dev,
 Standards-Version: 4.3.0
 Homepage: https://github.com/pop-os/cosmic-app-library
 

@@ -3,7 +3,6 @@ project(
   'rust',
   version: '0.1.0',
   meson_version: '>= 0.59',
-  # license: 'MIT',
 )
 
 i18n = import('i18n')
@@ -11,12 +10,6 @@ gnome = import('gnome')
 
 base_id = 'com.system76.CosmicAppLibrary'
 
-dependency('glib-2.0', version: '>= 2.66')
-dependency('gio-2.0', version: '>= 2.66')
-dependency('gtk4', version: '>= 4.0.0')
-
-glib_compile_resources = find_program('glib-compile-resources', required: true)
-glib_compile_schemas = find_program('glib-compile-schemas', required: true)
 desktop_file_validate = find_program('desktop-file-validate', required: false)
 appstream_util = find_program('appstream-util', required: false)
 cargo = find_program('cargo', required: true)
@@ -70,7 +63,7 @@ subdir('po')
 subdir('src')
 
 gnome.post_install(
-  gtk_update_icon_cache: true,
-  glib_compile_schemas: true,
+  gtk_update_icon_cache: false,
+  glib_compile_schemas: false,
   update_desktop_database: true,
 )
