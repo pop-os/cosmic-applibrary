@@ -73,6 +73,7 @@ enum Message {
     ActivateApp(usize),
     SelectGroup(usize),
     LoadApps,
+    Ignore,
 }
 
 impl CosmicAppLibrary {
@@ -279,6 +280,7 @@ impl Application for CosmicAppLibrary {
             Message::LoadApps => {
                 self.load_apps();
             }
+            Message::Ignore => {}
         }
         Command::none()
     }
@@ -352,7 +354,6 @@ impl Application for CosmicAppLibrary {
                         row(new_row).spacing(8).padding([0, 16, 0, 0]).into()
                     })
                     .collect();
-                // let rows = app_grid_list.chunks(7).into_iter().map(|row_chunk| row(row_chunk));
 
                 let app_scrollable =
                     scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
@@ -381,6 +382,8 @@ impl Application for CosmicAppLibrary {
                             group_button = group_button
                                 .on_press(Message::SelectGroup(i))
                                 .style(Button::Secondary);
+                        } else {
+                            group_button = group_button.on_press(Message::Ignore);
                         }
                         group_row = group_row.push(group_button);
                     }
