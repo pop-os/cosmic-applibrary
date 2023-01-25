@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::wayland::layer_surface::{
-    destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
+    destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
 };
 use cosmic::iced::wayland::{InitialSurface, SurfaceIdWrapper};
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
@@ -33,13 +33,7 @@ static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
 pub fn run() -> cosmic::iced::Result {
     let mut settings = settings();
     settings.exit_on_close_request = false;
-    settings.initial_surface = InitialSurface::LayerSurface(SctkLayerSurfaceSettings {
-        keyboard_interactivity: KeyboardInteractivity::None,
-        namespace: "ignore".into(),
-        size: Some((Some(1), Some(1))),
-        layer: Layer::Background,
-        ..Default::default()
-    });
+    settings.initial_surface = InitialSurface::None;
     CosmicAppLibrary::run(settings)
 }
 
@@ -173,7 +167,7 @@ impl Application for CosmicAppLibrary {
                 ],
                 ..Default::default()
             },
-            destroy_layer_surface(SurfaceId::new(0)),
+            Command::none(),
         )
     }
 
