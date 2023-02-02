@@ -1,0 +1,9 @@
+cosmic-app-library = کتابخانه برنامه Cosmic
+library-home = خانه کتابخانه
+office = آفیس
+system = سیستم
+utilities = ابزار ها
+new-group = ساخت پوشه
+name = نام
+ok = تایید
+cancel = لغو
