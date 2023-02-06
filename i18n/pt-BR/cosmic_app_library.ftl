@@ -1,5 +1,6 @@
 cosmic-app-library = Biblioteca de Aplicativos Cosmic
 library-home = Aplicativos
+office = Escritório
 system = Sistema
 utilities = Utilitários
 new-group = Novo Grupo
