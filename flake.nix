@@ -37,7 +37,7 @@
             ];
           };
           nativeBuildInputs = with pkgs; [
-            meson
+            just
             pkg-config
             autoPatchelfHook
           ];
@@ -46,7 +46,6 @@
             glib
             gtk4
             desktop-file-utils
-            ninja # Makes Meson happy
            ];
           runtimeDependencies = with pkgs; [
             wayland

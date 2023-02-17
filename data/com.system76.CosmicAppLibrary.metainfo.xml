@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Ashley Wulber 2019 <ashley@system76.com> -->
 <component type="desktop-application">
-  <id>@app-id@</id>
+  <id>com.system76.CosmicAppLibrary</id>
   <metadata_license>CC0</metadata_license>
   <!-- Insert your license of choice here -->
   <!-- <project_license>MIT</project_license> -->
   <name>Cosmic App Library</name>
-  <summary>Write a GTK + Rust application</summary>
+  <summary>COSMIC desktop application library</summary>
   <description>
-    <p>A boilerplate template for GTK + Rust. It uses Meson as a build system and has flatpak support by default.</p>
+    <p>The default application library for the COSMIC desktop</p>
   </description>
   <!-- <screenshots>
     <screenshot type="default">
@@ -32,6 +32,6 @@
   </kudos>
   <developer_name>Ashley Wulber</developer_name>
   <update_contact>ashley@system76.com</update_contact>
-  <translation type="gettext">@gettext-package@</translation>
-  <launchable type="desktop-id">@app-id@.desktop</launchable>
+  <translation type="gettext">cosmic-app-library</translation>
+  <launchable type="desktop-id">com.system76.CosmicAppLibrary.desktop</launchable>
 </component>

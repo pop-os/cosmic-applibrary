@@ -7,11 +7,8 @@ Build-Depends:
   debhelper-compat (= 11),
   rustc (>=1.63),
   cargo,
-  meson,
+  just,
   pkg-config,
-  intltool,
-  appstream-util,
-  desktop-file-utils,
   libxkbcommon-dev,
 Standards-Version: 4.3.0
 Homepage: https://github.com/pop-os/cosmic-app-library
