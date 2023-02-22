@@ -313,11 +313,11 @@ impl Application for CosmicAppLibrary {
                                 column![
                                     icon(image.as_path(), 72)
                                         .width(Length::Units(72))
-                                        .height(Length::FillPortion(72)),
+                                        .height(Length::Units(72)),
                                     text(name)
                                         .horizontal_alignment(Horizontal::Center)
                                         .size(16)
-                                        .height(Length::FillPortion(40))
+                                        .height(Length::Units(40))
                                 ]
                                 .width(Length::Units(120))
                                 .height(Length::Units(120))
