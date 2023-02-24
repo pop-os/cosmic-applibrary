@@ -1,0 +1,9 @@
+cosmic-app-library = Cosmic biblioteka aplikacija
+library-home = Početna stranica biblioteke
+office = Kancelarija
+system = Sistem
+utilities = Korisno
+new-group = Napravi folder
+name = Ime
+ok = U redu
+cancel = Poništi
