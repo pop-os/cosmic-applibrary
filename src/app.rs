@@ -16,7 +16,7 @@ use cosmic::iced_native::window::Id as SurfaceId;
 use cosmic::iced_native::Subscription;
 use cosmic::iced_style::application::{self, Appearance};
 use cosmic::iced_style::Color;
-use cosmic::theme::{Button, Container};
+use cosmic::theme::{Button, Container, TextInput};
 use cosmic::widget::icon;
 use cosmic::{iced, settings, Element, Theme};
 use freedesktop_desktop_entry::DesktopEntry;
@@ -283,10 +283,12 @@ impl Application for CosmicAppLibrary {
         match id {
             SurfaceIdWrapper::LayerSurface(_) => {
                 let text_input = text_input(
-                    "Type something...",
+                    "Type to search apps...",
                     &self.input_value,
                     Message::InputChanged,
                 )
+                .style(TextInput::Search)
+                .padding([8, 24])
                 .width(Length::Units(400))
                 .size(20)
                 .id(INPUT_ID.clone());
@@ -399,7 +401,7 @@ impl Application for CosmicAppLibrary {
                     .height(Length::Fill)
                     .style(Container::Custom(|theme| container::Appearance {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
-                        background: Some(theme.extended_palette().background.base.color.into()),
+                        background: Some(Color::from(theme.cosmic().background.base).into()),
                         border_radius: 16.0,
                         border_width: 0.0,
                         border_color: Color::TRANSPARENT,
