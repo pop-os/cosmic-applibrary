@@ -20,6 +20,7 @@ use cosmic::theme::{Button, Container, TextInput};
 use cosmic::widget::icon;
 use cosmic::{iced, settings, Element, Theme};
 use freedesktop_desktop_entry::DesktopEntry;
+use iced::wayland::actions::layer_surface::IcedMargin;
 
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -188,7 +189,7 @@ impl Application for CosmicAppLibrary {
                     .unwrap_or_default()
                 {
                     self.active_surface.take();
-                    // TODO reset app state
+                    return Command::perform(async {}, |_| Message::Clear);
                 }
                 // TODO handle popups closed
             }
@@ -198,20 +199,26 @@ impl Application for CosmicAppLibrary {
                 }
                 LayerEvent::Unfocused => {
                     if let Some(id) = self.active_surface {
-                        return destroy_layer_surface(id);
+                        return Command::batch(vec![
+                            destroy_layer_surface(id),
+                            Command::perform(async {}, |_| Message::Clear),
+                        ]);
                     }
                 }
                 _ => {}
             },
             Message::Hide => {
                 if let Some(id) = self.active_surface {
-                    return destroy_layer_surface(id);
+                    return Command::batch(vec![
+                        destroy_layer_surface(id),
+                        Command::perform(async {}, |_| Message::Clear),
+                    ]);
                 }
             }
             Message::Clear => {
                 self.input_value.clear();
+                self.cur_group = 0;
                 self.load_apps();
-                // TODO reset application list based on group
             }
             Message::ActivateApp(i) => {
                 if let Some(de) = self.entry_path_input.get(i).and_then(
@@ -263,9 +270,15 @@ impl Application for CosmicAppLibrary {
                     cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
                         id,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        anchor: Anchor::empty(),
+                        anchor: Anchor::TOP,
                         namespace: "app-library".into(),
                         size: Some((Some(1200), Some(860))),
+                        margin: IcedMargin {
+                            top: 16,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                        },
                         ..Default::default()
                     }));
                     return Command::batch(cmds);
@@ -403,8 +416,8 @@ impl Application for CosmicAppLibrary {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
                         border_radius: 16.0,
-                        border_width: 0.0,
-                        border_color: Color::TRANSPARENT,
+                        border_width: 1.0,
+                        border_color: theme.cosmic().bg_divider().into(),
                     }))
                     .center_x()
                     .into()
