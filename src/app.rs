@@ -5,7 +5,7 @@ use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::wayland::layer_surface::{
     destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
 };
-use cosmic::iced::wayland::{InitialSurface, SurfaceIdWrapper};
+use cosmic::iced::wayland::InitialSurface;
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
 use cosmic::iced_native::event::wayland::LayerEvent;
@@ -60,7 +60,7 @@ struct CosmicAppLibrary {
 #[derive(Debug, Clone)]
 enum Message {
     InputChanged(String),
-    Closed(SurfaceIdWrapper),
+    Closed(SurfaceId),
     Layer(LayerEvent),
     Toggle,
     Hide,
@@ -185,7 +185,7 @@ impl Application for CosmicAppLibrary {
             Message::Closed(id) => {
                 if self
                     .active_surface
-                    .map(|active_id| SurfaceIdWrapper::LayerSurface(active_id) == id)
+                    .map(|active_id| active_id == id)
                     .unwrap_or_default()
                 {
                     self.active_surface.take();
@@ -292,139 +292,132 @@ impl Application for CosmicAppLibrary {
         Command::none()
     }
 
-    fn view(&self, id: SurfaceIdWrapper) -> Element<Message> {
-        match id {
-            SurfaceIdWrapper::LayerSurface(_) => {
-                let text_input = text_input(
-                    "Type to search apps...",
-                    &self.input_value,
-                    Message::InputChanged,
-                )
-                .style(TextInput::Search)
-                .padding([8, 24])
-                .width(Length::Units(400))
-                .size(20)
-                .id(INPUT_ID.clone());
+    fn view(&self, id: SurfaceId) -> Element<Message> {
+        let text_input = text_input(
+            "Type to search apps...",
+            &self.input_value,
+            Message::InputChanged,
+        )
+        .style(TextInput::Search)
+        .padding([8, 24])
+        .width(Length::Units(400))
+        .size(20)
+        .id(INPUT_ID.clone());
 
-                // TODO grid widget in libcosmic
-                let app_grid_list: Vec<_> = self
-                    .entry_path_input
-                    .iter()
-                    .enumerate()
-                    .map(
-                        |(
-                            i,
-                            MyDesktopEntryData {
-                                name, icon: image, ..
-                            },
-                        )| {
-                            let name = if name.len() > 27 {
-                                format!("{:.24}...", name)
-                            } else {
-                                name.to_string()
-                            };
+        // TODO grid widget in libcosmic
+        let app_grid_list: Vec<_> = self
+            .entry_path_input
+            .iter()
+            .enumerate()
+            .map(
+                |(
+                    i,
+                    MyDesktopEntryData {
+                        name, icon: image, ..
+                    },
+                )| {
+                    let name = if name.len() > 27 {
+                        format!("{:.24}...", name)
+                    } else {
+                        name.to_string()
+                    };
 
-                            iced::widget::button(
-                                column![
-                                    icon(image.as_path(), 72)
-                                        .width(Length::Units(72))
-                                        .height(Length::Units(72)),
-                                    text(name)
-                                        .horizontal_alignment(Horizontal::Center)
-                                        .size(16)
-                                        .height(Length::Units(40))
-                                ]
-                                .width(Length::Units(120))
-                                .height(Length::Units(120))
-                                .spacing(8)
-                                .align_items(Alignment::Center)
-                                .width(Length::Fill),
-                            )
-                            .width(Length::FillPortion(1))
-                            .style(Button::Text)
-                            .padding(16)
-                            .on_press(Message::ActivateApp(i))
-                            .into()
-                        },
-                    )
-                    .chunks(7)
-                    .into_iter()
-                    .map(|row_chunk| {
-                        let mut new_row = row_chunk.collect_vec();
-                        let missing = 7 - new_row.len();
-                        if missing > 0 {
-                            new_row.push(
-                                iced::widget::horizontal_space(Length::FillPortion(
-                                    missing.try_into().unwrap(),
-                                ))
-                                .into(),
-                            );
-                        }
-                        row(new_row).spacing(8).padding([0, 16, 0, 0]).into()
-                    })
-                    .collect();
-
-                let app_scrollable =
-                    scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
-                        .height(Length::Units(600));
-
-                let group_row = {
-                    let mut group_row = row![]
-                        .height(Length::Units(100))
+                    iced::widget::button(
+                        column![
+                            icon(image.as_path(), 72)
+                                .width(Length::Units(72))
+                                .height(Length::Units(72)),
+                            text(name)
+                                .horizontal_alignment(Horizontal::Center)
+                                .size(16)
+                                .height(Length::Units(40))
+                        ]
+                        .width(Length::Units(120))
+                        .height(Length::Units(120))
                         .spacing(8)
-                        .align_items(Alignment::Center);
-                    for (i, group) in self.groups.iter().enumerate() {
-                        let mut group_button = iced::widget::button(
-                            column![
-                                icon(&*group.icon, 32),
-                                text(&group.name).horizontal_alignment(Horizontal::Center)
-                            ]
-                            .spacing(8)
-                            .align_items(Alignment::Center)
-                            .width(Length::Fill),
-                        )
-                        .height(Length::Fill)
-                        .width(Length::Units(128))
-                        .style(Button::Primary)
-                        .padding([16, 8]);
-                        if i != self.cur_group {
-                            group_button = group_button
-                                .on_press(Message::SelectGroup(i))
-                                .style(Button::Secondary);
-                        } else {
-                            group_button = group_button.on_press(Message::Ignore);
-                        }
-                        group_row = group_row.push(group_button);
-                    }
-                    group_row
-                };
-
-                let content = column![
-                    row![text_input].spacing(8),
-                    app_scrollable,
-                    horizontal_rule(1),
-                    group_row
-                ]
-                .spacing(16)
-                .align_items(Alignment::Center)
-                .padding([32, 64, 16, 64]);
-
-                container(content)
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .style(Container::Custom(|theme| container::Appearance {
-                        text_color: Some(theme.cosmic().on_bg_color().into()),
-                        background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: 16.0,
-                        border_width: 1.0,
-                        border_color: theme.cosmic().bg_divider().into(),
-                    }))
-                    .center_x()
+                        .align_items(Alignment::Center)
+                        .width(Length::Fill),
+                    )
+                    .width(Length::FillPortion(1))
+                    .style(Button::Text)
+                    .padding(16)
+                    .on_press(Message::ActivateApp(i))
                     .into()
+                },
+            )
+            .chunks(7)
+            .into_iter()
+            .map(|row_chunk| {
+                let mut new_row = row_chunk.collect_vec();
+                let missing = 7 - new_row.len();
+                if missing > 0 {
+                    new_row.push(
+                        iced::widget::horizontal_space(Length::FillPortion(
+                            missing.try_into().unwrap(),
+                        ))
+                        .into(),
+                    );
+                }
+                row(new_row).spacing(8).padding([0, 16, 0, 0]).into()
+            })
+            .collect();
+
+        let app_scrollable = scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
+            .height(Length::Units(600));
+
+        let group_row = {
+            let mut group_row = row![]
+                .height(Length::Units(100))
+                .spacing(8)
+                .align_items(Alignment::Center);
+            for (i, group) in self.groups.iter().enumerate() {
+                let mut group_button = iced::widget::button(
+                    column![
+                        icon(&*group.icon, 32),
+                        text(&group.name).horizontal_alignment(Horizontal::Center)
+                    ]
+                    .spacing(8)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill),
+                )
+                .height(Length::Fill)
+                .width(Length::Units(128))
+                .style(Button::Primary)
+                .padding([16, 8]);
+                if i != self.cur_group {
+                    group_button = group_button
+                        .on_press(Message::SelectGroup(i))
+                        .style(Button::Secondary);
+                } else {
+                    group_button = group_button.on_press(Message::Ignore);
+                }
+                group_row = group_row.push(group_button);
             }
-            SurfaceIdWrapper::Popup(_) => todo!(),
-            SurfaceIdWrapper::Window(_) => unimplemented!(),
-        }
+            group_row
+        };
+
+        let content = column![
+            row![text_input].spacing(8),
+            app_scrollable,
+            horizontal_rule(1),
+            group_row
+        ]
+        .spacing(16)
+        .align_items(Alignment::Center)
+        .padding([32, 64, 16, 64]);
+
+        container(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(Container::Custom(|theme| container::Appearance {
+                text_color: Some(theme.cosmic().on_bg_color().into()),
+                background: Some(Color::from(theme.cosmic().background.base).into()),
+                border_radius: 16.0,
+                border_width: 1.0,
+                border_color: theme.cosmic().bg_divider().into(),
+            }))
+            .center_x()
+            .into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -465,7 +458,7 @@ impl Application for CosmicAppLibrary {
         })
     }
 
-    fn close_requested(&self, id: SurfaceIdWrapper) -> Self::Message {
+    fn close_requested(&self, id: SurfaceId) -> Self::Message {
         Message::Closed(id)
     }
 }

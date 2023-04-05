@@ -1,5 +1,3 @@
-// SPDX-License-Identifier: MPL-2.0-only
-
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
     DefaultLocalizer, LanguageLoader, Localizer,
