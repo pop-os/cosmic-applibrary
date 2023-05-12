@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
+use cosmic::iced::subscription::events_with;
+use cosmic::iced::{Color, Subscription};
+use cosmic::iced::id::Id;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::wayland::layer_surface::{
     destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
@@ -8,14 +11,11 @@ use cosmic::iced::wayland::layer_surface::{
 use cosmic::iced::wayland::InitialSurface;
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
-use cosmic::iced_native::event::wayland::LayerEvent;
-use cosmic::iced_native::event::{wayland, PlatformSpecific};
-use cosmic::iced_native::keyboard::KeyCode;
-use cosmic::iced_native::subscription::events_with;
-use cosmic::iced_native::window::Id as SurfaceId;
-use cosmic::iced_native::Subscription;
+use cosmic::iced_runtime::core::event::wayland::LayerEvent;
+use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
+use cosmic::iced_runtime::core::keyboard::KeyCode;
+use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_style::application::{self, Appearance};
-use cosmic::iced_style::Color;
 use cosmic::theme::{Button, Container, TextInput};
 use cosmic::widget::icon;
 use cosmic::{iced, settings, Element, Theme};
@@ -29,7 +29,7 @@ use crate::app_group::{AppGroup, FilterType};
 use crate::subscriptions::desktop_files::{desktop_files, DesktopFileEvent};
 use crate::subscriptions::toggle_dbus::{dbus_toggle, DbusEvent};
 use crate::{config, fl};
-static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
+static INPUT_ID: Lazy<Id> = Lazy::new(Id::unique);
 
 pub fn run() -> cosmic::iced::Result {
     let mut settings = settings();
@@ -47,7 +47,7 @@ struct MyDesktopEntryData {
 
 #[derive(Default)]
 struct CosmicAppLibrary {
-    id_ctr: u64,
+    id_ctr: u128,
     input_value: String,
     entry_path_input: Vec<MyDesktopEntryData>,
     groups: Vec<AppGroup>,
@@ -264,7 +264,7 @@ impl Application for CosmicAppLibrary {
                     let mut cmds = Vec::new();
 
                     self.input_value = "".to_string();
-                    let id = SurfaceId::new(self.id_ctr);
+                    let id = SurfaceId(self.id_ctr);
                     self.active_surface.replace(id);
                     cmds.push(text_input::focus(INPUT_ID.clone()));
                     cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
@@ -292,17 +292,15 @@ impl Application for CosmicAppLibrary {
         Command::none()
     }
 
-    fn view(&self, id: SurfaceId) -> Element<Message> {
-        let text_input = text_input(
-            "Type to search apps...",
-            &self.input_value,
-            Message::InputChanged,
-        )
-        .style(TextInput::Search)
-        .padding([8, 24])
-        .width(Length::Units(400))
-        .size(20)
-        .id(INPUT_ID.clone());
+    fn view(&self, _id: SurfaceId) -> Element<Message> {
+        let text_input = text_input("Type to search apps...", &self.input_value)
+            .on_input(Message::InputChanged)
+            .on_paste(Message::InputChanged)
+            .style(TextInput::Search)
+            .padding([8, 24])
+            .width(Length::Fixed(400.0))
+            .size(20)
+            .id(INPUT_ID.clone());
 
         // TODO grid widget in libcosmic
         let app_grid_list: Vec<_> = self
@@ -325,15 +323,15 @@ impl Application for CosmicAppLibrary {
                     iced::widget::button(
                         column![
                             icon(image.as_path(), 72)
-                                .width(Length::Units(72))
-                                .height(Length::Units(72)),
+                                .width(Length::Fixed(72.0))
+                                .height(Length::Fixed(72.0)),
                             text(name)
                                 .horizontal_alignment(Horizontal::Center)
                                 .size(16)
-                                .height(Length::Units(40))
+                                .height(Length::Fixed(40.0))
                         ]
-                        .width(Length::Units(120))
-                        .height(Length::Units(120))
+                        .width(Length::Fixed(120.0))
+                        .height(Length::Fixed(120.0))
                         .spacing(8)
                         .align_items(Alignment::Center)
                         .width(Length::Fill),
@@ -363,11 +361,11 @@ impl Application for CosmicAppLibrary {
             .collect();
 
         let app_scrollable = scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
-            .height(Length::Units(600));
+            .height(Length::Fixed(600.0));
 
         let group_row = {
             let mut group_row = row![]
-                .height(Length::Units(100))
+                .height(Length::Fixed(100.0))
                 .spacing(8)
                 .align_items(Alignment::Center);
             for (i, group) in self.groups.iter().enumerate() {
@@ -381,7 +379,7 @@ impl Application for CosmicAppLibrary {
                     .width(Length::Fill),
                 )
                 .height(Length::Fill)
-                .width(Length::Units(128))
+                .width(Length::Fixed(128.0))
                 .style(Button::Primary)
                 .padding([16, 8]);
                 if i != self.cur_group {
@@ -409,13 +407,13 @@ impl Application for CosmicAppLibrary {
         container(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(Container::Custom(|theme| container::Appearance {
+            .style(Container::Custom(Box::new(|theme| container::Appearance {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(Color::from(theme.cosmic().background.base).into()),
                 border_radius: 16.0,
                 border_width: 1.0,
                 border_color: theme.cosmic().bg_divider().into(),
-            }))
+            })))
             .center_x()
             .into()
     }
@@ -424,10 +422,12 @@ impl Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 dbus_toggle(0).map(|e| match e {
-                    (_, DbusEvent::Toggle) => Message::Toggle,
+                    Some((_, DbusEvent::Toggle)) => Message::Toggle,
+                    None => Message::Ignore
                 }),
                 desktop_files(0).map(|e| match e {
-                    (_, DesktopFileEvent::Changed) => Message::LoadApps,
+                    Some((_, DesktopFileEvent::Changed)) => Message::LoadApps,
+                    None => Message::Ignore
                 }),
                 events_with(|e, _status| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
@@ -452,10 +452,10 @@ impl Application for CosmicAppLibrary {
     }
 
     fn style(&self) -> <Self::Theme as application::StyleSheet>::Style {
-        <Self::Theme as application::StyleSheet>::Style::Custom(|theme| Appearance {
+        <Self::Theme as application::StyleSheet>::Style::Custom(Box::new(|theme| Appearance {
             background_color: Color::from_rgba(0.0, 0.0, 0.0, 0.0),
             text_color: theme.cosmic().on_bg_color().into(),
-        })
+        }))
     }
 
     fn close_requested(&self, id: SurfaceId) -> Self::Message {

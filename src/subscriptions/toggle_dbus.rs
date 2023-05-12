@@ -8,7 +8,7 @@ use zbus::{dbus_interface, Connection, ConnectionBuilder};
 
 pub fn dbus_toggle<I: 'static + Hash + Copy + Send + Sync + Debug>(
     id: I,
-) -> cosmic::iced::Subscription<(I, DbusEvent)> {
+) -> cosmic::iced::Subscription<Option<(I, DbusEvent)>> {
     subscription::unfold(id, State::Ready, move |state| start_listening(id, state))
 }
 

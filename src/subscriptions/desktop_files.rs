@@ -1,4 +1,4 @@
-use cosmic::iced_native::subscription;
+use cosmic::iced::subscription;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -21,7 +21,7 @@ pub enum DesktopFileEvent {
 
 pub fn desktop_files<I: 'static + Hash + Copy + Send + Sync + Debug>(
     id: I,
-) -> cosmic::iced::Subscription<(I, DesktopFileEvent)> {
+) -> cosmic::iced::Subscription<Option<(I, DesktopFileEvent)>> {
     subscription::unfold(id, State::Ready, move |state| start_watching(id, state))
 }
 
