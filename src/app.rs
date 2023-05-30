@@ -1,9 +1,8 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
-use cosmic::iced::subscription::events_with;
-use cosmic::iced::{Color, Subscription};
 use cosmic::iced::id::Id;
+use cosmic::iced::subscription::events_with;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::wayland::layer_surface::{
     destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
@@ -11,11 +10,13 @@ use cosmic::iced::wayland::layer_surface::{
 use cosmic::iced::wayland::InitialSurface;
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
+use cosmic::iced::{Color, Subscription};
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_style::application::{self, Appearance};
+use cosmic::iced_widget::text_input::{Icon, Side};
 use cosmic::theme::{Button, Container, TextInput};
 use cosmic::widget::icon;
 use cosmic::{iced, settings, Element, Theme};
@@ -29,6 +30,7 @@ use crate::app_group::{AppGroup, FilterType};
 use crate::subscriptions::desktop_files::{desktop_files, DesktopFileEvent};
 use crate::subscriptions::toggle_dbus::{dbus_toggle, DbusEvent};
 use crate::{config, fl};
+
 static INPUT_ID: Lazy<Id> = Lazy::new(Id::unique);
 
 pub fn run() -> cosmic::iced::Result {
@@ -257,7 +259,7 @@ impl Application for CosmicAppLibrary {
                 self.load_apps();
             }
             Message::Toggle => {
-                if let Some(id) = self.active_surface {
+                if let Some(id) = self.active_surface.take() {
                     return destroy_layer_surface(id);
                 } else {
                     self.id_ctr += 1;
@@ -299,7 +301,14 @@ impl Application for CosmicAppLibrary {
             .style(TextInput::Search)
             .padding([8, 24])
             .width(Length::Fixed(400.0))
-            .size(20)
+            .size(14)
+            .icon(Icon {
+                font: iced::Font::default(),
+                code_point: '🔍',
+                size: Some(12.0),
+                spacing: 12.0,
+                side: Side::Left,
+            })
             .id(INPUT_ID.clone());
 
         // TODO grid widget in libcosmic
@@ -327,7 +336,7 @@ impl Application for CosmicAppLibrary {
                                 .height(Length::Fixed(72.0)),
                             text(name)
                                 .horizontal_alignment(Horizontal::Center)
-                                .size(16)
+                                .size(11)
                                 .height(Length::Fixed(40.0))
                         ]
                         .width(Length::Fixed(120.0))
@@ -410,7 +419,7 @@ impl Application for CosmicAppLibrary {
             .style(Container::Custom(Box::new(|theme| container::Appearance {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(Color::from(theme.cosmic().background.base).into()),
-                border_radius: 16.0,
+                border_radius: 16.0.into(),
                 border_width: 1.0,
                 border_color: theme.cosmic().bg_divider().into(),
             })))
@@ -421,14 +430,8 @@ impl Application for CosmicAppLibrary {
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(
             vec![
-                dbus_toggle(0).map(|e| match e {
-                    Some((_, DbusEvent::Toggle)) => Message::Toggle,
-                    None => Message::Ignore
-                }),
-                desktop_files(0).map(|e| match e {
-                    Some((_, DesktopFileEvent::Changed)) => Message::LoadApps,
-                    None => Message::Ignore
-                }),
+                dbus_toggle(0).map(|_| Message::Toggle),
+                desktop_files(0).map(|_| Message::LoadApps),
                 events_with(|e, _status| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, ..),
@@ -448,7 +451,7 @@ impl Application for CosmicAppLibrary {
     }
 
     fn theme(&self) -> Theme {
-        self.theme
+        self.theme.clone()
     }
 
     fn style(&self) -> <Self::Theme as application::StyleSheet>::Style {
