@@ -5,7 +5,7 @@ authors = ["Ashley Wulber <ashley@system76.com>"]
 edition = "2021"
 
 [dependencies]
-libcosmic = { git = "https://github.com/pop-os/libcosmic/", branch = "cosmic-advanced-text", default-features = false, features = ["wayland", "tokio"] }
+libcosmic = { git = "https://github.com/pop-os/libcosmic/", rev = "f06a81c", default-features = false, features = ["wayland", "tokio"] }
 tokio = { version = "1.17.0", features = ["sync", "rt", "process"] }
 pretty_env_logger = "0.4"
 log = "0.4"
@@ -16,7 +16,7 @@ xdg = "2.4.0"
 i18n-embed = { version = "0.13.4", features = ["fluent-system", "desktop-requester"] }
 i18n-embed-fl = "0.6.4"
 rust-embed = "6.3.0"
-zbus = "3.5.0"
+zbus = "3.13"
 glob = "0.3.0"
 freedesktop-desktop-entry = "0.5.0"
 shlex = "1.1.0"

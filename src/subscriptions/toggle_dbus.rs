@@ -3,13 +3,22 @@ use futures::{
     channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender},
     StreamExt,
 };
+use log::error;
 use std::{fmt::Debug, hash::Hash};
 use zbus::{dbus_interface, Connection, ConnectionBuilder};
 
 pub fn dbus_toggle<I: 'static + Hash + Copy + Send + Sync + Debug>(
     id: I,
-) -> cosmic::iced::Subscription<Option<(I, DbusEvent)>> {
-    subscription::unfold(id, State::Ready, move |state| start_listening(id, state))
+) -> cosmic::iced::Subscription<(I, DbusEvent)> {
+    subscription::unfold(id, State::Ready, move |mut state| async move {
+        loop {
+            let (event, new_state) = start_listening(id, state).await;
+            state = new_state;
+            if let Some(event) = event {
+                return (event, state);
+            }
+        }
+    })
 }
 
 #[derive(Debug)]
@@ -35,8 +44,13 @@ async fn start_listening<I: Copy>(id: I, state: State) -> (Option<(I, DbusEvent)
                 })
                 .map(|conn| conn.build())
             {
-                if let Ok(conn) = conn.await {
-                    return (None, State::Waiting(conn, rx));
+                match conn.await {
+                    Ok(conn) => {
+                        return (None, State::Waiting(conn, rx));
+                    }
+                    Err(e) => {
+                        error!("{e:?}");
+                    }
                 }
             }
             return (None, State::Finished);
