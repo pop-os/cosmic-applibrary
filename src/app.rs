@@ -27,11 +27,13 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 
 use crate::app_group::{AppGroup, FilterType};
-use crate::subscriptions::desktop_files::{desktop_files, DesktopFileEvent};
-use crate::subscriptions::toggle_dbus::{dbus_toggle, DbusEvent};
+use crate::subscriptions::desktop_files::desktop_files;
+use crate::subscriptions::toggle_dbus::dbus_toggle;
 use crate::{config, fl};
 
 static INPUT_ID: Lazy<Id> = Lazy::new(Id::unique);
+
+const WINDOW_ID: SurfaceId = SurfaceId(1);
 
 pub fn run() -> cosmic::iced::Result {
     let mut settings = settings();
@@ -49,12 +51,11 @@ struct MyDesktopEntryData {
 
 #[derive(Default)]
 struct CosmicAppLibrary {
-    id_ctr: u128,
     input_value: String,
     entry_path_input: Vec<MyDesktopEntryData>,
     groups: Vec<AppGroup>,
     cur_group: usize,
-    active_surface: Option<SurfaceId>,
+    active_surface: bool,
     theme: Theme,
     locale: Option<String>,
 }
@@ -185,12 +186,8 @@ impl Application for CosmicAppLibrary {
                 self.load_apps();
             }
             Message::Closed(id) => {
-                if self
-                    .active_surface
-                    .map(|active_id| active_id == id)
-                    .unwrap_or_default()
-                {
-                    self.active_surface.take();
+                if self.active_surface && id == WINDOW_ID {
+                    self.active_surface = false;
                     return Command::perform(async {}, |_| Message::Clear);
                 }
                 // TODO handle popups closed
@@ -200,9 +197,10 @@ impl Application for CosmicAppLibrary {
                     return text_input::focus(INPUT_ID.clone());
                 }
                 LayerEvent::Unfocused => {
-                    if let Some(id) = self.active_surface {
+                    if self.active_surface {
+                        self.active_surface = false;
                         return Command::batch(vec![
-                            destroy_layer_surface(id),
+                            destroy_layer_surface(WINDOW_ID),
                             Command::perform(async {}, |_| Message::Clear),
                         ]);
                     }
@@ -210,9 +208,10 @@ impl Application for CosmicAppLibrary {
                 _ => {}
             },
             Message::Hide => {
-                if let Some(id) = self.active_surface {
+                if self.active_surface {
+                    self.active_surface = false;
                     return Command::batch(vec![
-                        destroy_layer_surface(id),
+                        destroy_layer_surface(WINDOW_ID),
                         Command::perform(async {}, |_| Message::Clear),
                     ]);
                 }
@@ -259,18 +258,17 @@ impl Application for CosmicAppLibrary {
                 self.load_apps();
             }
             Message::Toggle => {
-                if let Some(id) = self.active_surface.take() {
-                    return destroy_layer_surface(id);
+                if self.active_surface {
+                    self.active_surface = false;
+                    return destroy_layer_surface(WINDOW_ID);
                 } else {
-                    self.id_ctr += 1;
                     let mut cmds = Vec::new();
 
                     self.input_value = "".to_string();
-                    let id = SurfaceId(self.id_ctr);
-                    self.active_surface.replace(id);
+                    self.active_surface = true;
                     cmds.push(text_input::focus(INPUT_ID.clone()));
                     cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
-                        id,
+                        id: WINDOW_ID,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
                         anchor: Anchor::TOP,
                         namespace: "app-library".into(),
