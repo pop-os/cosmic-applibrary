@@ -41,11 +41,16 @@ use crate::{config, fl};
 // should be a way to remove apps from groups
 
 static SEARCH_ID: Lazy<Id> = Lazy::new(|| Id::new("search"));
-static EDIT_GROUP: Lazy<Id> = Lazy::new(|| Id::new("edit_group"));
+static EDIT_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("edit_group"));
+static NEW_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("new_group"));
+
 static SEARCH_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("search-placeholder"));
+static NEW_GROUP_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("new-group-placeholder"));
 static OK: Lazy<String> = Lazy::new(|| fl!("ok"));
+static CANCEL: Lazy<String> = Lazy::new(|| fl!("cancel"));
 
 const WINDOW_ID: SurfaceId = SurfaceId(1);
+const NEW_GROUP_WINDOW_ID: SurfaceId = SurfaceId(2);
 
 pub fn run() -> cosmic::iced::Result {
     let mut settings = settings();
@@ -65,6 +70,7 @@ struct CosmicAppLibrary {
     theme: Theme,
     locale: Option<String>,
     edit_name: Option<String>,
+    new_group: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +87,10 @@ enum Message {
     StartEditName(String),
     EditName(String),
     SubmitName,
+    StartNewGroup,
+    NewGroup(String),
+    SubmitNewGroup,
+    CancelNewGroup,
     LoadApps,
     Ignore,
 }
@@ -137,6 +147,7 @@ impl Application for CosmicAppLibrary {
                 if self.active_surface && id == WINDOW_ID {
                     self.active_surface = false;
                     self.edit_name = None;
+                    self.new_group = None;
                     return Command::perform(async {}, |_| Message::Clear);
                 }
                 // TODO handle popups closed
@@ -146,7 +157,7 @@ impl Application for CosmicAppLibrary {
                     return text_input::focus(SEARCH_ID.clone());
                 }
                 LayerEvent::Unfocused => {
-                    if self.active_surface {
+                    if self.active_surface && self.new_group.is_none() {
                         self.active_surface = false;
                         return Command::batch(vec![
                             destroy_layer_surface(WINDOW_ID),
@@ -160,7 +171,9 @@ impl Application for CosmicAppLibrary {
                 if self.active_surface {
                     self.active_surface = false;
                     self.edit_name = None;
+                    self.new_group = None;
                     return Command::batch(vec![
+                        destroy_layer_surface(NEW_GROUP_WINDOW_ID),
                         destroy_layer_surface(WINDOW_ID),
                         Command::perform(async {}, |_| Message::Clear),
                     ]);
@@ -199,7 +212,11 @@ impl Application for CosmicAppLibrary {
             Message::Toggle => {
                 if self.active_surface {
                     self.active_surface = false;
-                    return destroy_layer_surface(WINDOW_ID);
+                    self.new_group = None;
+                    return Command::batch(vec![
+                        destroy_layer_surface(NEW_GROUP_WINDOW_ID),
+                        destroy_layer_surface(WINDOW_ID),
+                    ]);
                 } else {
                     let mut cmds = Vec::new();
                     self.edit_name = None;
@@ -254,11 +271,80 @@ impl Application for CosmicAppLibrary {
                 self.edit_name = Some(name);
                 return focus(SEARCH_ID.clone());
             }
+            Message::StartNewGroup => {
+                self.new_group = Some(String::new());
+                return get_layer_surface(SctkLayerSurfaceSettings {
+                    id: NEW_GROUP_WINDOW_ID,
+                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                    anchor: Anchor::empty(),
+                    namespace: "dialog".into(),
+                    size: None,
+                    ..Default::default()
+                });
+            }
+            Message::NewGroup(group_name) => {
+                self.new_group = Some(group_name);
+            }
+            Message::SubmitNewGroup => {
+                if let Some(group_name) = self.new_group.take() {
+                    self.config.add(group_name);
+                }
+                if let Some(helper) = self.helper.as_ref() {
+                    if let Err(err) = self.config.write_entry(helper) {
+                        error!("{:?}", err);
+                    }
+                }
+                return destroy_layer_surface(NEW_GROUP_WINDOW_ID);
+            }
+            Message::CancelNewGroup => {
+                self.new_group = None;
+                return destroy_layer_surface(NEW_GROUP_WINDOW_ID);
+            }
         }
         Command::none()
     }
 
-    fn view(&self, _id: SurfaceId) -> Element<Message> {
+    fn view(&self, id: SurfaceId) -> Element<Message> {
+        if id == NEW_GROUP_WINDOW_ID {
+            let Some(group_name) = self.new_group.as_ref() else {
+                return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
+            };
+            let dialog = column![
+                text_input(&NEW_GROUP_PLACEHOLDER, &group_name)
+                    .on_input(Message::NewGroup)
+                    .on_submit(Message::SubmitNewGroup)
+                    .style(TextInput::Default)
+                    .padding([8, 24])
+                    .width(Length::Fixed(400.0))
+                    .size(14)
+                    .id(NEW_GROUP_ID.clone()),
+                row![
+                    button(theme::Button::Secondary)
+                        .text(&OK)
+                        .on_press(Message::SubmitNewGroup)
+                        .padding([8, 24]),
+                    button(theme::Button::Secondary)
+                        .text(&CANCEL)
+                        .on_press(Message::CancelNewGroup)
+                        .padding([8, 24])
+                ]
+                .spacing(16.0)
+            ]
+            .align_items(Alignment::Center)
+            .spacing(16.0);
+            return container(dialog)
+                .style(Container::Custom(Box::new(|theme| container::Appearance {
+                    text_color: Some(theme.cosmic().on_bg_color().into()),
+                    background: Some(Color::from(theme.cosmic().background.base).into()),
+                    border_radius: 16.0.into(),
+                    border_width: 1.0,
+                    border_color: theme.cosmic().bg_divider().into(),
+                })))
+                .width(Length::Shrink)
+                .height(Length::Shrink)
+                .padding(16.0)
+                .into();
+        }
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
             row![text_input(&SEARCH_PLACEHOLDER, &self.search_value)
@@ -284,7 +370,7 @@ impl Application for CosmicAppLibrary {
                     .on_input(Message::EditName)
                     .on_paste(Message::EditName)
                     .on_submit(Message::SubmitName)
-                    .id(EDIT_GROUP.clone())
+                    .id(EDIT_GROUP_ID.clone())
                     .style(TextInput::Default)
                     .padding([8, 24])
                     .width(Length::Fixed(200.0))
@@ -404,6 +490,22 @@ impl Application for CosmicAppLibrary {
                 }
                 group_row = group_row.push(group_button);
             }
+            group_row = group_row.push(
+                iced::widget::button(
+                    column![
+                        icon("folder-new-symbolic", 32),
+                        text("Add group").horizontal_alignment(Horizontal::Center)
+                    ]
+                    .spacing(8)
+                    .align_items(Alignment::Center)
+                    .width(Length::Fill),
+                )
+                .height(Length::Fill)
+                .width(Length::Fixed(128.0))
+                .style(Button::Secondary)
+                .padding([16, 8])
+                .on_press(Message::StartNewGroup),
+            );
             group_row
         };
 
