@@ -143,6 +143,14 @@ impl AppLibraryConfig {
         1
     }
 
+    pub fn add(&mut self, name: String) {
+        self.groups.push(AppGroup {
+            name,
+            icon: "folder-symbolic".to_string(),
+            filter: FilterType::AppIds(Vec::new()),
+        });
+    }
+
     pub fn remove(&mut self, i: usize) {
         if i - 1 < self.groups.len() {
             self.groups.remove(i - 1);
