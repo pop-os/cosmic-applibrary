@@ -27,6 +27,8 @@ anyhow = "1.0"
 itertools = "0.10"
 freedesktop-icons = "0.2.2"
 current_locale = "0.1.1"
+url = "2.4"
+dyn-clone = "1.0"
 
 [profile.release]
 lto = "thin"

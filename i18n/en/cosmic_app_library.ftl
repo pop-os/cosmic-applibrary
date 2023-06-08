@@ -9,3 +9,5 @@ ok = Ok
 cancel = Cancel
 search-placeholder = Type to search apps...
 new-group-placeholder = Folder Name
+run = Run
+remove = Remove

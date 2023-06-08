@@ -4,6 +4,7 @@ mod app;
 mod app_group;
 mod localize;
 mod subscriptions;
+mod widgets;
 
 use config::APP_ID;
 use log::info;
