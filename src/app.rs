@@ -1,42 +1,49 @@
+use std::fmt::Debug;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
+use cosmic::iced::wayland::actions::data_device::ActionInner;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
+use cosmic::iced::wayland::actions::popup::{SctkPopupSettings, SctkPositioner};
 use cosmic::iced::wayland::layer_surface::{
     destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
 };
 use cosmic::iced::wayland::InitialSurface;
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
-use cosmic::iced::{Color, Subscription};
+use cosmic::iced::{Color, Limits, Subscription};
+use cosmic::iced_core::Rectangle;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
-use cosmic::iced_style::application::{self, Appearance};
-use cosmic::iced_widget::horizontal_space;
+use cosmic::iced_sctk::commands;
+use cosmic::iced_style::{
+    application::{self, Appearance},
+    button::StyleSheet as ButtonStyleSheet,
+};
 use cosmic::iced_widget::text_input::{focus, Icon, Side};
+use cosmic::iced_widget::{horizontal_space, mouse_area};
 use cosmic::theme::{self, Button, Container, TextInput};
-use cosmic::widget::{button, icon};
-use cosmic::{iced, settings, Element, Theme};
+use cosmic::widget::{button, divider, icon, list_column};
+use cosmic::{iced, sctk, settings, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
 
 use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
 
-use crate::app_group::{AppLibraryConfig, MyDesktopEntryData};
+use crate::app_group::{AppLibraryConfig, DesktopEntryData};
 use crate::config::APP_ID;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::subscriptions::toggle_dbus::dbus_toggle;
+use crate::widgets::application::ApplicationButton;
 use crate::{config, fl};
 
-// all of the groups should be saved and loaded with cosmic-config on startup
-// filter can have a list of names or a fallback list of categories to sort out
-// The None Filter should have a filter method which accepts a list of apps to exclude and return a list of all remaining apps
 // popovers should show options, but also the desktop info options
-// should be a way to add groups
-// should be a way to remove groups
 // should be a way to add apps to groups
 // should be a way to remove apps from groups
 
@@ -48,9 +55,13 @@ static SEARCH_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("search-placeholder")
 static NEW_GROUP_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("new-group-placeholder"));
 static OK: Lazy<String> = Lazy::new(|| fl!("ok"));
 static CANCEL: Lazy<String> = Lazy::new(|| fl!("cancel"));
+static RUN: Lazy<String> = Lazy::new(|| fl!("run"));
+static REMOVE: Lazy<String> = Lazy::new(|| fl!("remove"));
 
-const WINDOW_ID: SurfaceId = SurfaceId(1);
+pub(crate) const WINDOW_ID: SurfaceId = SurfaceId(1);
 const NEW_GROUP_WINDOW_ID: SurfaceId = SurfaceId(2);
+pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(3);
+pub(crate) const MENU_ID: SurfaceId = SurfaceId(4);
 
 pub fn run() -> cosmic::iced::Result {
     let mut settings = settings();
@@ -62,7 +73,8 @@ pub fn run() -> cosmic::iced::Result {
 #[derive(Default)]
 struct CosmicAppLibrary {
     search_value: String,
-    entry_path_input: Vec<MyDesktopEntryData>,
+    entry_path_input: Vec<DesktopEntryData>,
+    menu: Option<usize>,
     helper: Option<Config>,
     config: AppLibraryConfig,
     cur_group: usize,
@@ -71,9 +83,10 @@ struct CosmicAppLibrary {
     locale: Option<String>,
     edit_name: Option<String>,
     new_group: Option<String>,
+    dnd_icon: Option<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 enum Message {
     InputChanged(String),
     Closed(SurfaceId),
@@ -92,7 +105,29 @@ enum Message {
     SubmitNewGroup,
     CancelNewGroup,
     LoadApps,
+    OpenContextMenu(Rectangle, usize),
+    CloseContextMenu,
+    SelectAction(MenuAction),
+    StartDrag(usize),
+    DndCommandProduced(DndCommand),
+    FinishDrag(bool),
+    CancelDrag,
     Ignore,
+}
+
+#[derive(Clone)]
+struct DndCommand(Arc<Box<dyn Send + Sync + Fn() -> ActionInner>>);
+
+impl Debug for DndCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DndCommand").finish()
+    }
+}
+
+#[derive(Clone, Debug)]
+enum MenuAction {
+    Remove,
+    DesktopAction(String),
 }
 
 impl CosmicAppLibrary {
@@ -168,6 +203,9 @@ impl Application for CosmicAppLibrary {
                 _ => {}
             },
             Message::Hide => {
+                if self.menu.take().is_some() {
+                    return commands::popup::destroy_popup(MENU_ID);
+                }
                 if self.active_surface {
                     self.active_surface = false;
                     self.edit_name = None;
@@ -300,11 +338,189 @@ impl Application for CosmicAppLibrary {
                 self.new_group = None;
                 return destroy_layer_surface(NEW_GROUP_WINDOW_ID);
             }
+            Message::OpenContextMenu(rect, i) => {
+                if let Some(i) = self.menu.take() {
+                    if i == i {
+                        return commands::popup::destroy_popup(MENU_ID.clone());
+                    }
+                } else {
+                    self.menu = Some(i);
+                    return commands::popup::get_popup(SctkPopupSettings {
+                        parent: WINDOW_ID,
+                        id: MENU_ID,
+                        positioner: SctkPositioner {
+                            size: None,
+                            size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
+                            anchor_rect: Rectangle {
+                                x: rect.x as i32,
+                                y: rect.y as i32,
+                                width: rect.width as i32,
+                                height: rect.height as i32,
+                            },
+                            anchor:
+                                sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
+                            gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
+                            reactive: true,
+                            ..Default::default()
+                        },
+                        grab: true,
+                        parent_size: None,
+                    });
+                }
+            }
+            Message::CloseContextMenu => {
+                self.menu = None;
+                return commands::popup::destroy_popup(MENU_ID.clone());
+            }
+            Message::SelectAction(action) => {
+                if let Some(info) = self.menu.take().and_then(|i| self.entry_path_input.get(i)) {
+                    match action {
+                        MenuAction::Remove => {
+                            self.config.remove_entry(self.cur_group, &info.name);
+                            if let Some(helper) = self.helper.as_ref() {
+                                if let Err(err) = self.config.write_entry(helper) {
+                                    error!("{:?}", err);
+                                }
+                            }
+                            self.load_apps();
+                        }
+                        MenuAction::DesktopAction(exec) => {
+                            let mut exec = shlex::Shlex::new(&exec);
+
+                            let mut cmd = match exec.next() {
+                                Some(cmd) if !cmd.contains("=") => {
+                                    tokio::process::Command::new(cmd)
+                                }
+                                _ => return Command::none(),
+                            };
+                            for arg in exec {
+                                // TODO handle "%" args here if necessary?
+                                if !arg.starts_with("%") {
+                                    cmd.arg(arg);
+                                }
+                            }
+                            let _ = cmd.spawn();
+                            return Command::perform(async {}, |_| Message::Hide);
+                        }
+                    }
+                }
+            }
+            Message::StartDrag(i) => {
+                // self.dnd_icon = self.entry_path_input.get(i).map(|e| e.icon.clone());
+                self.dnd_icon = Some(i);
+            }
+            Message::FinishDrag(bool) => {
+                if let Some(info) = self
+                    .dnd_icon
+                    .take()
+                    .and_then(|i| self.entry_path_input.get(i))
+                {
+                    let _ = self.config.remove_entry(self.cur_group, &info.id);
+                    if let Some(helper) = self.helper.as_ref() {
+                        if let Err(err) = self.config.write_entry(helper) {
+                            error!("{:?}", err);
+                        }
+                    }
+                    self.load_apps();
+                }
+            }
+            Message::CancelDrag => {
+                self.dnd_icon = None;
+            }
+            Message::DndCommandProduced(DndCommand(cmd)) => {
+                let action = cmd();
+                return commands::data_device::action(action);
+            }
         }
         Command::none()
     }
 
     fn view(&self, id: SurfaceId) -> Element<Message> {
+        if id == DND_ICON_ID {
+            let Some(icon_path) = self.dnd_icon.clone().and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone())) else {
+                return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
+            };
+            return icon(icon_path, 64).into();
+        }
+        if id == MENU_ID {
+            let Some((menu, i)) = self.menu.as_ref().and_then(|i| self.entry_path_input.get(*i).map(|e| (e, i))) else {
+                return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
+            };
+            let mut list_column = column![cosmic::iced::widget::button(text(RUN.clone()))
+                .style(theme::Button::Custom {
+                    active: Box::new(|theme| {
+                        let mut appearance = theme.active(&theme::Button::Text);
+                        appearance.border_radius = 0.0;
+                        appearance
+                    }),
+                    hover: Box::new(|theme| {
+                        let mut appearance = theme.hovered(&theme::Button::Text);
+                        appearance.border_radius = 0.0;
+                        appearance
+                    })
+                })
+                .on_press(Message::ActivateApp(*i))
+                .padding([8, 24])
+                .width(Length::Fill)]
+            .spacing(8);
+
+            if menu.desktop_actions.len() > 0 {
+                list_column = list_column.push(container(horizontal_rule(1)).padding([0, 8]));
+                for action in menu.desktop_actions.iter() {
+                    list_column = list_column.push(
+                        cosmic::iced::widget::button(text(&action.name))
+                            .style(theme::Button::Custom {
+                                active: Box::new(|theme| {
+                                    let mut appearance = theme.active(&theme::Button::Text);
+                                    appearance.border_radius = 0.0;
+                                    appearance
+                                }),
+                                hover: Box::new(|theme| {
+                                    let mut appearance = theme.hovered(&theme::Button::Text);
+                                    appearance.border_radius = 0.0;
+                                    appearance
+                                }),
+                            })
+                            .on_press(Message::SelectAction(MenuAction::DesktopAction(
+                                action.exec.clone(),
+                            )))
+                            .padding([8, 24])
+                            .width(Length::Fill),
+                    );
+                }
+                list_column = list_column.push(container(horizontal_rule(1)).padding([0, 8]));
+            }
+
+            list_column = list_column.push(
+                cosmic::iced::widget::button(text(REMOVE.clone()))
+                    .style(theme::Button::Custom {
+                        active: Box::new(|theme| {
+                            let mut appearance = theme.active(&theme::Button::Text);
+                            appearance.border_radius = 0.0;
+                            appearance
+                        }),
+                        hover: Box::new(|theme| {
+                            let mut appearance = theme.hovered(&theme::Button::Text);
+                            appearance.border_radius = 0.0;
+                            appearance
+                        }),
+                    })
+                    .on_press(Message::SelectAction(MenuAction::Remove))
+                    .padding([8, 24])
+                    .width(Length::Fill),
+            );
+
+            return container(scrollable(list_column))
+                .style(Container::Custom(Box::new(|theme| container::Appearance {
+                    text_color: Some(theme.cosmic().on_bg_color().into()),
+                    background: Some(Color::from(theme.cosmic().background.base).into()),
+                    border_radius: 16.0.into(),
+                    border_width: 1.0,
+                    border_color: theme.cosmic().bg_divider().into(),
+                })))
+                .padding([16.0, 0.0, 16.0, 0.0])
+                .into();
+        }
         if id == NEW_GROUP_WINDOW_ID {
             let Some(group_name) = self.new_group.as_ref() else {
                 return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
@@ -405,42 +621,29 @@ impl Application for CosmicAppLibrary {
             .entry_path_input
             .iter()
             .enumerate()
-            .map(
-                |(
-                    i,
-                    MyDesktopEntryData {
-                        name, icon: image, ..
-                    },
-                )| {
-                    let name = if name.len() > 27 {
-                        format!("{:.24}...", name)
+            .map(|(i, entry)| {
+                let mut b = ApplicationButton::new(
+                    &entry,
+                    Message::Ignore,
+                    move |rect| Message::OpenContextMenu(rect, i),
+                    if self.menu.is_some() {
+                        None
                     } else {
-                        name.to_string()
-                    };
-
-                    iced::widget::button(
-                        column![
-                            icon(image.as_path(), 72)
-                                .width(Length::Fixed(72.0))
-                                .height(Length::Fixed(72.0)),
-                            text(name)
-                                .horizontal_alignment(Horizontal::Center)
-                                .size(11)
-                                .height(Length::Fixed(40.0))
-                        ]
-                        .width(Length::Fixed(120.0))
-                        .height(Length::Fixed(120.0))
-                        .spacing(8)
-                        .align_items(Alignment::Center)
-                        .width(Length::Fill),
-                    )
-                    .width(Length::FillPortion(1))
-                    .style(Button::Text)
-                    .padding(16)
-                    .on_press(Message::ActivateApp(i))
-                    .into()
-                },
-            )
+                        Some(Message::Ignore)
+                    },
+                );
+                if self.menu.is_none() {
+                    b = b
+                        .on_pressed(Message::ActivateApp(i))
+                        .on_cancel(Message::CancelDrag)
+                        .on_finish(Message::FinishDrag)
+                        .on_create_dnd_source(Message::StartDrag(i))
+                        .on_dnd_command_produced(|c| {
+                            Message::DndCommandProduced(DndCommand(Arc::new(c)))
+                        });
+                }
+                b.into()
+            })
             .chunks(7)
             .into_iter()
             .map(|row_chunk| {
@@ -481,7 +684,9 @@ impl Application for CosmicAppLibrary {
                 .width(Length::Fixed(128.0))
                 .style(Button::Primary)
                 .padding([16, 8]);
-                if i != self.cur_group {
+                if self.menu.is_some() {
+                    // Nothing
+                } else if i != self.cur_group {
                     group_button = group_button
                         .on_press(Message::SelectGroup(i))
                         .style(Button::Secondary);
@@ -514,7 +719,7 @@ impl Application for CosmicAppLibrary {
             .align_items(Alignment::Center)
             .padding([32, 64, 16, 64]);
 
-        container(content)
+        let window = container(content)
             .width(Length::Fill)
             .height(Length::Fill)
             .style(Container::Custom(Box::new(|theme| container::Appearance {
@@ -524,7 +729,10 @@ impl Application for CosmicAppLibrary {
                 border_width: 1.0,
                 border_color: theme.cosmic().bg_divider().into(),
             })))
-            .center_x()
+            .center_x();
+        mouse_area(window)
+            .on_release(Message::CloseContextMenu)
+            .on_right_release(Message::CloseContextMenu)
             .into()
     }
 

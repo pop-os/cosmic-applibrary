@@ -5,6 +5,7 @@ use std::vec;
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
 use cosmic::cosmic_config::{self, Config, ConfigGet, ConfigSet, CosmicConfigEntry};
 use freedesktop_desktop_entry::DesktopEntry;
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -55,7 +56,7 @@ impl AppGroup {
         locale: Option<&str>,
         input_value: &str,
         exceptions: &Vec<Self>,
-    ) -> Vec<MyDesktopEntryData> {
+    ) -> Vec<DesktopEntryData> {
         freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
             .filter_map(|path| {
                 std::fs::read_to_string(&path).ok().and_then(|input| {
@@ -84,10 +85,34 @@ impl AppGroup {
                                 .with_size(72)
                                 .with_cache()
                                 .find()
-                                .map(|icon| MyDesktopEntryData {
+                                .map(|icon| DesktopEntryData {
+                                    id: de.appid.to_string(),
                                     exec: exec.to_string(),
                                     name,
                                     icon,
+                                    path: path.clone(),
+                                    desktop_actions: de
+                                        .actions()
+                                        .map(|actions| {
+                                            actions
+                                                .split(";")
+                                                .filter_map(|action| {
+                                                    let name = de.action_entry_localized(
+                                                        action, "name", locale,
+                                                    );
+                                                    let exec = de.action_entry(action, "exec");
+                                                    if let (Some(name), Some(exec)) = (name, exec) {
+                                                        Some(DesktopAction {
+                                                            name: name.to_string(),
+                                                            exec: exec.to_string(),
+                                                        })
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect_vec()
+                                        })
+                                        .unwrap_or_default(),
                                 })
                         } else {
                             None
@@ -131,11 +156,20 @@ pub struct AppLibraryConfig {
     groups: Vec<AppGroup>,
 }
 
-#[derive(Debug, Clone)]
-pub struct MyDesktopEntryData {
+#[derive(Debug, Clone, PartialEq)]
+pub struct DesktopAction {
+    pub name: String,
+    pub exec: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DesktopEntryData {
+    pub id: String,
     pub exec: String,
     pub name: String,
     pub icon: PathBuf,
+    pub path: PathBuf,
+    pub desktop_actions: Vec<DesktopAction>,
 }
 
 impl AppLibraryConfig {
@@ -163,6 +197,27 @@ impl AppLibraryConfig {
         }
     }
 
+    pub fn remove_entry(&mut self, i: usize, id: &str) {
+        if let Some(group) = self.groups.get_mut(i - 1) {
+            match &mut group.filter {
+                FilterType::AppIds(ids) => ids.retain(|conf_id| conf_id != id),
+                FilterType::Categories {
+                    exclude, include, ..
+                } => {
+                    include.retain(|conf_id| conf_id != id);
+                    exclude.retain(|conf_id| conf_id != id);
+                    exclude.push(id.to_string());
+                }
+                FilterType::None => {}
+            }
+        }
+        if i - 1 < self.groups.len() {
+            if let FilterType::AppIds(ids) = &mut self.groups[i - 1].filter {
+                ids.retain(|x| x != id);
+            }
+        }
+    }
+
     pub fn groups(&self) -> Vec<&AppGroup> {
         HOME.iter().chain(&self.groups).collect()
     }
@@ -172,7 +227,7 @@ impl AppLibraryConfig {
         i: usize,
         locale: Option<&str>,
         input_value: &str,
-    ) -> Vec<MyDesktopEntryData> {
+    ) -> Vec<DesktopEntryData> {
         if i == 0 {
             HOME[0].filtered(locale, input_value, &self.groups)
         } else {
@@ -185,7 +240,7 @@ impl AppLibraryConfig {
         i: usize,
         locale: Option<&str>,
         input_value: &str,
-    ) -> Vec<MyDesktopEntryData> {
+    ) -> Vec<DesktopEntryData> {
         self.groups
             .get(i)
             .map(|g| g.filtered(locale, input_value, &Vec::new()))
