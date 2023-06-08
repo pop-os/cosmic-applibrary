@@ -48,7 +48,7 @@ be attributed erroneously to authors of previous versions.
 Some devices are designed to deny users access to install or run modified versions of
 the software inside them, although the manufacturer can do so. This is fundamentally
 incompatible with the aim of protecting users' freedom to change the software. The
-systematic pattern of such abuse occurs in the area of products for individuals to
+cosmic-systematic pattern of such abuse occurs in the area of products for individuals to
 use, which is precisely where it is most unacceptable. Therefore, we have designed
 this version of the GPL to prohibit the practice for those products. If such problems
 arise substantially in other domains, we stand ready to extend this provision to

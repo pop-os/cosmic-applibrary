@@ -1,7 +1,7 @@
 cosmic-app-library = Knihovna Kosmických Aplikací
-library-home = Knihovna Domů
-system = Systém
-utilities = Utility aplikace
+cosmic-library-home = Knihovna Domů
+cosmic-system = Systém
+cosmic-utilities = Utility aplikace
 new-group = Nová Skupina
 name = Jméno
 ok = Ok

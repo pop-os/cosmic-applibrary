@@ -1,8 +1,8 @@
 cosmic-app-library = Cosmic App Library
-library-home = Library Home
-office = Office
-system = System
-utilities = Utilities
+cosmic-library-home = Library Home
+cosmic-office = Office
+cosmic-system = System
+cosmic-utilities = Utilities
 new-group = Create Folder
 name = Name
 ok = Ok
