@@ -8,6 +8,8 @@ use freedesktop_desktop_entry::DesktopEntry;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+use crate::fl;
+
 static HOME: Lazy<[AppGroup; 1]> = Lazy::new(|| {
     [AppGroup {
         name: "cosmic-library-home".to_string(),
@@ -108,6 +110,20 @@ impl AppGroup {
             FilterType::None => true,
         }
     }
+
+    pub fn name(&self) -> String {
+        if &self.name == "cosmic-library-home" {
+            fl!("cosmic-library-home")
+        } else if &self.name == "cosmic-office" {
+            fl!("cosmic-office")
+        } else if &self.name == "cosmic-system" {
+            fl!("cosmic-system")
+        } else if &self.name == "cosmic-utilities" {
+            fl!("cosmic-utilities")
+        } else {
+            self.name.clone()
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, CosmicConfigEntry)]
@@ -125,6 +141,18 @@ pub struct MyDesktopEntryData {
 impl AppLibraryConfig {
     pub fn version() -> u64 {
         1
+    }
+
+    pub fn remove(&mut self, i: usize) {
+        if i - 1 < self.groups.len() {
+            self.groups.remove(i - 1);
+        }
+    }
+
+    pub fn set_name(&mut self, i: usize, name: String) {
+        if i - 1 < self.groups.len() {
+            self.groups[i - 1].name = name;
+        }
     }
 
     pub fn groups(&self) -> Vec<&AppGroup> {
