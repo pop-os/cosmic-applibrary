@@ -7,3 +7,4 @@ new-group = Create Folder
 name = Name
 ok = Ok
 cancel = Cancel
+search-placeholder = Type to search apps...
