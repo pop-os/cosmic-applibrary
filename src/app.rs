@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
+use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
@@ -24,12 +25,23 @@ use freedesktop_desktop_entry::DesktopEntry;
 use iced::wayland::actions::layer_surface::IcedMargin;
 
 use itertools::Itertools;
+use log::error;
 use once_cell::sync::Lazy;
 
-use crate::app_group::{AppGroup, FilterType};
+use crate::app_group::{AppGroup, AppLibraryConfig, FilterType, MyDesktopEntryData};
+use crate::config::APP_ID;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::subscriptions::toggle_dbus::dbus_toggle;
 use crate::{config, fl};
+
+// all of the groups should be saved and loaded with cosmic-config on startup
+// filter can have a list of names or a fallback list of categories to sort out
+// The None Filter should have a filter method which accepts a list of apps to exclude and return a list of all remaining apps
+// popovers should show options, but also the desktop info options
+// should be a way to add groups
+// should be a way to remove groups
+// should be a way to add apps to groups
+// should be a way to remove apps from groups
 
 static INPUT_ID: Lazy<Id> = Lazy::new(Id::unique);
 
@@ -42,18 +54,12 @@ pub fn run() -> cosmic::iced::Result {
     CosmicAppLibrary::run(settings)
 }
 
-#[derive(Debug, Clone)]
-struct MyDesktopEntryData {
-    desktop_entry_path: PathBuf,
-    name: String,
-    icon: PathBuf,
-}
-
 #[derive(Default)]
 struct CosmicAppLibrary {
     input_value: String,
     entry_path_input: Vec<MyDesktopEntryData>,
-    groups: Vec<AppGroup>,
+    helper: Option<Config>,
+    config: AppLibraryConfig,
     cur_group: usize,
     active_surface: bool,
     theme: Theme,
@@ -77,59 +83,8 @@ enum Message {
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
         self.entry_path_input =
-            freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
-                .filter_map(|path| {
-                    std::fs::read_to_string(&path).ok().and_then(|input| {
-                        DesktopEntry::decode(&path, &input).ok().and_then(|de| {
-                            let name = de
-                                .name(self.locale.as_ref().map(|x| &**x))
-                                .unwrap_or(Cow::Borrowed(de.appid))
-                                .to_string();
-                            let group_filter = &self.groups[self.cur_group];
-                            let mut keep_de = !de.no_display()
-                                && match &group_filter.filter {
-                                    FilterType::AppNames(names) => names.contains(&name),
-                                    FilterType::Categories(categories) => {
-                                        categories.into_iter().any(|cat| {
-                                            de.categories()
-                                                .map(|cats| {
-                                                    cats.to_lowercase()
-                                                        .contains(&cat.to_lowercase())
-                                                })
-                                                .unwrap_or_default()
-                                        })
-                                    }
-                                    FilterType::None => true,
-                                };
-                            if keep_de && self.input_value.len() > 0 {
-                                keep_de = name
-                                    .to_lowercase()
-                                    .contains(&self.input_value.to_lowercase())
-                                    || de
-                                        .categories()
-                                        .map(|cats| {
-                                            cats.to_lowercase()
-                                                .contains(&self.input_value.to_lowercase())
-                                        })
-                                        .unwrap_or_default()
-                            }
-                            if keep_de {
-                                freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
-                                    .with_size(72)
-                                    .with_cache()
-                                    .find()
-                                    .map(|icon| MyDesktopEntryData {
-                                        desktop_entry_path: path.clone(),
-                                        name,
-                                        icon,
-                                    })
-                            } else {
-                                None
-                            }
-                        })
-                    })
-                })
-                .collect();
+            self.config
+                .filtered(self.cur_group, self.locale.as_deref(), &self.input_value)
     }
 }
 
@@ -140,35 +95,23 @@ impl Application for CosmicAppLibrary {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
+        let helper = Config::new(APP_ID, AppLibraryConfig::version()).ok();
+        let config: AppLibraryConfig = helper
+            .as_ref()
+            .map(|helper| {
+                AppLibraryConfig::get_entry(helper).unwrap_or_else(|(errors, config)| {
+                    for err in errors {
+                        error!("{:?}", err);
+                    }
+                    config
+                })
+            })
+            .unwrap_or_default();
         (
             CosmicAppLibrary {
                 locale: current_locale::current_locale().ok(),
-                groups: vec![
-                    AppGroup {
-                        name: fl!("library-home"),
-                        icon: "user-home-symbolic".to_string(),
-                        mutable: false,
-                        filter: FilterType::None,
-                    },
-                    AppGroup {
-                        name: fl!("office"),
-                        icon: "folder-symbolic".to_string(),
-                        mutable: false,
-                        filter: FilterType::Categories(vec!["Office".to_string()]),
-                    },
-                    AppGroup {
-                        name: fl!("system"),
-                        icon: "folder-symbolic".to_string(),
-                        mutable: false,
-                        filter: FilterType::Categories(vec!["System".to_string()]),
-                    },
-                    AppGroup {
-                        name: fl!("utilities"),
-                        icon: "folder-symbolic".to_string(),
-                        mutable: false,
-                        filter: FilterType::Categories(vec!["Utility".to_string()]),
-                    },
-                ],
+                helper,
+                config,
                 ..Default::default()
             },
             Command::none(),
@@ -222,23 +165,8 @@ impl Application for CosmicAppLibrary {
                 self.load_apps();
             }
             Message::ActivateApp(i) => {
-                if let Some(de) = self.entry_path_input.get(i).and_then(
-                    |MyDesktopEntryData {
-                         desktop_entry_path, ..
-                     }| {
-                        std::fs::read_to_string(&desktop_entry_path)
-                            .ok()
-                            .and_then(|input| {
-                                DesktopEntry::decode(desktop_entry_path, &input)
-                                    .ok()
-                                    .map(|de| de.exec().map(|e| e.to_string()))
-                            })
-                    },
-                ) {
-                    let mut exec = match de.as_ref() {
-                        Some(exec_str) => shlex::Shlex::new(exec_str),
-                        _ => return Command::none(),
-                    };
+                if let Some(de) = self.entry_path_input.get(i) {
+                    let mut exec = shlex::Shlex::new(&de.exec);
                     let mut cmd = match exec.next() {
                         Some(cmd) if !cmd.contains("=") => tokio::process::Command::new(cmd),
                         _ => return Command::none(),
@@ -375,11 +303,22 @@ impl Application for CosmicAppLibrary {
                 .height(Length::Fixed(100.0))
                 .spacing(8)
                 .align_items(Alignment::Center);
-            for (i, group) in self.groups.iter().enumerate() {
+            for (i, group) in self.config.groups().iter().enumerate() {
+                let name = if &group.name == "cosmic-library-home" {
+                    fl!("cosmic-library-home")
+                } else if &group.name == "cosmic-office" {
+                    fl!("cosmic-office")
+                } else if &group.name == "cosmic-system" {
+                    fl!("cosmic-system")
+                } else if &group.name == "cosmic-utilities" {
+                    fl!("cosmic-utilities")
+                } else {
+                    group.name.clone()
+                };
                 let mut group_button = iced::widget::button(
                     column![
                         icon(&*group.icon, 32),
-                        text(&group.name).horizontal_alignment(Horizontal::Center)
+                        text(name).horizontal_alignment(Horizontal::Center)
                     ]
                     .spacing(8)
                     .align_items(Alignment::Center)

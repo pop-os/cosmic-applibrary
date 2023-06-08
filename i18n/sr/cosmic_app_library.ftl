@@ -1,8 +1,8 @@
 cosmic-app-library = Cosmic biblioteka aplikacija
-library-home = Početna stranica biblioteke
-office = Kancelarija
-system = Sistem
-utilities = Korisno
+cosmic-library-home = Početna stranica biblioteke
+cosmic-office = Kancelarija
+cosmic-system = Sistem
+cosmic-utilities = Korisno
 new-group = Napravi folder
 name = Ime
 ok = U redu

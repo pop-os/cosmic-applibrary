@@ -1,7 +1,7 @@
 cosmic-app-library = Cosmic Uygulama Kütüphanesi
-library-home = Kütüphane Ana Sayfası
-system = Sistem
-utilities = Araçlar
+cosmic-library-home = Kütüphane Ana Sayfası
+cosmic-system = Sistem
+cosmic-utilities = Araçlar
 new-group = Klasör Oluştur
 name = İsim
 ok = Tamam
