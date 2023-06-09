@@ -253,6 +253,7 @@ impl Application for CosmicAppLibrary {
                 self.edit_name = None;
                 self.search_value.clear();
                 self.cur_group = i;
+                self.scroll_offset = 0.0;
                 self.load_apps();
             }
             Message::Toggle => {
@@ -268,6 +269,7 @@ impl Application for CosmicAppLibrary {
                     self.edit_name = None;
                     self.search_value = "".to_string();
                     self.active_surface = true;
+                    self.scroll_offset = 0.0;
                     cmds.push(text_input::focus(SEARCH_ID.clone()));
                     cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
                         id: WINDOW_ID,
@@ -446,7 +448,7 @@ impl Application for CosmicAppLibrary {
             }
             Message::FinishDndOffer(i, entry) => {
                 if self.cur_group == i {
-                    self.dnd_icon = None;
+                    self.offer_group = None;
                     return Command::none();
                 }
 
@@ -458,7 +460,7 @@ impl Application for CosmicAppLibrary {
                 }
             }
             Message::LeaveDndOffer => {
-                self.dnd_icon = None;
+                self.offer_group = None;
             }
             Message::ScrollYOffset(y) => {
                 self.scroll_offset = y;
@@ -699,6 +701,13 @@ impl Application for CosmicAppLibrary {
 
         let app_scrollable = scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
             .on_scroll(|viewport| Message::ScrollYOffset(viewport.absolute_offset().y))
+            .id(Id::new(
+                self.config
+                    .groups()
+                    .get(self.cur_group)
+                    .map(|g| g.name.clone())
+                    .unwrap_or_else(|| "unknown-group".to_string()),
+            ))
             .height(Length::Fixed(600.0));
 
         let group_row = {
@@ -715,12 +724,12 @@ impl Application for CosmicAppLibrary {
                     } else {
                         Some(Message::SelectGroup(i))
                     },
-                    if self.offer_group != Some(i)
-                        || (self.cur_group != i && self.offer_group.is_none())
+                    if self.offer_group == Some(i)
+                        || (self.cur_group == i && self.offer_group.is_none())
                     {
-                        Button::Secondary
-                    } else {
                         Button::Primary
+                    } else {
+                        Button::Secondary
                     },
                 );
                 if i != 0 {
