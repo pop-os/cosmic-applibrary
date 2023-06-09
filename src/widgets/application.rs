@@ -27,7 +27,7 @@ use cosmic::{
 use crate::app::{DND_ICON_ID, WINDOW_ID};
 use crate::app_group::DesktopEntryData;
 
-const MIME_TYPE: &str = "text/uri-list";
+pub const MIME_TYPE: &str = "text/uri-list";
 const DRAG_THRESHOLD: f32 = 25.0;
 /// A widget that can be dragged and dropped.
 #[allow(missing_debug_implementations)]

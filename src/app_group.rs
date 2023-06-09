@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
-use std::vec;
+use std::{any, vec};
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
 use cosmic::cosmic_config::{self, Config, ConfigGet, ConfigSet, CosmicConfigEntry};
@@ -126,12 +126,18 @@ impl AppGroup {
     fn matches(&self, entry: &DesktopEntry) -> bool {
         match &self.filter {
             FilterType::AppIds(names) => names.iter().any(|id| id == entry.appid),
-            FilterType::Categories { categories, .. } => categories.into_iter().any(|cat| {
-                entry
-                    .categories()
-                    .map(|cats| cats.to_lowercase().contains(&cat.to_lowercase()))
-                    .unwrap_or_default()
-            }),
+            FilterType::Categories {
+                categories,
+                include,
+                ..
+            } => {
+                categories.into_iter().any(|cat| {
+                    entry
+                        .categories()
+                        .map(|cats| cats.to_lowercase().contains(&cat.to_lowercase()))
+                        .unwrap_or_default()
+                }) || include.iter().any(|id| id == entry.appid)
+            }
             FilterType::None => true,
         }
     }
@@ -170,6 +176,49 @@ pub struct DesktopEntryData {
     pub icon: PathBuf,
     pub path: PathBuf,
     pub desktop_actions: Vec<DesktopAction>,
+}
+
+impl TryFrom<PathBuf> for DesktopEntryData {
+    type Error = anyhow::Error;
+
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        let input = std::fs::read_to_string(&path)?;
+        let de = DesktopEntry::decode(&path, &input)?;
+        let name = de.name(None).unwrap_or(Cow::Borrowed(de.appid)).to_string();
+        let Some(exec) = de.exec() else {
+            anyhow::bail!("No exec found in desktop entry")
+        };
+        let Some(icon) = de.icon() else {
+            anyhow::bail!("No icon found in desktop entry")
+        };
+        Ok(DesktopEntryData {
+            id: de.appid.to_string(),
+            exec: exec.to_string(),
+            name,
+            icon: icon.into(),
+            path: path.clone(),
+            desktop_actions: de
+                .actions()
+                .map(|actions| {
+                    actions
+                        .split(";")
+                        .filter_map(|action| {
+                            let name = de.action_entry_localized(action, "name", None);
+                            let exec = de.action_entry(action, "exec");
+                            if let (Some(name), Some(exec)) = (name, exec) {
+                                Some(DesktopAction {
+                                    name: name.to_string(),
+                                    exec: exec.to_string(),
+                                })
+                            } else {
+                                None
+                            }
+                        })
+                        .collect_vec()
+                })
+                .unwrap_or_default(),
+        })
+    }
 }
 
 impl AppLibraryConfig {
@@ -214,6 +263,23 @@ impl AppLibraryConfig {
         if i - 1 < self.groups.len() {
             if let FilterType::AppIds(ids) = &mut self.groups[i - 1].filter {
                 ids.retain(|x| x != id);
+            }
+        }
+    }
+
+    pub fn add_entry(&mut self, i: usize, id: &str) {
+        if i - 1 < self.groups.len() {
+            if let FilterType::AppIds(ids) = &mut self.groups[i - 1].filter {
+                if ids.iter().all(|s| s != id) {
+                    ids.push(id.to_string());
+                }
+            } else if let FilterType::Categories {
+                exclude, include, ..
+            } = &mut self.groups[i - 1].filter
+            {
+                include.retain(|conf_id| conf_id != id);
+                exclude.retain(|conf_id| conf_id != id);
+                include.push(id.to_string());
             }
         }
     }

@@ -41,6 +41,7 @@ use crate::config::APP_ID;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::subscriptions::toggle_dbus::dbus_toggle;
 use crate::widgets::application::ApplicationButton;
+use crate::widgets::group::GroupButton;
 use crate::{config, fl};
 
 // popovers should show options, but also the desktop info options
@@ -84,6 +85,7 @@ struct CosmicAppLibrary {
     edit_name: Option<String>,
     new_group: Option<String>,
     dnd_icon: Option<usize>,
+    offer_group: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -112,6 +114,9 @@ enum Message {
     DndCommandProduced(DndCommand),
     FinishDrag(bool),
     CancelDrag,
+    StartDndOffer(usize),
+    FinishDndOffer(usize, DesktopEntryData),
+    LeaveDndOffer,
     Ignore,
 }
 
@@ -134,7 +139,8 @@ impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
         self.entry_path_input =
             self.config
-                .filtered(self.cur_group, self.locale.as_deref(), &self.search_value)
+                .filtered(self.cur_group, self.locale.as_deref(), &self.search_value);
+        self.entry_path_input.sort_by(|a, b| a.name.cmp(&b.name));
     }
 }
 
@@ -409,19 +415,21 @@ impl Application for CosmicAppLibrary {
                 // self.dnd_icon = self.entry_path_input.get(i).map(|e| e.icon.clone());
                 self.dnd_icon = Some(i);
             }
-            Message::FinishDrag(bool) => {
-                if let Some(info) = self
-                    .dnd_icon
-                    .take()
-                    .and_then(|i| self.entry_path_input.get(i))
-                {
-                    let _ = self.config.remove_entry(self.cur_group, &info.id);
-                    if let Some(helper) = self.helper.as_ref() {
-                        if let Err(err) = self.config.write_entry(helper) {
-                            error!("{:?}", err);
+            Message::FinishDrag(copy) => {
+                if !copy {
+                    if let Some(info) = self
+                        .dnd_icon
+                        .take()
+                        .and_then(|i| self.entry_path_input.get(i))
+                    {
+                        let _ = self.config.remove_entry(self.cur_group, &info.id);
+                        if let Some(helper) = self.helper.as_ref() {
+                            if let Err(err) = self.config.write_entry(helper) {
+                                error!("{:?}", err);
+                            }
                         }
+                        self.load_apps();
                     }
-                    self.load_apps();
                 }
             }
             Message::CancelDrag => {
@@ -430,6 +438,25 @@ impl Application for CosmicAppLibrary {
             Message::DndCommandProduced(DndCommand(cmd)) => {
                 let action = cmd();
                 return commands::data_device::action(action);
+            }
+            Message::StartDndOffer(i) => {
+                self.offer_group = Some(i);
+            }
+            Message::FinishDndOffer(i, entry) => {
+                if self.cur_group == i {
+                    self.dnd_icon = None;
+                    return Command::none();
+                }
+
+                self.config.add_entry(i, &entry.id);
+                if let Some(helper) = self.helper.as_ref() {
+                    if let Err(err) = self.config.write_entry(helper) {
+                        error!("{:?}", err);
+                    }
+                }
+            }
+            Message::LeaveDndOffer => {
+                self.dnd_icon = None;
             }
         }
         Command::none()
@@ -670,29 +697,32 @@ impl Application for CosmicAppLibrary {
                 .spacing(8)
                 .align_items(Alignment::Center);
             for (i, group) in self.config.groups().iter().enumerate() {
-                let name = group.name();
-                let mut group_button = iced::widget::button(
-                    column![
-                        icon(&*group.icon, 32),
-                        text(name).horizontal_alignment(Horizontal::Center)
-                    ]
-                    .spacing(8)
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill),
-                )
-                .height(Length::Fill)
-                .width(Length::Fixed(128.0))
-                .style(Button::Primary)
-                .padding([16, 8]);
-                if self.menu.is_some() {
-                    // Nothing
-                } else if i != self.cur_group {
+                let mut group_button = GroupButton::new(
+                    group.name(),
+                    &group.icon,
+                    if self.menu.is_some() {
+                        None
+                    } else {
+                        Some(Message::SelectGroup(i))
+                    },
+                    if self.offer_group != Some(i)
+                        || (self.cur_group != i && self.offer_group.is_none())
+                    {
+                        Button::Secondary
+                    } else {
+                        Button::Primary
+                    },
+                );
+                if i != 0 {
                     group_button = group_button
-                        .on_press(Message::SelectGroup(i))
-                        .style(Button::Secondary);
-                } else {
-                    group_button = group_button.on_press(Message::Ignore);
+                        .on_finish(move |entry| Message::FinishDndOffer(i, entry))
+                        .on_cancel(Message::LeaveDndOffer)
+                        .on_offer(Message::StartDndOffer(i))
+                        .on_dnd_command_produced(|c| {
+                            Message::DndCommandProduced(DndCommand(Arc::new(c)))
+                        });
                 }
+
                 group_row = group_row.push(group_button);
             }
             group_row = group_row.push(
