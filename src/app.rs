@@ -384,7 +384,7 @@ impl Application for CosmicAppLibrary {
                 if let Some(info) = self.menu.take().and_then(|i| self.entry_path_input.get(i)) {
                     match action {
                         MenuAction::Remove => {
-                            self.config.remove_entry(self.cur_group, &info.name);
+                            self.config.remove_entry(self.cur_group, &info.id);
                             if let Some(helper) = self.helper.as_ref() {
                                 if let Err(err) = self.config.write_entry(helper) {
                                     error!("{:?}", err);
