@@ -1,10 +1,8 @@
 //! A widget that can be dragged and dropped.
 
-
 use std::mem;
 
 use std::str::FromStr;
-
 
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
