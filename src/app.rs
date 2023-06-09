@@ -86,6 +86,7 @@ struct CosmicAppLibrary {
     new_group: Option<String>,
     dnd_icon: Option<usize>,
     offer_group: Option<usize>,
+    scroll_offset: f32,
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +119,7 @@ enum Message {
     FinishDndOffer(usize, DesktopEntryData),
     LeaveDndOffer,
     Ignore,
+    ScrollYOffset(f32),
 }
 
 #[derive(Clone)]
@@ -359,7 +361,7 @@ impl Application for CosmicAppLibrary {
                             size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
                             anchor_rect: Rectangle {
                                 x: rect.x as i32,
-                                y: rect.y as i32,
+                                y: rect.y as i32 - self.scroll_offset as i32,
                                 width: rect.width as i32,
                                 height: rect.height as i32,
                             },
@@ -457,6 +459,9 @@ impl Application for CosmicAppLibrary {
             }
             Message::LeaveDndOffer => {
                 self.dnd_icon = None;
+            }
+            Message::ScrollYOffset(y) => {
+                self.scroll_offset = y;
             }
         }
         Command::none()
@@ -689,6 +694,7 @@ impl Application for CosmicAppLibrary {
             .collect();
 
         let app_scrollable = scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
+            .on_scroll(|viewport| Message::ScrollYOffset(viewport.absolute_offset().y))
             .height(Length::Fixed(600.0));
 
         let group_row = {
