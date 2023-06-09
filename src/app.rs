@@ -2,7 +2,8 @@ use std::fmt::Debug;
 
 use std::sync::Arc;
 
-use cosmic::cosmic_config::{Config, CosmicConfigEntry};
+use cosmic::cosmic_config::{config_subscription, Config, CosmicConfigEntry};
+use cosmic::cosmic_theme::util::CssColor;
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
 use cosmic::iced::wayland::actions::data_device::ActionInner;
@@ -120,6 +121,7 @@ enum Message {
     LeaveDndOffer,
     Ignore,
     ScrollYOffset(f32),
+    Theme(Theme),
 }
 
 #[derive(Clone)]
@@ -146,6 +148,24 @@ impl CosmicAppLibrary {
     }
 }
 
+fn theme() -> Theme {
+    let Ok(helper) = cosmic::cosmic_config::Config::new(
+        cosmic::cosmic_theme::NAME,
+        cosmic::cosmic_theme::Theme::<CssColor>::version() as u64,
+    ) else {
+        return cosmic::theme::Theme::dark();
+    };
+    let t = cosmic::cosmic_theme::Theme::get_entry(&helper)
+        .map(|t| t.into_srgba())
+        .unwrap_or_else(|(errors, theme)| {
+            for err in errors {
+                error!("{:?}", err);
+            }
+            theme.into_srgba()
+        });
+    cosmic::theme::Theme::custom(Arc::new(t))
+}
+
 impl Application for CosmicAppLibrary {
     type Message = Message;
     type Theme = Theme;
@@ -154,6 +174,7 @@ impl Application for CosmicAppLibrary {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let helper = Config::new(APP_ID, AppLibraryConfig::version()).ok();
+
         let config: AppLibraryConfig = helper
             .as_ref()
             .map(|helper| {
@@ -170,6 +191,7 @@ impl Application for CosmicAppLibrary {
                 locale: current_locale::current_locale().ok(),
                 helper,
                 config,
+                theme: theme(),
                 ..Default::default()
             },
             Command::none(),
@@ -182,6 +204,9 @@ impl Application for CosmicAppLibrary {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::Theme(t) => {
+                self.theme = t;
+            }
             Message::InputChanged(value) => {
                 self.search_value = value;
                 self.load_apps();
@@ -790,6 +815,22 @@ impl Application for CosmicAppLibrary {
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(
             vec![
+                config_subscription::<u64, cosmic::cosmic_theme::Theme<CssColor>>(
+                    0,
+                    cosmic::cosmic_theme::NAME.into(),
+                    cosmic::cosmic_theme::Theme::<CssColor>::version() as u64,
+                )
+                .map(|(_, res)| {
+                    let theme =
+                        res.map(|theme| theme.into_srgba())
+                            .unwrap_or_else(|(errors, theme)| {
+                                for err in errors {
+                                    error!("{:?}", err);
+                                }
+                                theme.into_srgba()
+                            });
+                    Message::Theme(cosmic::theme::Theme::custom(Arc::new(theme)))
+                }),
                 dbus_toggle(0).map(|_| Message::Toggle),
                 desktop_files(0).map(|_| Message::LoadApps),
                 events_with(|e, _status| match e {
