@@ -384,7 +384,6 @@ where
                         ) => {
                             ret = event::Status::Captured;
                             if let Some(on_pressed) = self.on_pressed.clone() {
-                                dbg!("pressed");
                                 shell.publish(on_pressed);
                             }
                             DraggingState::None

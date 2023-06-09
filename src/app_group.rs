@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
-use std::{any, vec};
+use std::{vec};
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
 use cosmic::cosmic_config::{self, Config, ConfigGet, ConfigSet, CosmicConfigEntry};
@@ -98,9 +98,9 @@ impl AppGroup {
                                                 .split(";")
                                                 .filter_map(|action| {
                                                     let name = de.action_entry_localized(
-                                                        action, "name", locale,
+                                                        action, "Name", locale,
                                                     );
-                                                    let exec = de.action_entry(action, "exec");
+                                                    let exec = de.action_entry(action, "Exec");
                                                     if let (Some(name), Some(exec)) = (name, exec) {
                                                         Some(DesktopAction {
                                                             name: name.to_string(),

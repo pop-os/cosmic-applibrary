@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+
 use std::sync::Arc;
 
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
@@ -26,9 +26,9 @@ use cosmic::iced_style::{
     button::StyleSheet as ButtonStyleSheet,
 };
 use cosmic::iced_widget::text_input::{focus, Icon, Side};
-use cosmic::iced_widget::{horizontal_space, mouse_area};
-use cosmic::theme::{self, Button, Container, TextInput};
-use cosmic::widget::{button, divider, icon, list_column};
+use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
+use cosmic::theme::{self, Button, TextInput};
+use cosmic::widget::{button, icon};
 use cosmic::{iced, sctk, settings, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
 
@@ -497,7 +497,7 @@ impl Application for CosmicAppLibrary {
             .spacing(8);
 
             if menu.desktop_actions.len() > 0 {
-                list_column = list_column.push(container(horizontal_rule(1)).padding([0, 8]));
+                list_column = list_column.push(menu_divider());
                 for action in menu.desktop_actions.iter() {
                     list_column = list_column.push(
                         cosmic::iced::widget::button(text(&action.name))
@@ -520,7 +520,7 @@ impl Application for CosmicAppLibrary {
                             .width(Length::Fill),
                     );
                 }
-                list_column = list_column.push(container(horizontal_rule(1)).padding([0, 8]));
+                list_column = list_column.push(menu_divider());
             }
 
             list_column = list_column.push(
@@ -543,12 +543,14 @@ impl Application for CosmicAppLibrary {
             );
 
             return container(scrollable(list_column))
-                .style(Container::Custom(Box::new(|theme| container::Appearance {
-                    text_color: Some(theme.cosmic().on_bg_color().into()),
-                    background: Some(Color::from(theme.cosmic().background.base).into()),
-                    border_radius: 16.0.into(),
-                    border_width: 1.0,
-                    border_color: theme.cosmic().bg_divider().into(),
+                .style(theme::Container::Custom(Box::new(|theme| {
+                    container::Appearance {
+                        text_color: Some(theme.cosmic().on_bg_color().into()),
+                        background: Some(Color::from(theme.cosmic().background.base).into()),
+                        border_radius: 16.0.into(),
+                        border_width: 1.0,
+                        border_color: theme.cosmic().bg_divider().into(),
+                    }
                 })))
                 .padding([16.0, 0.0, 16.0, 0.0])
                 .into();
@@ -581,12 +583,14 @@ impl Application for CosmicAppLibrary {
             .align_items(Alignment::Center)
             .spacing(16.0);
             return container(dialog)
-                .style(Container::Custom(Box::new(|theme| container::Appearance {
-                    text_color: Some(theme.cosmic().on_bg_color().into()),
-                    background: Some(Color::from(theme.cosmic().background.base).into()),
-                    border_radius: 16.0.into(),
-                    border_width: 1.0,
-                    border_color: theme.cosmic().bg_divider().into(),
+                .style(theme::Container::Custom(Box::new(|theme| {
+                    container::Appearance {
+                        text_color: Some(theme.cosmic().on_bg_color().into()),
+                        background: Some(Color::from(theme.cosmic().background.base).into()),
+                        border_radius: 16.0.into(),
+                        border_width: 1.0,
+                        border_color: theme.cosmic().bg_divider().into(),
+                    }
                 })))
                 .width(Length::Shrink)
                 .height(Length::Shrink)
@@ -758,12 +762,14 @@ impl Application for CosmicAppLibrary {
         let window = container(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(Container::Custom(Box::new(|theme| container::Appearance {
-                text_color: Some(theme.cosmic().on_bg_color().into()),
-                background: Some(Color::from(theme.cosmic().background.base).into()),
-                border_radius: 16.0.into(),
-                border_width: 1.0,
-                border_color: theme.cosmic().bg_divider().into(),
+            .style(theme::Container::Custom(Box::new(|theme| {
+                container::Appearance {
+                    text_color: Some(theme.cosmic().on_bg_color().into()),
+                    background: Some(Color::from(theme.cosmic().background.base).into()),
+                    border_radius: 16.0.into(),
+                    border_width: 1.0,
+                    border_color: theme.cosmic().bg_divider().into(),
+                }
             })))
             .center_x();
         mouse_area(window)
@@ -809,4 +815,10 @@ impl Application for CosmicAppLibrary {
     fn close_requested(&self, id: SurfaceId) -> Self::Message {
         Message::Closed(id)
     }
+}
+
+fn menu_divider<'a>() -> Container<'a, Message, cosmic::Renderer> {
+    container(horizontal_rule(1))
+        .padding([0, 16])
+        .width(Length::Fill)
 }

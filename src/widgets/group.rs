@@ -1,11 +1,11 @@
 //! A widget that can be dragged and dropped.
 
-use std::borrow::Cow;
+
 use std::mem;
-use std::path::PathBuf;
+
 use std::str::FromStr;
 
-use cosmic::iced::wayland::actions::data_device::{DataFromMimeType, DndIcon};
+
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::command::platform_specific;
@@ -240,7 +240,7 @@ where
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) -> event::Status {
-        let mut ret = self.content.as_widget_mut().on_event(
+        let ret = self.content.as_widget_mut().on_event(
             &mut tree.children[0],
             event.clone(),
             layout.children().next().unwrap(),
