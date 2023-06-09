@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
-use std::{vec};
+use std::vec;
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
 use cosmic::cosmic_config::{self, Config, ConfigGet, ConfigSet, CosmicConfigEntry};
