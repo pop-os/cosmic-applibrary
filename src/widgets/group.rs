@@ -176,7 +176,7 @@ where
         theme: &cosmic::theme::Theme,
         renderer_style: &renderer::Style,
         layout: layout::Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         viewport: &Rectangle,
     ) {
         self.content.as_widget().draw(
@@ -233,7 +233,7 @@ where
         tree: &mut Tree,
         event: Event,
         layout: layout::Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         renderer: &cosmic::Renderer,
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
@@ -459,7 +459,7 @@ where
         &self,
         tree: &Tree,
         layout: layout::Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         viewport: &Rectangle,
         renderer: &cosmic::Renderer,
     ) -> mouse::Interaction {

@@ -5,8 +5,7 @@ Maintainer: Ashley Wulber <ashley@system76.com>
 Build-Depends:
   debhelper (>= 11),
   debhelper-compat (= 11),
-  rustc (>=1.63),
-  cargo,
+  rust-all,
   just,
   pkg-config,
   libxkbcommon-dev,

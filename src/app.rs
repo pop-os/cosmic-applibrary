@@ -509,12 +509,12 @@ impl Application for CosmicAppLibrary {
                 .style(theme::Button::Custom {
                     active: Box::new(|theme| {
                         let mut appearance = theme.active(&theme::Button::Text);
-                        appearance.border_radius = 0.0;
+                        appearance.border_radius = 0.0.into();
                         appearance
                     }),
                     hover: Box::new(|theme| {
                         let mut appearance = theme.hovered(&theme::Button::Text);
-                        appearance.border_radius = 0.0;
+                        appearance.border_radius = 0.0.into();
                         appearance
                     })
                 })
@@ -531,12 +531,12 @@ impl Application for CosmicAppLibrary {
                             .style(theme::Button::Custom {
                                 active: Box::new(|theme| {
                                     let mut appearance = theme.active(&theme::Button::Text);
-                                    appearance.border_radius = 0.0;
+                                    appearance.border_radius = 0.0.into();
                                     appearance
                                 }),
                                 hover: Box::new(|theme| {
                                     let mut appearance = theme.hovered(&theme::Button::Text);
-                                    appearance.border_radius = 0.0;
+                                    appearance.border_radius = 0.0.into();
                                     appearance
                                 }),
                             })
@@ -555,12 +555,12 @@ impl Application for CosmicAppLibrary {
                     .style(theme::Button::Custom {
                         active: Box::new(|theme| {
                             let mut appearance = theme.active(&theme::Button::Text);
-                            appearance.border_radius = 0.0;
+                            appearance.border_radius = 0.0.into();
                             appearance
                         }),
                         hover: Box::new(|theme| {
                             let mut appearance = theme.hovered(&theme::Button::Text);
-                            appearance.border_radius = 0.0;
+                            appearance.border_radius = 0.0.into();
                             appearance
                         }),
                     })
