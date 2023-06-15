@@ -206,7 +206,7 @@ where
         theme: &cosmic::theme::Theme,
         renderer_style: &renderer::Style,
         layout: layout::Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         viewport: &Rectangle,
     ) {
         self.content.as_widget().draw(
@@ -263,7 +263,7 @@ where
         tree: &mut Tree,
         event: Event,
         layout: layout::Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         renderer: &cosmic::Renderer,
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
@@ -280,7 +280,7 @@ where
 
         let mut state = tree.state.downcast_mut::<State>();
 
-        if layout.bounds().contains(cursor_position) {
+        if cursor_position.is_over(layout.bounds()) {
             match &event {
                 Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Right)) => {
                     state.right_press = true;
@@ -314,10 +314,10 @@ where
                     match &event {
                         event::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
                         | event::Event::Touch(touch::Event::FingerPressed { .. })
-                            if layout.bounds().contains(cursor_position) =>
+                            if cursor_position.is_over(layout.bounds()) =>
                         {
                             ret = event::Status::Captured;
-                            DraggingState::Pressed(cursor_position)
+                            DraggingState::Pressed(cursor_position.position().unwrap_or_default())
                         }
                         _ => DraggingState::None,
                     }
@@ -351,8 +351,9 @@ where
                     match &event {
                         event::Event::Mouse(mouse::Event::CursorMoved { .. })
                         | event::Event::Touch(touch::Event::FingerMoved { .. }) => {
-                            let d_y = cursor_position.y - start.y;
-                            let d_x = cursor_position.x - start.x;
+                            let pos = cursor_position.position().unwrap_or_default();
+                            let d_y = pos.y - start.y;
+                            let d_x = pos.x - start.x;
                             let distance_squared = d_y * d_y + d_x * d_x;
 
                             if distance_squared > DRAG_THRESHOLD {
@@ -401,7 +402,7 @@ where
         &self,
         tree: &Tree,
         layout: layout::Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         viewport: &Rectangle,
         renderer: &cosmic::Renderer,
     ) -> mouse::Interaction {
