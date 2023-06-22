@@ -295,6 +295,7 @@ impl Application for CosmicAppLibrary {
                     self.search_value = "".to_string();
                     self.active_surface = true;
                     self.scroll_offset = 0.0;
+                    self.cur_group = 0;
                     cmds.push(text_input::focus(SEARCH_ID.clone()));
                     cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
                         id: WINDOW_ID,
