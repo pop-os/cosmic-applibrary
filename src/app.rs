@@ -472,8 +472,9 @@ impl Application for CosmicAppLibrary {
                 self.offer_group = Some(i);
             }
             Message::FinishDndOffer(i, entry) => {
+                self.offer_group = None;
+
                 if self.cur_group == i {
-                    self.offer_group = None;
                     return Command::none();
                 }
 
