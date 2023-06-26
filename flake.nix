@@ -29,11 +29,8 @@
               ./Cargo.lock
               ./i18n
               ./i18n.toml
-              ./meson.build
-              ./meson_options.txt
-              ./build-aux
               ./data
-              ./po
+              ./justfile
             ];
           };
           nativeBuildInputs = with pkgs; [
@@ -56,18 +53,23 @@
         cargoArtifacts = craneLib.buildDepsOnly pkgDef;
         cosmic-applibrary = craneLib.buildPackage (pkgDef // {
           inherit cargoArtifacts;
-          configurePhase = "mesonConfigurePhase"; # Enables Meson for setup
         });
       in {
         checks = {
           inherit cosmic-applibrary;
         };
 
-        packages.default = cosmic-applibrary;
-
         apps.default = flake-utils.lib.mkApp {
           drv = cosmic-applibrary;
         };
+        packages.default = cosmic-applibrary.overrideAttrs (oldAttrs: rec {
+          buildPhase = ''
+            just prefix=$out build-release
+          '';
+          installPhase = ''
+            just prefix=$out install
+          '';
+        });
 
         devShells.default = pkgs.mkShell rec {
           inputsFrom = builtins.attrValues self.checks.${system};
