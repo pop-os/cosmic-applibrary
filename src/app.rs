@@ -436,7 +436,10 @@ impl Application for CosmicAppLibrary {
                                 }
                             }
                             let _ = cmd.spawn();
-                            return Command::perform(async {}, |_| Message::Hide);
+                            return Command::batch(vec![
+                                commands::popup::destroy_popup(MENU_ID.clone()),
+                                Command::perform(async {}, |_| Message::Hide),
+                            ]);
                         }
                     }
                 }
