@@ -2,8 +2,8 @@ use std::fmt::Debug;
 
 use std::sync::Arc;
 
-use cosmic::cosmic_config::{config_subscription, Config, CosmicConfigEntry};
-use cosmic::cosmic_theme::util::CssColor;
+use cosmic::app::{Command, Core, Settings};
+use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
 use cosmic::iced::wayland::actions::data_device::ActionInner;
@@ -12,10 +12,9 @@ use cosmic::iced::wayland::actions::popup::{SctkPopupSettings, SctkPositioner};
 use cosmic::iced::wayland::layer_surface::{
     destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
 };
-use cosmic::iced::wayland::InitialSurface;
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
-use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
-use cosmic::iced::{settings, Color, Limits, Subscription};
+use cosmic::iced::{alignment::Horizontal, executor, Alignment, Length};
+use cosmic::iced::{Color, Limits, Subscription};
 use cosmic::iced_core::Rectangle;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
@@ -39,11 +38,11 @@ use once_cell::sync::Lazy;
 
 use crate::app_group::{AppLibraryConfig, DesktopEntryData};
 use crate::config::APP_ID;
+use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::subscriptions::toggle_dbus::dbus_toggle;
 use crate::widgets::application::ApplicationButton;
 use crate::widgets::group::GroupButton;
-use crate::{config, fl};
 
 // popovers should show options, but also the desktop info options
 // should be a way to add apps to groups
@@ -66,10 +65,18 @@ pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(3);
 pub(crate) const MENU_ID: SurfaceId = SurfaceId(4);
 
 pub fn run() -> cosmic::iced::Result {
-    let mut settings = settings::Settings::default();
-    settings.exit_on_close_request = false;
-    settings.initial_surface = InitialSurface::None;
-    CosmicAppLibrary::run(settings)
+    cosmic::app::run::<CosmicAppLibrary>(
+        Settings::default()
+            .antialiasing(true)
+            .client_decorations(true)
+            .debug(false)
+            .default_icon_theme("Pop")
+            .default_text_size(16.0)
+            .scale_factor(1.0)
+            .no_main_window(true),
+        (),
+    )?;
+    Ok(())
 }
 
 #[derive(Default)]
@@ -81,19 +88,18 @@ struct CosmicAppLibrary {
     config: AppLibraryConfig,
     cur_group: usize,
     active_surface: bool,
-    theme: Theme,
     locale: Option<String>,
     edit_name: Option<String>,
     new_group: Option<String>,
     dnd_icon: Option<usize>,
     offer_group: Option<usize>,
     scroll_offset: f32,
+    core: Core,
 }
 
 #[derive(Clone, Debug)]
 enum Message {
     InputChanged(String),
-    Closed(SurfaceId),
     Layer(LayerEvent),
     Toggle,
     Hide,
@@ -121,7 +127,6 @@ enum Message {
     LeaveDndOffer,
     Ignore,
     ScrollYOffset(f32),
-    Theme(Theme),
 }
 
 #[derive(Clone)]
@@ -148,59 +153,21 @@ impl CosmicAppLibrary {
     }
 }
 
-impl Application for CosmicAppLibrary {
+impl cosmic::Application for CosmicAppLibrary {
     type Message = Message;
-    type Theme = Theme;
     type Executor = executor::Default;
     type Flags = ();
+    const APP_ID: &'static str = "com.system76.CosmicAppLibrary";
 
-    fn new(_flags: ()) -> (Self, Command<Message>) {
-        let helper = Config::new(APP_ID, AppLibraryConfig::version()).ok();
-
-        let config: AppLibraryConfig = helper
-            .as_ref()
-            .map(|helper| {
-                AppLibraryConfig::get_entry(helper).unwrap_or_else(|(errors, config)| {
-                    for err in errors {
-                        error!("{:?}", err);
-                    }
-                    config
-                })
-            })
-            .unwrap_or_default();
-        (
-            CosmicAppLibrary {
-                locale: current_locale::current_locale().ok(),
-                helper,
-                config,
-                theme: Default::default(),
-                ..Default::default()
-            },
-            Command::none(),
-        )
+    fn core(&self) -> &Core {
+        &self.core
     }
 
-    fn title(&self) -> String {
-        config::APP_ID.to_string()
-    }
-
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Command<Self::Message> {
         match message {
-            Message::Theme(t) => {
-                self.theme = t;
-            }
             Message::InputChanged(value) => {
                 self.search_value = value;
                 self.load_apps();
-            }
-            Message::Closed(id) => {
-                if self.active_surface && id == WINDOW_ID {
-                    self.active_surface = false;
-                    self.edit_name = None;
-                    self.new_group = None;
-                    return Command::perform(async {}, |_| Message::Clear);
-                }
-                // TODO handle popups closed
             }
             Message::Layer(e) => match e {
                 LayerEvent::Focused => {
@@ -209,9 +176,11 @@ impl Application for CosmicAppLibrary {
                 LayerEvent::Unfocused => {
                     if self.active_surface && self.new_group.is_none() {
                         self.active_surface = false;
-                        return Command::batch(vec![
+                        return iced::Command::batch(vec![
                             destroy_layer_surface(WINDOW_ID),
-                            Command::perform(async {}, |_| Message::Clear),
+                            iced::Command::perform(async {}, |_| {
+                                cosmic::app::Message::App(Message::Clear)
+                            }),
                         ]);
                     }
                 }
@@ -225,10 +194,12 @@ impl Application for CosmicAppLibrary {
                     self.active_surface = false;
                     self.edit_name = None;
                     self.new_group = None;
-                    return Command::batch(vec![
+                    return iced::Command::batch(vec![
                         destroy_layer_surface(NEW_GROUP_WINDOW_ID),
                         destroy_layer_surface(WINDOW_ID),
-                        Command::perform(async {}, |_| Message::Clear),
+                        iced::Command::perform(async {}, |_| {
+                            cosmic::app::Message::App(Message::Clear)
+                        }),
                     ]);
                 }
             }
@@ -253,7 +224,7 @@ impl Application for CosmicAppLibrary {
                         }
                     }
                     let _ = cmd.spawn();
-                    return Command::perform(async {}, |_| Message::Hide);
+                    return self.update(Message::Hide);
                 }
             }
             Message::SelectGroup(i) => {
@@ -418,9 +389,11 @@ impl Application for CosmicAppLibrary {
                                 }
                             }
                             let _ = cmd.spawn();
-                            return Command::batch(vec![
+                            return iced::Command::batch(vec![
                                 commands::popup::destroy_popup(MENU_ID.clone()),
-                                Command::perform(async {}, |_| Message::Hide),
+                                iced::Command::perform(async {}, |_| {
+                                    cosmic::app::Message::App(Message::Hide)
+                                }),
                             ]);
                         }
                     }
@@ -480,8 +453,11 @@ impl Application for CosmicAppLibrary {
         }
         Command::none()
     }
+    fn view(&self) -> Element<Message> {
+        unimplemented!()
+    }
 
-    fn view(&self, id: SurfaceId) -> Element<Message> {
+    fn view_window(&self, id: SurfaceId) -> Element<Message> {
         if id == DND_ICON_ID {
             let Some(icon_path) = self.dnd_icon.clone().and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone())) else {
                 return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
@@ -822,19 +798,45 @@ impl Application for CosmicAppLibrary {
         )
     }
 
-    fn theme(&self) -> Theme {
-        self.theme.clone()
+    fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {
+        Some(<Theme as application::StyleSheet>::Style::Custom(Box::new(
+            |theme| Appearance {
+                background_color: Color::from_rgba(0.0, 0.0, 0.0, 0.0),
+                text_color: theme.cosmic().on_bg_color().into(),
+            },
+        )))
     }
 
-    fn style(&self) -> <Self::Theme as application::StyleSheet>::Style {
-        <Self::Theme as application::StyleSheet>::Style::Custom(Box::new(|theme| Appearance {
-            background_color: Color::from_rgba(0.0, 0.0, 0.0, 0.0),
-            text_color: theme.cosmic().on_bg_color().into(),
-        }))
+    fn core_mut(&mut self) -> &mut Core {
+        &mut self.core
     }
 
-    fn close_requested(&self, id: SurfaceId) -> Self::Message {
-        Message::Closed(id)
+    fn init(
+        core: Core,
+        _flags: Self::Flags,
+    ) -> (Self, iced::Command<cosmic::app::Message<Self::Message>>) {
+        let helper = Config::new(APP_ID, AppLibraryConfig::version()).ok();
+
+        let config: AppLibraryConfig = helper
+            .as_ref()
+            .map(|helper| {
+                AppLibraryConfig::get_entry(helper).unwrap_or_else(|(errors, config)| {
+                    for err in errors {
+                        error!("{:?}", err);
+                    }
+                    config
+                })
+            })
+            .unwrap_or_default();
+        (
+            CosmicAppLibrary {
+                locale: current_locale::current_locale().ok(),
+                config,
+                core,
+                ..Default::default()
+            },
+            Command::none(),
+        )
     }
 }
 
