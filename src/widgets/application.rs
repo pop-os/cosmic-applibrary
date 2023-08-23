@@ -227,7 +227,7 @@ where
         renderer: &cosmic::Renderer,
         operation: &mut dyn Operation<OperationOutputWrapper<Message>>,
     ) {
-        operation.container(None, &mut |operation| {
+        operation.container(None, layout.bounds(), &mut |operation| {
             self.content.as_widget().operate(
                 &mut tree.children[0],
                 layout.children().next().unwrap(),
@@ -267,6 +267,7 @@ where
         renderer: &cosmic::Renderer,
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
+        viewport: &Rectangle,
     ) -> event::Status {
         let mut ret = self.content.as_widget_mut().on_event(
             &mut tree.children[0],
@@ -276,6 +277,7 @@ where
             renderer,
             clipboard,
             shell,
+            viewport,
         );
 
         let mut state = tree.state.downcast_mut::<State>();
