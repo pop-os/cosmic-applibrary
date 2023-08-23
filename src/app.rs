@@ -15,7 +15,7 @@ use cosmic::iced::wayland::layer_surface::{
 use cosmic::iced::wayland::InitialSurface;
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Application, Command, Length};
-use cosmic::iced::{Color, Limits, Subscription};
+use cosmic::iced::{settings, Color, Limits, Subscription};
 use cosmic::iced_core::Rectangle;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
@@ -30,7 +30,7 @@ use cosmic::iced_widget::text_input::{focus, Icon, Side};
 use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::{button, icon};
-use cosmic::{iced, sctk, settings, Element, Theme};
+use cosmic::{iced, sctk, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
 
 use itertools::Itertools;
@@ -66,7 +66,7 @@ pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(3);
 pub(crate) const MENU_ID: SurfaceId = SurfaceId(4);
 
 pub fn run() -> cosmic::iced::Result {
-    let mut settings = settings();
+    let mut settings = settings::Settings::default();
     settings.exit_on_close_request = false;
     settings.initial_surface = InitialSurface::None;
     CosmicAppLibrary::run(settings)
@@ -148,24 +148,6 @@ impl CosmicAppLibrary {
     }
 }
 
-fn theme() -> Theme {
-    let Ok(helper) = cosmic::cosmic_config::Config::new(
-        cosmic::cosmic_theme::NAME,
-        cosmic::cosmic_theme::Theme::<CssColor>::version() as u64,
-    ) else {
-        return cosmic::theme::Theme::dark();
-    };
-    let t = cosmic::cosmic_theme::Theme::get_entry(&helper)
-        .map(|t| t.into_srgba())
-        .unwrap_or_else(|(errors, theme)| {
-            for err in errors {
-                error!("{:?}", err);
-            }
-            theme.into_srgba()
-        });
-    cosmic::theme::Theme::custom(Arc::new(t))
-}
-
 impl Application for CosmicAppLibrary {
     type Message = Message;
     type Theme = Theme;
@@ -191,7 +173,7 @@ impl Application for CosmicAppLibrary {
                 locale: current_locale::current_locale().ok(),
                 helper,
                 config,
-                theme: theme(),
+                theme: Default::default(),
                 ..Default::default()
             },
             Command::none(),
@@ -820,22 +802,6 @@ impl Application for CosmicAppLibrary {
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(
             vec![
-                config_subscription::<u64, cosmic::cosmic_theme::Theme<CssColor>>(
-                    0,
-                    cosmic::cosmic_theme::NAME.into(),
-                    cosmic::cosmic_theme::Theme::<CssColor>::version() as u64,
-                )
-                .map(|(_, res)| {
-                    let theme =
-                        res.map(|theme| theme.into_srgba())
-                            .unwrap_or_else(|(errors, theme)| {
-                                for err in errors {
-                                    error!("{:?}", err);
-                                }
-                                theme.into_srgba()
-                            });
-                    Message::Theme(cosmic::theme::Theme::custom(Arc::new(theme)))
-                }),
                 dbus_toggle(0).map(|_| Message::Toggle),
                 desktop_files(0).map(|_| Message::LoadApps),
                 events_with(|e, _status| match e {
