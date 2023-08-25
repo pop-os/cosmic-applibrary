@@ -459,14 +459,28 @@ impl cosmic::Application for CosmicAppLibrary {
 
     fn view_window(&self, id: SurfaceId) -> Element<Message> {
         if id == DND_ICON_ID {
-            let Some(icon_path) = self.dnd_icon.clone().and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone())) else {
-                return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
+            let Some(icon_path) = self
+                .dnd_icon
+                .clone()
+                .and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone()))
+            else {
+                return container(horizontal_space(Length::Fixed(1.0)))
+                    .width(Length::Fixed(1.0))
+                    .height(Length::Fixed(1.0))
+                    .into();
             };
             return icon(icon_path, 64).into();
         }
         if id == MENU_ID {
-            let Some((menu, i)) = self.menu.as_ref().and_then(|i| self.entry_path_input.get(*i).map(|e| (e, i))) else {
-                return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
+            let Some((menu, i)) = self
+                .menu
+                .as_ref()
+                .and_then(|i| self.entry_path_input.get(*i).map(|e| (e, i)))
+            else {
+                return container(horizontal_space(Length::Fixed(1.0)))
+                    .width(Length::Fixed(1.0))
+                    .height(Length::Fixed(1.0))
+                    .into();
             };
             let mut list_column = column![cosmic::iced::widget::button(text(RUN.clone()))
                 .style(theme::Button::Custom {
@@ -547,7 +561,10 @@ impl cosmic::Application for CosmicAppLibrary {
         }
         if id == NEW_GROUP_WINDOW_ID {
             let Some(group_name) = self.new_group.as_ref() else {
-                return container(horizontal_space(Length::Fixed(1.0))).width(Length::Fixed(1.0)).height(Length::Fixed(1.0)).into();
+                return container(horizontal_space(Length::Fixed(1.0)))
+                    .width(Length::Fixed(1.0))
+                    .height(Length::Fixed(1.0))
+                    .into();
             };
             let dialog = column![
                 text_input(&NEW_GROUP_PLACEHOLDER, &group_name)

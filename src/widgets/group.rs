@@ -250,7 +250,7 @@ where
             viewport,
         );
 
-        let mut state = tree.state.downcast_mut::<State>();
+        let state = tree.state.downcast_mut::<State>();
 
         if let (Some(on_dnd_command_produced), Some(on_offer), Some(on_cancel), Some(on_finish)) = (
             self.on_dnd_command_produced.as_ref(),
