@@ -280,7 +280,7 @@ where
             viewport,
         );
 
-        let mut state = tree.state.downcast_mut::<State>();
+        let state = tree.state.downcast_mut::<State>();
 
         if cursor_position.is_over(layout.bounds()) {
             match &event {
