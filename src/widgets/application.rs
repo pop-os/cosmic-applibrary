@@ -15,13 +15,14 @@ use cosmic::iced_core::{
 };
 
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
+use cosmic::widget::icon::from_path;
 use cosmic::{
     iced::{
         self,
         widget::{column, text},
     },
     theme,
-    widget::icon,
+    widget::{button, icon},
 };
 
 use crate::app::{DND_ICON_ID, WINDOW_ID};
@@ -79,9 +80,9 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         } else {
             name.to_string()
         };
-        let content = iced::widget::button(
+        let content = button(
             column![
-                icon(image.as_path(), 72)
+                icon(from_path(image.clone()))
                     .width(Length::Fixed(72.0))
                     .height(Length::Fixed(72.0)),
                 text(name)
@@ -96,7 +97,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             .width(Length::Fill),
         )
         .width(Length::FillPortion(1))
-        .style(theme::Button::Text)
+        .style(theme::Button::IconVertical)
         .padding(16);
         let content = if on_pressed.is_some() {
             content.on_press(ignore_button.clone())

@@ -16,13 +16,14 @@ use cosmic::iced_core::{
 };
 
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
+use cosmic::widget::icon::from_name;
 use cosmic::{
     iced::{
         self,
         widget::{column, text},
     },
     theme,
-    widget::icon,
+    widget::{button, icon},
 };
 
 use crate::app_group::DesktopEntryData;
@@ -63,9 +64,9 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
         on_pressed: Option<Message>,
         style: theme::Button,
     ) -> Self {
-        let content = iced::widget::button(
+        let content = button(
             column![
-                icon(icon_name, 32),
+                icon(from_name(icon_name).into()),
                 text(name).horizontal_alignment(Horizontal::Center)
             ]
             .spacing(8)
