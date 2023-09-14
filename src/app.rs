@@ -12,7 +12,7 @@ use cosmic::iced::wayland::actions::popup::{SctkPopupSettings, SctkPositioner};
 use cosmic::iced::wayland::layer_surface::{
     destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
 };
-use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text, text_input};
+use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Length};
 use cosmic::iced::{Color, Limits, Subscription};
 use cosmic::iced_core::Rectangle;
@@ -21,14 +21,13 @@ use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_sctk::commands;
-use cosmic::iced_style::{
-    application::{self, Appearance},
-    button::StyleSheet as ButtonStyleSheet,
-};
+use cosmic::iced_style::application::{self, Appearance};
 use cosmic::iced_widget::text_input::{focus, Icon, Side};
 use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
 use cosmic::theme::{self, Button, TextInput};
-use cosmic::widget::{button, icon};
+use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
+use cosmic::widget::icon::{from_name, from_path, Handle};
+use cosmic::widget::{button, icon, search_input, text_input};
 use cosmic::{iced, sctk, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
 
@@ -469,7 +468,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            return icon(icon_path, 64).into();
+            return icon(from_path(icon_path).into()).into();
         }
         if id == MENU_ID {
             let Some((menu, i)) = self
@@ -482,15 +481,25 @@ impl cosmic::Application for CosmicAppLibrary {
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            let mut list_column = column![cosmic::iced::widget::button(text(RUN.clone()))
+            let mut list_column = column![button(text(RUN.clone()))
                 .style(theme::Button::Custom {
-                    active: Box::new(|theme| {
-                        let mut appearance = theme.active(&theme::Button::Text);
+                    active: Box::new(|focused, theme| {
+                        let mut appearance = theme.active(focused, &theme::Button::Text);
                         appearance.border_radius = 0.0.into();
                         appearance
                     }),
-                    hover: Box::new(|theme| {
-                        let mut appearance = theme.hovered(&theme::Button::Text);
+                    hovered: Box::new(|focused, theme| {
+                        let mut appearance = theme.hovered(focused, &theme::Button::Text);
+                        appearance.border_radius = 0.0.into();
+                        appearance
+                    }),
+                    disabled: Box::new(|theme| {
+                        let mut appearance = theme.disabled(&theme::Button::Text);
+                        appearance.border_radius = 0.0.into();
+                        appearance
+                    }),
+                    pressed: Box::new(|focused, theme| {
+                        let mut appearance = theme.pressed(focused, &theme::Button::Text);
                         appearance.border_radius = 0.0.into();
                         appearance
                     })
@@ -504,15 +513,28 @@ impl cosmic::Application for CosmicAppLibrary {
                 list_column = list_column.push(menu_divider());
                 for action in menu.desktop_actions.iter() {
                     list_column = list_column.push(
-                        cosmic::iced::widget::button(text(&action.name))
+                        button(text(&action.name))
                             .style(theme::Button::Custom {
-                                active: Box::new(|theme| {
-                                    let mut appearance = theme.active(&theme::Button::Text);
+                                active: Box::new(|focused, theme| {
+                                    let mut appearance =
+                                        theme.active(focused, &theme::Button::Text);
                                     appearance.border_radius = 0.0.into();
                                     appearance
                                 }),
-                                hover: Box::new(|theme| {
-                                    let mut appearance = theme.hovered(&theme::Button::Text);
+                                hovered: Box::new(|focused, theme| {
+                                    let mut appearance =
+                                        theme.hovered(focused, &theme::Button::Text);
+                                    appearance.border_radius = 0.0.into();
+                                    appearance
+                                }),
+                                disabled: Box::new(|theme| {
+                                    let mut appearance = theme.disabled(&theme::Button::Text);
+                                    appearance.border_radius = 0.0.into();
+                                    appearance
+                                }),
+                                pressed: Box::new(|focused, theme| {
+                                    let mut appearance =
+                                        theme.pressed(focused, &theme::Button::Text);
                                     appearance.border_radius = 0.0.into();
                                     appearance
                                 }),
@@ -528,15 +550,25 @@ impl cosmic::Application for CosmicAppLibrary {
             }
 
             list_column = list_column.push(
-                cosmic::iced::widget::button(text(REMOVE.clone()))
+                button(text(REMOVE.clone()))
                     .style(theme::Button::Custom {
-                        active: Box::new(|theme| {
-                            let mut appearance = theme.active(&theme::Button::Text);
+                        active: Box::new(|focused, theme| {
+                            let mut appearance = theme.active(focused, &theme::Button::Text);
                             appearance.border_radius = 0.0.into();
                             appearance
                         }),
-                        hover: Box::new(|theme| {
-                            let mut appearance = theme.hovered(&theme::Button::Text);
+                        hovered: Box::new(|focused, theme| {
+                            let mut appearance = theme.hovered(focused, &theme::Button::Text);
+                            appearance.border_radius = 0.0.into();
+                            appearance
+                        }),
+                        disabled: Box::new(|theme| {
+                            let mut appearance = theme.disabled(&theme::Button::Text);
+                            appearance.border_radius = 0.0.into();
+                            appearance
+                        }),
+                        pressed: Box::new(|focused, theme| {
+                            let mut appearance = theme.pressed(focused, &theme::Button::Text);
                             appearance.border_radius = 0.0.into();
                             appearance
                         }),
@@ -554,6 +586,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         border_radius: 16.0.into(),
                         border_width: 1.0,
                         border_color: theme.cosmic().bg_divider().into(),
+                        icon_color: Some(theme.cosmic().on_bg_color().into()),
                     }
                 })))
                 .padding([16.0, 0.0, 16.0, 0.0])
@@ -570,18 +603,16 @@ impl cosmic::Application for CosmicAppLibrary {
                 text_input(&NEW_GROUP_PLACEHOLDER, &group_name)
                     .on_input(Message::NewGroup)
                     .on_submit(Message::SubmitNewGroup)
-                    .style(TextInput::Default)
+                    // .style(TextInput::Default)
                     .padding([8, 24])
                     .width(Length::Fixed(400.0))
                     .size(14)
                     .id(NEW_GROUP_ID.clone()),
                 row![
-                    button(theme::Button::Secondary)
-                        .text(&OK)
+                    button(text(&OK.as_str()))
                         .on_press(Message::SubmitNewGroup)
                         .padding([8, 24]),
-                    button(theme::Button::Secondary)
-                        .text(&CANCEL)
+                    button(text(&OK.as_str()))
                         .on_press(Message::CancelNewGroup)
                         .padding([8, 24])
                 ]
@@ -593,6 +624,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 .style(theme::Container::Custom(Box::new(|theme| {
                     container::Appearance {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
+                        icon_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
                         border_radius: 16.0.into(),
                         border_width: 1.0,
@@ -606,20 +638,13 @@ impl cosmic::Application for CosmicAppLibrary {
         }
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
-            row![text_input(&SEARCH_PLACEHOLDER, &self.search_value)
+            row![search_input(&SEARCH_PLACEHOLDER, &self.search_value, None)
                 .on_input(Message::InputChanged)
                 .on_paste(Message::InputChanged)
                 .style(TextInput::Search)
                 .padding([8, 24])
                 .width(Length::Fixed(400.0))
                 .size(14)
-                .icon(Icon {
-                    font: iced::Font::default(),
-                    code_point: '🔍',
-                    size: Some(12.0),
-                    spacing: 12.0,
-                    side: Side::Left,
-                })
                 .id(SEARCH_ID.clone())]
             .spacing(8)
         } else if let Some(edit_name) = self.edit_name.as_ref() {
@@ -630,13 +655,12 @@ impl cosmic::Application for CosmicAppLibrary {
                     .on_paste(Message::EditName)
                     .on_submit(Message::SubmitName)
                     .id(EDIT_GROUP_ID.clone())
-                    .style(TextInput::Default)
+                    // .style(TextInput::Default)
                     .padding([8, 24])
                     .width(Length::Fixed(200.0))
                     .size(14),
-                button(theme::Button::Text)
-                    .text(&OK)
-                    .style(theme::Button::Primary)
+                button(text(&OK.as_str()))
+                    .style(theme::Button::Suggested)
                     .on_press(Message::SubmitName)
             ]
             .spacing(8.0)
@@ -647,11 +671,11 @@ impl cosmic::Application for CosmicAppLibrary {
                 text(&cur_group.name()).size(24),
                 row![
                     horizontal_space(Length::Fill),
-                    button(theme::Button::Text)
-                        .icon(theme::Svg::Symbolic, "edit-symbolic", 16)
+                    button(icon(from_name("edit-symbolic").into()))
+                        .style(Button::Text)
                         .on_press(Message::StartEditName(cur_group.name())),
-                    button(theme::Button::Text)
-                        .icon(theme::Svg::Symbolic, "edit-delete-symbolic", 16)
+                    button(icon(from_name("edit-delete-symbolic").into()))
+                        .style(Button::Text)
                         .on_press(Message::Delete(self.cur_group))
                 ]
                 .spacing(8.0)
@@ -732,9 +756,9 @@ impl cosmic::Application for CosmicAppLibrary {
                     if self.offer_group == Some(i)
                         || (self.cur_group == i && self.offer_group.is_none())
                     {
-                        Button::Primary
+                        Button::Suggested
                     } else {
-                        Button::Secondary
+                        Button::Standard
                     },
                 );
                 if i != 0 {
@@ -750,9 +774,9 @@ impl cosmic::Application for CosmicAppLibrary {
                 group_row = group_row.push(group_button);
             }
             group_row = group_row.push(
-                iced::widget::button(
+                button(
                     column![
-                        icon("folder-new-symbolic", 32),
+                        icon(from_name("folder-new-symbolic").into()),
                         text("Add group").horizontal_alignment(Horizontal::Center)
                     ]
                     .spacing(8)
@@ -761,7 +785,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 )
                 .height(Length::Fill)
                 .width(Length::Fixed(128.0))
-                .style(Button::Secondary)
+                .style(Button::Standard)
                 .padding([16, 8])
                 .on_press(Message::StartNewGroup),
             );
@@ -783,6 +807,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     border_radius: 16.0.into(),
                     border_width: 1.0,
                     border_color: theme.cosmic().bg_divider().into(),
+                    icon_color: Some(theme.cosmic().on_bg_color().into()),
                 }
             })))
             .center_x();
@@ -820,6 +845,7 @@ impl cosmic::Application for CosmicAppLibrary {
             |theme| Appearance {
                 background_color: Color::from_rgba(0.0, 0.0, 0.0, 0.0),
                 text_color: theme.cosmic().on_bg_color().into(),
+                icon_color: theme.cosmic().on_bg_color().into(),
             },
         )))
     }
