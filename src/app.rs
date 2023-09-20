@@ -612,7 +612,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     button(text(&OK.as_str()))
                         .on_press(Message::SubmitNewGroup)
                         .padding([8, 24]),
-                    button(text(&OK.as_str()))
+                    button(text(&CANCEL.as_str()))
                         .on_press(Message::CancelNewGroup)
                         .padding([8, 24])
                 ]
