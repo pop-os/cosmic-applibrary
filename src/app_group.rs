@@ -51,12 +51,7 @@ pub struct AppGroup {
 }
 
 impl AppGroup {
-    pub fn filtered(
-        &self,
-        locale: Option<&str>,
-        input_value: &str,
-        exceptions: &Vec<Self>,
-    ) -> Vec<DesktopEntryData> {
+    pub fn filtered(&self, locale: Option<&str>, input_value: &str) -> Vec<DesktopEntryData> {
         freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
             .filter_map(|path| {
                 std::fs::read_to_string(&path).ok().and_then(|input| {
@@ -68,9 +63,7 @@ impl AppGroup {
                         let Some(exec) = de.exec() else {
                             return None;
                         };
-                        let mut keep_de = !de.no_display()
-                            && self.matches(&de)
-                            && !exceptions.iter().any(|x| x.matches(&de));
+                        let mut keep_de = !de.no_display() && self.matches(&de);
                         if keep_de && input_value.len() > 0 {
                             keep_de = name.to_lowercase().contains(&input_value.to_lowercase())
                                 || de
@@ -302,7 +295,7 @@ impl AppLibraryConfig {
         input_value: &str,
     ) -> Vec<DesktopEntryData> {
         if i == 0 {
-            HOME[0].filtered(locale, input_value, &self.groups)
+            HOME[0].filtered(locale, input_value)
         } else {
             self._filtered(i - 1, locale, input_value)
         }
@@ -316,7 +309,7 @@ impl AppLibraryConfig {
     ) -> Vec<DesktopEntryData> {
         self.groups
             .get(i)
-            .map(|g| g.filtered(locale, input_value, &Vec::new()))
+            .map(|g| g.filtered(locale, input_value))
             .unwrap_or_default()
     }
 }
