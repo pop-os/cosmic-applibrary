@@ -18,10 +18,7 @@ use cosmic::iced_core::{
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
 use cosmic::widget::icon::from_name;
 use cosmic::{
-    iced::{
-        self,
-        widget::{column, text},
-    },
+    iced::widget::{column, text},
     theme,
     widget::{button, icon},
 };
