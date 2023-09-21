@@ -4,6 +4,7 @@ use std::mem;
 
 use std::str::FromStr;
 
+use cosmic::cosmic_theme::Spacing;
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::command::platform_specific;
@@ -65,6 +66,7 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
         padding: impl Into<Padding>,
         width: f32,
         height: f32,
+        spacing: &Spacing,
     ) -> Self {
         let content = button(
             column![
@@ -73,7 +75,7 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
                         .width(Length::Fixed(icon_size))
                         .height(Length::Fixed(icon_size))
                 )
-                .padding(8),
+                .padding(spacing.space_xxs),
                 text(name).horizontal_alignment(Horizontal::Center)
             ]
             .align_items(Alignment::Center)

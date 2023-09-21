@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use cosmic::app::{Command, Core, Settings};
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
+use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
 use cosmic::iced::wayland::actions::data_device::ActionInner;
@@ -22,11 +23,11 @@ use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_sctk::commands;
 use cosmic::iced_style::application::{self, Appearance};
-use cosmic::iced_widget::text_input::{focus, Icon, Side};
+use cosmic::iced_widget::text_input::focus;
 use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
-use cosmic::widget::icon::{from_name, from_path, Handle};
+use cosmic::widget::icon::{from_name, from_path};
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{iced, sctk, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
@@ -307,18 +308,21 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::StartEditName(name) => {
                 self.edit_name = Some(name);
-                return focus(SEARCH_ID.clone());
+                return focus(NEW_GROUP_ID.clone());
             }
             Message::StartNewGroup => {
                 self.new_group = Some(String::new());
-                return get_layer_surface(SctkLayerSurfaceSettings {
-                    id: NEW_GROUP_WINDOW_ID,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    anchor: Anchor::empty(),
-                    namespace: "dialog".into(),
-                    size: None,
-                    ..Default::default()
-                });
+                return Command::batch(vec![
+                    get_layer_surface(SctkLayerSurfaceSettings {
+                        id: NEW_GROUP_WINDOW_ID,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::empty(),
+                        namespace: "dialog".into(),
+                        size: None,
+                        ..Default::default()
+                    }),
+                    text_input::focus(NEW_GROUP_ID.clone()),
+                ]);
             }
             Message::NewGroup(group_name) => {
                 self.new_group = Some(group_name);
@@ -486,6 +490,9 @@ impl cosmic::Application for CosmicAppLibrary {
     }
 
     fn view_window(&self, id: SurfaceId) -> Element<Message> {
+        let theme = cosmic::theme::active();
+        let cosmic = theme.cosmic();
+        let spacing = &cosmic.spacing;
         if id == DND_ICON_ID {
             let Some(icon_path) = self
                 .dnd_icon
@@ -534,12 +541,12 @@ impl cosmic::Application for CosmicAppLibrary {
                     })
                 })
                 .on_press(Message::ActivateApp(*i))
-                .padding([8, 24])
+                .padding([spacing.space_xxs, spacing.space_m])
                 .width(Length::Fill)]
             .spacing(8);
 
             if menu.desktop_actions.len() > 0 {
-                list_column = list_column.push(menu_divider());
+                list_column = list_column.push(menu_divider(spacing));
                 for action in menu.desktop_actions.iter() {
                     list_column = list_column.push(
                         button(text(&action.name))
@@ -571,11 +578,11 @@ impl cosmic::Application for CosmicAppLibrary {
                             .on_press(Message::SelectAction(MenuAction::DesktopAction(
                                 action.exec.clone(),
                             )))
-                            .padding([8, 24])
+                            .padding([spacing.space_xxs, spacing.space_m])
                             .width(Length::Fill),
                     );
                 }
-                list_column = list_column.push(menu_divider());
+                list_column = list_column.push(menu_divider(spacing));
             }
 
             list_column = list_column.push(
@@ -603,7 +610,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         }),
                     })
                     .on_press(Message::SelectAction(MenuAction::Remove))
-                    .padding([8, 24])
+                    .padding([spacing.space_xxs, spacing.space_m])
                     .width(Length::Fill),
             );
 
@@ -618,7 +625,12 @@ impl cosmic::Application for CosmicAppLibrary {
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                     }
                 })))
-                .padding([16.0, 0.0, 16.0, 0.0])
+                .padding([
+                    spacing.space_s,
+                    spacing.space_none,
+                    spacing.space_s,
+                    spacing.space_none,
+                ])
                 .into();
         }
         if id == NEW_GROUP_WINDOW_ID {
@@ -636,7 +648,6 @@ impl cosmic::Application for CosmicAppLibrary {
                     .label(&NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
                     .on_submit(Message::SubmitNewGroup)
-                    .padding([8, 24])
                     .width(Length::Fixed(432.0))
                     .size(14)
                     .id(NEW_GROUP_ID.clone()),
@@ -648,7 +659,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                 .width(Length::Fill)
                         )
                         .on_press(Message::CancelNewGroup)
-                        .padding([8, 24])
+                        .padding([spacing.space_xxs, spacing.space_s])
                         .width(142),
                         button(
                             text(&SAVE.as_str())
@@ -657,16 +668,16 @@ impl cosmic::Application for CosmicAppLibrary {
                         )
                         .style(Button::Suggested)
                         .on_press(Message::SubmitNewGroup)
-                        .padding([8, 24])
+                        .padding([spacing.space_xxs, spacing.space_s])
                         .width(142),
                     ]
-                    .spacing(16.0)
+                    .spacing(spacing.space_s)
                 )
                 .width(Length::Fixed(432.0))
                 .align_x(Horizontal::Right)
             ]
             .align_items(Alignment::Center)
-            .spacing(16.0);
+            .spacing(spacing.space_s);
             return container(dialog)
                 .style(theme::Container::Custom(Box::new(|theme| {
                     container::Appearance {
@@ -680,7 +691,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 })))
                 .width(Length::Shrink)
                 .height(Length::Shrink)
-                .padding(16.0)
+                .padding(spacing.space_s)
                 .into();
         }
 
@@ -709,7 +720,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                 .width(Length::Fill)
                         )
                         .on_press(Message::CancelDelete)
-                        .padding([8, 24])
+                        .padding([spacing.space_xxs, spacing.space_m])
                         .width(142),
                         button(
                             text(&fl!("delete"))
@@ -718,16 +729,16 @@ impl cosmic::Application for CosmicAppLibrary {
                         )
                         .style(Button::Destructive)
                         .on_press(Message::ConfirmDelete)
-                        .padding([8, 24])
+                        .padding([spacing.space_xxs, spacing.space_m])
                         .width(142),
                     ]
-                    .spacing(16.0)
+                    .spacing(spacing.space_s)
                 )
                 .width(Length::Fixed(432.0))
                 .align_x(Horizontal::Right)
             ]
             .align_items(Alignment::Center)
-            .spacing(32.0);
+            .spacing(spacing.space_l);
             return container(dialog)
                 .style(theme::Container::Custom(Box::new(|theme| {
                     container::Appearance {
@@ -741,20 +752,20 @@ impl cosmic::Application for CosmicAppLibrary {
                 })))
                 .width(Length::Shrink)
                 .height(Length::Shrink)
-                .padding(24.0)
+                .padding(spacing.space_m)
                 .into();
         }
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
-            row![search_input(&SEARCH_PLACEHOLDER, &self.search_value, None)
+            row![search_input(&SEARCH_PLACEHOLDER, &self.search_value)
                 .on_input(Message::InputChanged)
                 .on_paste(Message::InputChanged)
                 .style(TextInput::Search)
-                .padding([8, 24])
                 .width(Length::Fixed(400.0))
                 .size(14)
                 .id(SEARCH_ID.clone())]
-            .spacing(8)
+            .spacing(spacing.space_xxs)
+            .padding(spacing.space_l)
         } else {
             row![
                 horizontal_space(Length::FillPortion(1)),
@@ -763,10 +774,9 @@ impl cosmic::Application for CosmicAppLibrary {
                         text_input(&cur_group.name(), edit_name)
                             .on_input(Message::EditName)
                             .on_paste(Message::EditName)
+                            .on_clear(Message::EditName(String::new()))
                             .on_submit(Message::SubmitName)
                             .id(EDIT_GROUP_ID.clone())
-                            // .style(TextInput::Default)
-                            .padding([8, 24])
                             .width(Length::Fixed(200.0))
                             .size(14),
                     )
@@ -782,8 +792,8 @@ impl cosmic::Application for CosmicAppLibrary {
                                     .width(Length::Fixed(32.0))
                                     .height(Length::Fixed(32.0)),
                             )
-                            .padding(12)
-                            .style(Button::Text);
+                            .padding(spacing.space_xs)
+                            .style(Button::Icon);
                             if self.edit_name.is_none() {
                                 b = b.on_press(Message::StartEditName(cur_group.name()));
                             }
@@ -798,16 +808,18 @@ impl cosmic::Application for CosmicAppLibrary {
                                 .width(Length::Fixed(32.0))
                                 .height(Length::Fixed(32.0)),
                         )
-                        .padding(12)
-                        .style(Button::Text)
+                        .padding(spacing.space_xs)
+                        .style(Button::Icon)
                         .on_press(Message::Delete(self.cur_group)),
                         fl!("delete"),
                         tooltip::Position::Bottom
                     )
                 ]
-                .spacing(8.0)
+                .spacing(spacing.space_xxs)
                 .width(Length::FillPortion(1))
             ]
+            .align_items(Alignment::Center)
+            .padding(spacing.space_l)
         };
 
         // TODO grid widget in libcosmic
@@ -825,6 +837,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     } else {
                         Some(Message::Ignore)
                     },
+                    spacing,
                 );
                 if self.menu.is_none() {
                     b = b
@@ -851,11 +864,17 @@ impl cosmic::Application for CosmicAppLibrary {
                         .into(),
                     );
                 }
-                row(new_row).spacing(8).padding([0, 16, 0, 0]).into()
+                row(new_row).spacing(spacing.space_xxs).into()
             })
             .collect();
 
-        let app_scrollable = scrollable(column(app_grid_list).width(Length::Fill).spacing(8))
+        let app_scrollable = container(
+            scrollable(
+                column(app_grid_list)
+                    .width(Length::Fill)
+                    .spacing(spacing.space_xxs)
+                    .padding([spacing.space_none, spacing.space_xxl]),
+            )
             .on_scroll(|viewport| Message::ScrollYOffset(viewport.absolute_offset().y))
             .id(Id::new(
                 self.config
@@ -864,14 +883,15 @@ impl cosmic::Application for CosmicAppLibrary {
                     .map(|g| g.name.clone())
                     .unwrap_or_else(|| "unknown-group".to_string()),
             ))
-            .height(Length::Fixed(600.0));
+            .height(Length::Fixed(600.0)),
+        );
 
         // TODO use the spacing variables from the theme
         let (group_icon_size, h_padding, group_width, group_height, chunks) =
             if self.config.groups().len() > 15 {
-                (16.0, 8, 96.0, 60.0, 11)
+                (16.0, spacing.space_xxs, 96.0, 60.0, 11)
             } else {
-                (32.0, 16, 128.0, 76.0, 8)
+                (32.0, spacing.space_s, 128.0, 76.0, 8)
             };
 
         let mut add_group_btn = Some(
@@ -882,7 +902,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .width(Length::Fixed(group_icon_size))
                             .height(Length::Fixed(group_icon_size))
                     )
-                    .padding(8),
+                    .padding(spacing.space_xxs),
                     text("Add group").horizontal_alignment(Horizontal::Center)
                 ]
                 .align_items(Alignment::Center)
@@ -891,7 +911,7 @@ impl cosmic::Application for CosmicAppLibrary {
             .height(Length::Fixed(group_height))
             .width(Length::Fixed(group_width))
             .style(theme::Button::IconVertical)
-            .padding([0, h_padding, 8, h_padding])
+            .padding([spacing.space_none, h_padding, spacing.space_xxs, h_padding])
             .on_press(Message::StartNewGroup),
         );
         let mut group_rows: Vec<_> = self
@@ -900,9 +920,8 @@ impl cosmic::Application for CosmicAppLibrary {
             .chunks(chunks)
             .map(|groups| {
                 let mut group_row = row![]
-                    .height(Length::Fixed(100.0))
-                    .spacing(8)
-                    .padding([16, 0])
+                    .spacing(spacing.space_xxs)
+                    .padding([spacing.space_s, spacing.space_none])
                     .align_items(Alignment::Center);
                 for (i, group) in groups.iter().enumerate() {
                     let mut group_button = GroupButton::new(
@@ -939,9 +958,10 @@ impl cosmic::Application for CosmicAppLibrary {
                             Button::IconVertical
                         },
                         group_icon_size,
-                        [0, h_padding, 8, h_padding],
+                        [spacing.space_none, h_padding, spacing.space_xxs, h_padding],
                         group_width,
                         group_height,
+                        spacing,
                     );
                     if i != 0 {
                         group_button = group_button
@@ -967,17 +987,22 @@ impl cosmic::Application for CosmicAppLibrary {
                 row![add_group_button]
                     .height(Length::Fixed(100.0))
                     .spacing(8)
-                    .padding([16, 0])
+                    .padding([spacing.space_s, spacing.space_none])
                     .align_items(Alignment::Center),
             );
         };
         let group_rows =
             Column::with_children(group_rows.into_iter().map(|r| r.into()).collect_vec());
 
-        let content = column![top_row, app_scrollable, horizontal_rule(1), group_rows]
-            .spacing(16)
-            .align_items(Alignment::Center)
-            .padding([32, 64, 16, 64]);
+        let content = column![
+            top_row,
+            app_scrollable,
+            container(horizontal_rule(1))
+                .padding([spacing.space_none, spacing.space_xxl])
+                .width(Length::Fill),
+            group_rows
+        ]
+        .align_items(Alignment::Center);
 
         let window = container(content)
             .width(Length::Fixed(1200.0))
@@ -1065,8 +1090,8 @@ impl cosmic::Application for CosmicAppLibrary {
     }
 }
 
-fn menu_divider<'a>() -> Container<'a, Message, cosmic::Renderer> {
+fn menu_divider<'a>(spacing: &Spacing) -> Container<'a, Message, cosmic::Renderer> {
     container(horizontal_rule(1))
-        .padding([0, 16])
+        .padding([spacing.space_none, spacing.space_s])
         .width(Length::Fill)
 }
