@@ -81,39 +81,46 @@ impl AppGroup {
                                     .unwrap_or_default()
                         }
                         if keep_de {
-                            freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
+                            let icon = freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
                                 .with_size(72)
                                 .with_cache()
                                 .find()
-                                .map(|icon| DesktopEntryData {
-                                    id: de.appid.to_string(),
-                                    exec: exec.to_string(),
-                                    name,
-                                    icon,
-                                    path: path.clone(),
-                                    desktop_actions: de
-                                        .actions()
-                                        .map(|actions| {
-                                            actions
-                                                .split(";")
-                                                .filter_map(|action| {
-                                                    let name = de.action_entry_localized(
-                                                        action, "Name", locale,
-                                                    );
-                                                    let exec = de.action_entry(action, "Exec");
-                                                    if let (Some(name), Some(exec)) = (name, exec) {
-                                                        Some(DesktopAction {
-                                                            name: name.to_string(),
-                                                            exec: exec.to_string(),
-                                                        })
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                                .collect_vec()
-                                        })
-                                        .unwrap_or_default(),
+                                .or_else(|| {
+                                    freedesktop_icons::lookup("application-default")
+                                        .with_size(72)
+                                        .with_cache()
+                                        .find()
                                 })
+                                .unwrap_or_default();
+
+                            Some(DesktopEntryData {
+                                id: de.appid.to_string(),
+                                exec: exec.to_string(),
+                                name,
+                                icon,
+                                path: path.clone(),
+                                desktop_actions: de
+                                    .actions()
+                                    .map(|actions| {
+                                        actions
+                                            .split(";")
+                                            .filter_map(|action| {
+                                                let name = de
+                                                    .action_entry_localized(action, "Name", locale);
+                                                let exec = de.action_entry(action, "Exec");
+                                                if let (Some(name), Some(exec)) = (name, exec) {
+                                                    Some(DesktopAction {
+                                                        name: name.to_string(),
+                                                        exec: exec.to_string(),
+                                                    })
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect_vec()
+                                    })
+                                    .unwrap_or_default(),
+                            })
                         } else {
                             None
                         }
