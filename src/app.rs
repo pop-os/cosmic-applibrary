@@ -27,7 +27,7 @@ use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
 use cosmic::widget::icon::{from_name, from_path, Handle};
-use cosmic::widget::{button, icon, search_input, text_input};
+use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{iced, sctk, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
 
@@ -51,17 +51,19 @@ static SEARCH_ID: Lazy<Id> = Lazy::new(|| Id::new("search"));
 static EDIT_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("edit_group"));
 static NEW_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("new_group"));
 
+static CREATE_NEW: Lazy<String> = Lazy::new(|| fl!("create-new"));
 static SEARCH_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("search-placeholder"));
 static NEW_GROUP_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("new-group-placeholder"));
-static OK: Lazy<String> = Lazy::new(|| fl!("ok"));
+static SAVE: Lazy<String> = Lazy::new(|| fl!("save"));
 static CANCEL: Lazy<String> = Lazy::new(|| fl!("cancel"));
 static RUN: Lazy<String> = Lazy::new(|| fl!("run"));
 static REMOVE: Lazy<String> = Lazy::new(|| fl!("remove"));
 
 pub(crate) const WINDOW_ID: SurfaceId = SurfaceId(1);
 const NEW_GROUP_WINDOW_ID: SurfaceId = SurfaceId(2);
-pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(3);
-pub(crate) const MENU_ID: SurfaceId = SurfaceId(4);
+const DELETE_GROUP_WINDOW_ID: SurfaceId = SurfaceId(3);
+pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(4);
+pub(crate) const MENU_ID: SurfaceId = SurfaceId(5);
 
 pub fn run() -> cosmic::iced::Result {
     cosmic::app::run::<CosmicAppLibrary>(
@@ -94,6 +96,7 @@ struct CosmicAppLibrary {
     offer_group: Option<usize>,
     scroll_offset: f32,
     core: Core,
+    group_to_delete: Option<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -106,6 +109,8 @@ enum Message {
     ActivateApp(usize),
     SelectGroup(usize),
     Delete(usize),
+    ConfirmDelete,
+    CancelDelete,
     StartEditName(String),
     EditName(String),
     SubmitName,
@@ -173,7 +178,10 @@ impl cosmic::Application for CosmicAppLibrary {
                     return text_input::focus(SEARCH_ID.clone());
                 }
                 LayerEvent::Unfocused => {
-                    if self.active_surface && self.new_group.is_none() {
+                    if self.active_surface
+                        && self.new_group.is_none()
+                        && self.group_to_delete.is_none()
+                    {
                         self.active_surface = false;
                         return iced::Command::batch(vec![
                             destroy_layer_surface(WINDOW_ID),
@@ -195,6 +203,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     self.new_group = None;
                     return iced::Command::batch(vec![
                         destroy_layer_surface(NEW_GROUP_WINDOW_ID),
+                        destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
                         destroy_layer_surface(WINDOW_ID),
                         iced::Command::perform(async {}, |_| {
                             cosmic::app::Message::App(Message::Clear)
@@ -206,6 +215,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.search_value.clear();
                 self.edit_name = None;
                 self.cur_group = 0;
+                self.group_to_delete = None;
                 self.load_apps();
             }
             Message::ActivateApp(i) => {
@@ -239,6 +249,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     self.new_group = None;
                     return Command::batch(vec![
                         destroy_layer_surface(NEW_GROUP_WINDOW_ID),
+                        destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
                         destroy_layer_surface(WINDOW_ID),
                     ]);
                 } else {
@@ -254,7 +265,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
                         anchor: Anchor::TOP,
                         namespace: "app-library".into(),
-                        size: Some((Some(1200), Some(860))),
+                        size: None,
                         margin: IcedMargin {
                             top: 16,
                             right: 0,
@@ -271,14 +282,15 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::Ignore => {}
             Message::Delete(group) => {
-                self.config.remove(group);
-                if let Some(helper) = self.helper.as_ref() {
-                    if let Err(err) = self.config.write_entry(helper) {
-                        error!("{:?}", err);
-                    }
-                }
-                self.cur_group = 0;
-                self.load_apps();
+                self.group_to_delete = Some(group);
+                return get_layer_surface(SctkLayerSurfaceSettings {
+                    id: DELETE_GROUP_WINDOW_ID,
+                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                    anchor: Anchor::empty(),
+                    namespace: "dialog".into(),
+                    size: None,
+                    ..Default::default()
+                });
             }
             Message::EditName(name) => {
                 self.edit_name = Some(name);
@@ -449,6 +461,23 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::ScrollYOffset(y) => {
                 self.scroll_offset = y;
             }
+            Message::ConfirmDelete => {
+                if let Some(group) = self.group_to_delete.take() {
+                    self.config.remove(group);
+                    if let Some(helper) = self.helper.as_ref() {
+                        if let Err(err) = self.config.write_entry(helper) {
+                            error!("{:?}", err);
+                        }
+                    }
+                    self.cur_group = 0;
+                    self.load_apps();
+                }
+                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID);
+            }
+            Message::CancelDelete => {
+                self.group_to_delete = None;
+                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID);
+            }
         }
         Command::none()
     }
@@ -468,7 +497,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            return icon(from_path(icon_path).into()).into();
+            return icon(from_path(icon_path).into()).size(32).into();
         }
         if id == MENU_ID {
             let Some((menu, i)) = self
@@ -600,23 +629,41 @@ impl cosmic::Application for CosmicAppLibrary {
                     .into();
             };
             let dialog = column![
-                text_input(&NEW_GROUP_PLACEHOLDER, &group_name)
+                container(text(CREATE_NEW.as_str()).size(24))
+                    .align_x(Horizontal::Left)
+                    .width(Length::Fixed(432.0)),
+                text_input("", &group_name)
+                    .label(&NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
                     .on_submit(Message::SubmitNewGroup)
-                    // .style(TextInput::Default)
                     .padding([8, 24])
-                    .width(Length::Fixed(400.0))
+                    .width(Length::Fixed(432.0))
                     .size(14)
                     .id(NEW_GROUP_ID.clone()),
-                row![
-                    button(text(&OK.as_str()))
-                        .on_press(Message::SubmitNewGroup)
-                        .padding([8, 24]),
-                    button(text(&CANCEL.as_str()))
+                container(
+                    row![
+                        button(
+                            text(&CANCEL.as_str())
+                                .horizontal_alignment(Horizontal::Center)
+                                .width(Length::Fill)
+                        )
                         .on_press(Message::CancelNewGroup)
                         .padding([8, 24])
-                ]
-                .spacing(16.0)
+                        .width(142),
+                        button(
+                            text(&SAVE.as_str())
+                                .horizontal_alignment(Horizontal::Center)
+                                .width(Length::Fill)
+                        )
+                        .style(Button::Suggested)
+                        .on_press(Message::SubmitNewGroup)
+                        .padding([8, 24])
+                        .width(142),
+                    ]
+                    .spacing(16.0)
+                )
+                .width(Length::Fixed(432.0))
+                .align_x(Horizontal::Right)
             ]
             .align_items(Alignment::Center)
             .spacing(16.0);
@@ -636,6 +683,67 @@ impl cosmic::Application for CosmicAppLibrary {
                 .padding(16.0)
                 .into();
         }
+
+        if id == DELETE_GROUP_WINDOW_ID {
+            let dialog = column![
+                row![
+                    container(
+                        icon(from_name("edit-delete-symbolic").into())
+                            .width(Length::Fixed(48.0))
+                            .height(Length::Fixed(48.0))
+                    )
+                    .padding(8),
+                    column![
+                        text(&fl!("delete-folder").as_str()).size(24),
+                        text(&fl!("delete-folder", "msg").as_str())
+                    ]
+                    .spacing(8)
+                    .width(Length::Fixed(360.0))
+                ]
+                .spacing(16),
+                container(
+                    row![
+                        button(
+                            text(&CANCEL.as_str())
+                                .horizontal_alignment(Horizontal::Center)
+                                .width(Length::Fill)
+                        )
+                        .on_press(Message::CancelDelete)
+                        .padding([8, 24])
+                        .width(142),
+                        button(
+                            text(&fl!("delete"))
+                                .horizontal_alignment(Horizontal::Center)
+                                .width(Length::Fill)
+                        )
+                        .style(Button::Destructive)
+                        .on_press(Message::ConfirmDelete)
+                        .padding([8, 24])
+                        .width(142),
+                    ]
+                    .spacing(16.0)
+                )
+                .width(Length::Fixed(432.0))
+                .align_x(Horizontal::Right)
+            ]
+            .align_items(Alignment::Center)
+            .spacing(32.0);
+            return container(dialog)
+                .style(theme::Container::Custom(Box::new(|theme| {
+                    container::Appearance {
+                        text_color: Some(theme.cosmic().on_bg_color().into()),
+                        icon_color: Some(theme.cosmic().on_bg_color().into()),
+                        background: Some(Color::from(theme.cosmic().background.base).into()),
+                        border_radius: 16.0.into(),
+                        border_width: 1.0,
+                        border_color: theme.cosmic().bg_divider().into(),
+                    }
+                })))
+                .width(Length::Shrink)
+                .height(Length::Shrink)
+                .padding(24.0)
+                .into();
+        }
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
             row![search_input(&SEARCH_PLACEHOLDER, &self.search_value, None)
@@ -647,36 +755,55 @@ impl cosmic::Application for CosmicAppLibrary {
                 .size(14)
                 .id(SEARCH_ID.clone())]
             .spacing(8)
-        } else if let Some(edit_name) = self.edit_name.as_ref() {
-            row![
-                horizontal_space(Length::FillPortion(1)),
-                text_input(&cur_group.name(), edit_name)
-                    .on_input(Message::EditName)
-                    .on_paste(Message::EditName)
-                    .on_submit(Message::SubmitName)
-                    .id(EDIT_GROUP_ID.clone())
-                    // .style(TextInput::Default)
-                    .padding([8, 24])
-                    .width(Length::Fixed(200.0))
-                    .size(14),
-                button(text(&OK.as_str()))
-                    .style(theme::Button::Suggested)
-                    .on_press(Message::SubmitName)
-            ]
-            .spacing(8.0)
-            .width(Length::FillPortion(1))
         } else {
             row![
                 horizontal_space(Length::FillPortion(1)),
-                text(&cur_group.name()).size(24),
+                if let Some(edit_name) = self.edit_name.as_ref() {
+                    container(
+                        text_input(&cur_group.name(), edit_name)
+                            .on_input(Message::EditName)
+                            .on_paste(Message::EditName)
+                            .on_submit(Message::SubmitName)
+                            .id(EDIT_GROUP_ID.clone())
+                            // .style(TextInput::Default)
+                            .padding([8, 24])
+                            .width(Length::Fixed(200.0))
+                            .size(14),
+                    )
+                } else {
+                    container(text(&cur_group.name()).size(24))
+                },
                 row![
                     horizontal_space(Length::Fill),
-                    button(icon(from_name("edit-symbolic").into()))
+                    tooltip(
+                        {
+                            let mut b = button(
+                                icon(from_name("edit-symbolic").into())
+                                    .width(Length::Fixed(32.0))
+                                    .height(Length::Fixed(32.0)),
+                            )
+                            .padding(12)
+                            .style(Button::Text);
+                            if self.edit_name.is_none() {
+                                b = b.on_press(Message::StartEditName(cur_group.name()));
+                            }
+                            b
+                        },
+                        fl!("rename"),
+                        tooltip::Position::Bottom
+                    ),
+                    tooltip(
+                        button(
+                            icon(from_name("edit-delete-symbolic").into())
+                                .width(Length::Fixed(32.0))
+                                .height(Length::Fixed(32.0)),
+                        )
+                        .padding(12)
                         .style(Button::Text)
-                        .on_press(Message::StartEditName(cur_group.name())),
-                    button(icon(from_name("edit-delete-symbolic").into()))
-                        .style(Button::Text)
-                        .on_press(Message::Delete(self.cur_group))
+                        .on_press(Message::Delete(self.cur_group)),
+                        fl!("delete"),
+                        tooltip::Position::Bottom
+                    )
                 ]
                 .spacing(8.0)
                 .width(Length::FillPortion(1))
@@ -739,67 +866,122 @@ impl cosmic::Application for CosmicAppLibrary {
             ))
             .height(Length::Fixed(600.0));
 
-        let group_row = {
-            let mut group_row = row![]
-                .height(Length::Fixed(100.0))
-                .spacing(8)
-                .align_items(Alignment::Center);
-            for (i, group) in self.config.groups().iter().enumerate() {
-                let mut group_button = GroupButton::new(
-                    group.name(),
-                    &group.icon,
-                    if self.menu.is_some() {
-                        None
-                    } else {
-                        Some(Message::SelectGroup(i))
-                    },
-                    if self.offer_group == Some(i)
-                        || (self.cur_group == i && self.offer_group.is_none())
-                    {
-                        Button::Suggested
-                    } else {
-                        Button::Standard
-                    },
-                );
-                if i != 0 {
-                    group_button = group_button
-                        .on_finish(move |entry| Message::FinishDndOffer(i, entry))
-                        .on_cancel(Message::LeaveDndOffer)
-                        .on_offer(Message::StartDndOffer(i))
-                        .on_dnd_command_produced(|c| {
-                            Message::DndCommandProduced(DndCommand(Arc::new(c)))
-                        });
-                }
+        // TODO use the spacing variables from the theme
+        let (group_icon_size, h_padding, group_width, group_height, chunks) =
+            if self.config.groups().len() > 15 {
+                (16.0, 8, 96.0, 60.0, 11)
+            } else {
+                (32.0, 16, 128.0, 76.0, 8)
+            };
 
-                group_row = group_row.push(group_button);
-            }
-            group_row = group_row.push(
-                button(
-                    column![
-                        icon(from_name("folder-new-symbolic").into()),
-                        text("Add group").horizontal_alignment(Horizontal::Center)
-                    ]
+        let mut add_group_btn = Some(
+            button(
+                column![
+                    container(
+                        icon(from_name("folder-new-symbolic").into())
+                            .width(Length::Fixed(group_icon_size))
+                            .height(Length::Fixed(group_icon_size))
+                    )
+                    .padding(8),
+                    text("Add group").horizontal_alignment(Horizontal::Center)
+                ]
+                .align_items(Alignment::Center)
+                .width(Length::Fill),
+            )
+            .height(Length::Fixed(group_height))
+            .width(Length::Fixed(group_width))
+            .style(theme::Button::IconVertical)
+            .padding([0, h_padding, 8, h_padding])
+            .on_press(Message::StartNewGroup),
+        );
+        let mut group_rows: Vec<_> = self
+            .config
+            .groups()
+            .chunks(chunks)
+            .map(|groups| {
+                let mut group_row = row![]
+                    .height(Length::Fixed(100.0))
                     .spacing(8)
-                    .align_items(Alignment::Center)
-                    .width(Length::Fill),
-                )
-                .height(Length::Fill)
-                .width(Length::Fixed(128.0))
-                .style(Button::Standard)
-                .padding([16, 8])
-                .on_press(Message::StartNewGroup),
-            );
-            group_row
-        };
+                    .padding([16, 0])
+                    .align_items(Alignment::Center);
+                for (i, group) in groups.iter().enumerate() {
+                    let mut group_button = GroupButton::new(
+                        group.name(),
+                        &group.icon,
+                        if self.menu.is_some() {
+                            None
+                        } else {
+                            Some(Message::SelectGroup(i))
+                        },
+                        if self.offer_group == Some(i)
+                            || (self.cur_group == i && self.offer_group.is_none())
+                        {
+                            // TODO customize the IconVertical to highlight in the way we need
+                            Button::Custom {
+                                active: Box::new(|focused, theme| {
+                                    let s = theme.pressed(focused, &Button::IconVertical);
+                                    s
+                                }),
+                                disabled: Box::new(|theme| {
+                                    let s = theme.disabled(&Button::IconVertical);
+                                    s
+                                }),
+                                hovered: Box::new(|focused, theme| {
+                                    let s = theme.hovered(focused, &Button::IconVertical);
+                                    s
+                                }),
+                                pressed: Box::new(|focused, theme| {
+                                    let s = theme.pressed(focused, &Button::IconVertical);
+                                    s
+                                }),
+                            }
+                        } else {
+                            Button::IconVertical
+                        },
+                        group_icon_size,
+                        [0, h_padding, 8, h_padding],
+                        group_width,
+                        group_height,
+                    );
+                    if i != 0 {
+                        group_button = group_button
+                            .on_finish(move |entry| Message::FinishDndOffer(i, entry))
+                            .on_cancel(Message::LeaveDndOffer)
+                            .on_offer(Message::StartDndOffer(i))
+                            .on_dnd_command_produced(|c| {
+                                Message::DndCommandProduced(DndCommand(Arc::new(c)))
+                            });
+                    }
 
-        let content = column![top_row, app_scrollable, horizontal_rule(1), group_row]
+                    group_row = group_row.push(group_button);
+                }
+                if groups.len() < chunks {
+                    group_row = group_row.push(add_group_btn.take().unwrap());
+                }
+                group_row
+            })
+            .collect();
+
+        if let Some(add_group_button) = add_group_btn.take() {
+            group_rows.push(
+                row![add_group_button]
+                    .height(Length::Fixed(100.0))
+                    .spacing(8)
+                    .padding([16, 0])
+                    .align_items(Alignment::Center),
+            );
+        };
+        let group_rows =
+            Column::with_children(group_rows.into_iter().map(|r| r.into()).collect_vec());
+
+        let content = column![top_row, app_scrollable, horizontal_rule(1), group_rows]
             .spacing(16)
             .align_items(Alignment::Center)
             .padding([32, 64, 16, 64]);
 
         let window = container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
+            .width(Length::Fixed(1200.0))
+            .height(Length::Shrink)
             .style(theme::Container::Custom(Box::new(|theme| {
                 container::Appearance {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
