@@ -25,7 +25,7 @@ ron = "0.8.0"
 notify = "*"
 anyhow = "1.0"
 itertools = "0.11"
-freedesktop-icons = "0.2.2"
+freedesktop-icons = "0.2.4"
 current_locale = "0.1.1"
 url = "2.4"
 
