@@ -3,6 +3,7 @@
 use std::mem;
 use std::path::PathBuf;
 
+use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::wayland::actions::data_device::{DataFromMimeType, DndIcon};
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
@@ -74,6 +75,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         ignore_button: Message,
         on_right_release: impl Fn(Rectangle) -> Message + 'a,
         on_pressed: Option<Message>,
+        spacing: &Spacing,
     ) -> Self {
         let name = if name.len() > 27 {
             format!("{:.24}...", name)
@@ -92,13 +94,13 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             ]
             .width(Length::Fixed(120.0))
             .height(Length::Fixed(120.0))
-            .spacing(8)
+            .spacing(spacing.space_xxs)
             .align_items(Alignment::Center)
             .width(Length::Fill),
         )
         .width(Length::FillPortion(1))
         .style(theme::Button::IconVertical)
-        .padding(16);
+        .padding(spacing.space_s);
         let content = if on_pressed.is_some() {
             content.on_press(ignore_button.clone())
         } else {
