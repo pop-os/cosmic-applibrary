@@ -11,11 +11,12 @@ use cosmic::iced_widget::graphics::image::image_rs::EncodableLayout;
 use cosmic::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 
 use cosmic::iced_core::{
-    event, layout, mouse, overlay, renderer, Alignment, Clipboard, Element, Event, Length, Point,
-    Rectangle, Shell, Widget,
+    event, layout, mouse, overlay, renderer, Alignment, Clipboard, Element, Event, Length, Padding,
+    Point, Rectangle, Shell, Widget,
 };
 
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
+use cosmic::widget::container;
 use cosmic::widget::icon::from_name;
 use cosmic::{
     iced::widget::{column, text},
@@ -60,20 +61,28 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
         icon_name: &'a str,
         on_pressed: Option<Message>,
         style: theme::Button,
+        icon_size: f32,
+        padding: impl Into<Padding>,
+        width: f32,
+        height: f32,
     ) -> Self {
         let content = button(
             column![
-                icon(from_name(icon_name).into()),
+                container(
+                    icon(from_name(icon_name).into())
+                        .width(Length::Fixed(icon_size))
+                        .height(Length::Fixed(icon_size))
+                )
+                .padding(8),
                 text(name).horizontal_alignment(Horizontal::Center)
             ]
-            .spacing(8)
             .align_items(Alignment::Center)
             .width(Length::Fill),
         )
-        .height(Length::Fill)
-        .width(Length::Fixed(128.0))
+        .height(Length::Fixed(height))
+        .width(Length::Fixed(width))
         .style(style)
-        .padding([16, 8]);
+        .padding(padding);
 
         let content = if let Some(on_pressed) = on_pressed {
             content.on_press(on_pressed)
