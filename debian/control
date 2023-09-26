@@ -9,6 +9,7 @@ Build-Depends:
   just,
   pkg-config,
   libxkbcommon-dev,
+  libwayland-dev,
 Standards-Version: 4.3.0
 Homepage: https://github.com/pop-os/cosmic-app-library
 
