@@ -9,6 +9,7 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
+use crate::config::APP_ID;
 use crate::fl;
 
 static HOME: Lazy<[AppGroup; 1]> = Lazy::new(|| {
@@ -224,6 +225,10 @@ impl TryFrom<PathBuf> for DesktopEntryData {
 impl AppLibraryConfig {
     pub fn version() -> u64 {
         1
+    }
+
+    pub fn helper() -> Option<cosmic_config::Config> {
+        cosmic_config::Config::new(APP_ID, Self::version()).ok()
     }
 
     pub fn add(&mut self, name: String) {

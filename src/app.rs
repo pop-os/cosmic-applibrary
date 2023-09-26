@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use cosmic::app::{Command, Core, Settings};
-use cosmic::cosmic_config::{Config, CosmicConfigEntry};
+use cosmic::cosmic_config::{Config, ConfigSet, CosmicConfigEntry};
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
@@ -22,6 +22,7 @@ use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_sctk::commands;
+use cosmic::iced_sctk::commands::data_device::cancel_dnd;
 use cosmic::iced_style::application::{self, Appearance};
 use cosmic::iced_widget::text_input::focus;
 use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
@@ -206,6 +207,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         destroy_layer_surface(NEW_GROUP_WINDOW_ID),
                         destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
                         destroy_layer_surface(WINDOW_ID),
+                        cancel_dnd(),
                         iced::Command::perform(async {}, |_| {
                             cosmic::app::Message::App(Message::Clear)
                         }),
@@ -1065,7 +1067,7 @@ impl cosmic::Application for CosmicAppLibrary {
         core: Core,
         _flags: Self::Flags,
     ) -> (Self, iced::Command<cosmic::app::Message<Self::Message>>) {
-        let helper = Config::new(APP_ID, AppLibraryConfig::version()).ok();
+        let helper = AppLibraryConfig::helper();
 
         let config: AppLibraryConfig = helper
             .as_ref()
@@ -1083,6 +1085,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 locale: current_locale::current_locale().ok(),
                 config,
                 core,
+                helper,
                 ..Default::default()
             },
             Command::none(),
