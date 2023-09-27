@@ -1,0 +1,13 @@
+cosmic-app-library = Cosmic 應用程式庫
+cosmic-library-home = 程式庫
+cosmic-office = 辦公
+cosmic-system = 系統
+cosmic-utilities = 工具
+new-group = 建立群組
+name = 名稱
+ok = 確認
+cancel = 取消
+search-placeholder = 輸入程式名稱...
+new-group-placeholder = 群組名稱
+run = 執行
+remove = 移除
