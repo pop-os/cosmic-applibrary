@@ -87,7 +87,15 @@ impl AppGroup {
                                 .find()
                                 .or_else(|| {
                                     freedesktop_icons::lookup("application-default")
-                                        .with_size(72)
+                                        .with_theme("Cosmic")
+                                        .force_svg()
+                                        .with_cache()
+                                        .find()
+                                })
+                                .or_else(|| {
+                                    freedesktop_icons::lookup("application-x-application")
+                                        .with_theme("default")
+                                        .with_size(128)
                                         .with_cache()
                                         .find()
                                 })
