@@ -22,6 +22,7 @@ use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_sctk::commands;
+use cosmic::iced_sctk::commands::activation::request_token;
 use cosmic::iced_sctk::commands::data_device::cancel_dnd;
 use cosmic::iced_style::application::{self, Appearance};
 use cosmic::iced_widget::text_input::focus;
@@ -38,7 +39,6 @@ use log::error;
 use once_cell::sync::Lazy;
 
 use crate::app_group::{AppLibraryConfig, DesktopEntryData};
-use crate::config::APP_ID;
 use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::subscriptions::toggle_dbus::dbus_toggle;
@@ -110,6 +110,7 @@ enum Message {
     Hide,
     Clear,
     ActivateApp(usize),
+    ActivationToken(Option<String>, String),
     SelectGroup(usize),
     Delete(usize),
     ConfirmDelete,
@@ -225,20 +226,34 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::ActivateApp(i) => {
                 self.edit_name = None;
                 if let Some(de) = self.entry_path_input.get(i) {
-                    let mut exec = shlex::Shlex::new(&de.exec);
-                    let mut cmd = match exec.next() {
-                        Some(cmd) if !cmd.contains("=") => tokio::process::Command::new(cmd),
-                        _ => return Command::none(),
-                    };
-                    for arg in exec {
-                        // TODO handle "%" args here if necessary?
-                        if !arg.starts_with("%") {
-                            cmd.arg(arg);
-                        }
-                    }
-                    let _ = cmd.spawn();
-                    return self.update(Message::Hide);
+                    let exec = de.exec.clone();
+                    return request_token(
+                        Some(String::from(Self::APP_ID)),
+                        Some(WINDOW_ID),
+                        move |token| {
+                            cosmic::app::Message::App(Message::ActivationToken(token, exec))
+                        },
+                    );
                 }
+            }
+            Message::ActivationToken(token, exec) => {
+                let mut exec = shlex::Shlex::new(&exec);
+                let mut cmd = match exec.next() {
+                    Some(cmd) if !cmd.contains("=") => tokio::process::Command::new(cmd),
+                    _ => return Command::none(),
+                };
+                for arg in exec {
+                    // TODO handle "%" args here if necessary?
+                    if !arg.starts_with("%") {
+                        cmd.arg(arg);
+                    }
+                }
+                if let Some(token) = token {
+                    cmd.env("XDG_ACTIVATION_TOKEN", token.clone());
+                    cmd.env("DESKTOP_STARTUP_ID", token);
+                }
+                let _ = cmd.spawn();
+                return self.update(Message::Hide);
             }
             Message::SelectGroup(i) => {
                 self.edit_name = None;
