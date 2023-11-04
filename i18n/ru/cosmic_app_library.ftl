@@ -6,6 +6,7 @@ cosmic-utilities = Утилиты
 new-group = Создать папку
 name = Имя
 ok = ОК
+save = Сохранить
 cancel = Отменить
 search-placeholder = Введите текст для поиска приложений...
 new-group-placeholder = Имя папки
