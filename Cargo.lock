@@ -651,6 +651,7 @@ dependencies = [
  "itertools 0.11.0",
  "libcosmic",
  "log",
+ "nix 0.26.4",
  "notify",
  "once_cell",
  "pretty_env_logger",

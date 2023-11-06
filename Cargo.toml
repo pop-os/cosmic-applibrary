@@ -29,6 +29,7 @@ itertools = "0.11"
 freedesktop-icons = "0.2.4"
 current_locale = "0.1.1"
 url = "2.4"
+nix = "0.26"
 
 [profile.release]
 lto = "thin"

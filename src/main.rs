@@ -3,6 +3,7 @@ mod config;
 mod app;
 mod app_group;
 mod localize;
+pub mod process;
 mod subscriptions;
 mod widgets;
 
