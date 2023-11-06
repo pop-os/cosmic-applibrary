@@ -239,7 +239,7 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::ActivationToken(token, exec) => {
                 let mut exec = shlex::Shlex::new(&exec);
                 let mut cmd = match exec.next() {
-                    Some(cmd) if !cmd.contains("=") => tokio::process::Command::new(cmd),
+                    Some(cmd) if !cmd.contains("=") => std::process::Command::new(cmd),
                     _ => return Command::none(),
                 };
                 for arg in exec {
@@ -252,7 +252,9 @@ impl cosmic::Application for CosmicAppLibrary {
                     cmd.env("XDG_ACTIVATION_TOKEN", token.clone());
                     cmd.env("DESKTOP_STARTUP_ID", token);
                 }
-                let _ = cmd.spawn();
+                tokio::task::spawn_blocking(|| {
+                    crate::process::spawn(cmd);
+                });
                 return self.update(Message::Hide);
             }
             Message::SelectGroup(i) => {
