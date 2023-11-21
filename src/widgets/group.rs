@@ -4,12 +4,12 @@ use std::mem;
 
 use std::str::FromStr;
 
+use cosmic::cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::command::platform_specific;
 use cosmic::iced_widget::graphics::image::image_rs::EncodableLayout;
-use cosmic::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 
 use cosmic::iced_core::{
     event, layout, mouse, overlay, renderer, Alignment, Clipboard, Element, Event, Length, Padding,

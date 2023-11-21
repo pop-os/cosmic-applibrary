@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::vec;
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
-use cosmic::cosmic_config::{self, Config, ConfigGet, ConfigSet, CosmicConfigEntry};
+use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use freedesktop_desktop_entry::DesktopEntry;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -58,14 +58,14 @@ impl AppGroup {
                 std::fs::read_to_string(&path).ok().and_then(|input| {
                     DesktopEntry::decode(&path, &input).ok().and_then(|de| {
                         let name = de
-                            .name(locale.as_ref().map(|x| &**x))
+                            .name(locale)
                             .unwrap_or(Cow::Borrowed(de.appid))
                             .to_string();
                         let Some(exec) = de.exec() else {
                             return None;
                         };
                         let mut keep_de = !de.no_display() && self.matches(&de);
-                        if keep_de && input_value.len() > 0 {
+                        if keep_de && !input_value.is_empty() {
                             keep_de = name.to_lowercase().contains(&input_value.to_lowercase())
                                 || de
                                     .categories()
@@ -105,7 +105,7 @@ impl AppGroup {
                                     .actions()
                                     .map(|actions| {
                                         actions
-                                            .split(";")
+                                            .split(';')
                                             .filter_map(|action| {
                                                 let name = de
                                                     .action_entry_localized(action, "Name", locale);
@@ -140,7 +140,7 @@ impl AppGroup {
                 include,
                 ..
             } => {
-                categories.into_iter().any(|cat| {
+                categories.iter().any(|cat| {
                     entry
                         .categories()
                         .map(|cats| cats.to_lowercase().contains(&cat.to_lowercase()))
@@ -210,7 +210,7 @@ impl TryFrom<PathBuf> for DesktopEntryData {
                 .actions()
                 .map(|actions| {
                     actions
-                        .split(";")
+                        .split(';')
                         .filter_map(|action| {
                             let name = de.action_entry_localized(action, "name", None);
                             let exec = de.action_entry(action, "exec");
