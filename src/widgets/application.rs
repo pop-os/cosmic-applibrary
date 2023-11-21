@@ -3,12 +3,12 @@
 use std::mem;
 use std::path::PathBuf;
 
+use cosmic::cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::wayland::actions::data_device::{DataFromMimeType, DndIcon};
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::command::platform_specific;
-use cosmic::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 
 use cosmic::iced_core::{
     event, layout, mouse, overlay, renderer, touch, Alignment, Clipboard, Element, Event, Length,
@@ -18,10 +18,7 @@ use cosmic::iced_core::{
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
 use cosmic::widget::icon::from_path;
 use cosmic::{
-    iced::{
-        self,
-        widget::{column, text},
-    },
+    iced::widget::{column, text},
     theme,
     widget::{button, icon},
 };

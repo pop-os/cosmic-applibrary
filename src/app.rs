@@ -2,8 +2,11 @@ use std::fmt::Debug;
 
 use std::sync::Arc;
 
-use cosmic::app::{Command, Core, Settings};
-use cosmic::cosmic_config::{Config, ConfigSet, CosmicConfigEntry};
+use clap::Parser;
+use cosmic::app::{
+    Command, Core, CosmicFlags, DbusActivationDetails, DbusActivationMessage, Settings,
+};
+use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::id::Id;
 use cosmic::iced::subscription::events_with;
@@ -31,17 +34,16 @@ use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
 use cosmic::widget::icon::{from_name, from_path};
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
-use cosmic::{iced, sctk, Element, Theme};
+use cosmic::{cctk::sctk, iced, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
-
 use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 
 use crate::app_group::{AppLibraryConfig, DesktopEntryData};
 use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
-use crate::subscriptions::toggle_dbus::dbus_toggle;
 use crate::widgets::application::ApplicationButton;
 use crate::widgets::group::GroupButton;
 
@@ -67,8 +69,31 @@ const DELETE_GROUP_WINDOW_ID: SurfaceId = SurfaceId(3);
 pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(4);
 pub(crate) const MENU_ID: SurfaceId = SurfaceId(5);
 
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
+#[command(author, version, about, long_about = None)]
+#[command(propagate_version = true)]
+pub struct Args {}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LauncherCommands;
+
+impl ToString for LauncherCommands {
+    fn to_string(&self) -> String {
+        ron::ser::to_string(self).unwrap()
+    }
+}
+
+impl CosmicFlags for Args {
+    type SubCommand = LauncherCommands;
+    type Args = Vec<String>;
+
+    fn action(&self) -> Option<&LauncherCommands> {
+        None
+    }
+}
+
 pub fn run() -> cosmic::iced::Result {
-    cosmic::app::run::<CosmicAppLibrary>(
+    cosmic::app::run_single_instance::<CosmicAppLibrary>(
         Settings::default()
             .antialiasing(true)
             .client_decorations(true)
@@ -78,9 +103,8 @@ pub fn run() -> cosmic::iced::Result {
             .scale_factor(1.0)
             .no_main_window(true)
             .exit_on_close(false),
-        (),
-    )?;
-    Ok(())
+        Args::parse(),
+    )
 }
 
 #[derive(Default)]
@@ -106,7 +130,6 @@ struct CosmicAppLibrary {
 enum Message {
     InputChanged(String),
     Layer(LayerEvent),
-    Toggle,
     Hide,
     Clear,
     ActivateApp(usize),
@@ -133,8 +156,8 @@ enum Message {
     StartDndOffer(usize),
     FinishDndOffer(usize, DesktopEntryData),
     LeaveDndOffer,
-    Ignore,
     ScrollYOffset(f32),
+    Ignore,
 }
 
 #[derive(Clone)]
@@ -159,12 +182,30 @@ impl CosmicAppLibrary {
                 .filtered(self.cur_group, self.locale.as_deref(), &self.search_value);
         self.entry_path_input.sort_by(|a, b| a.name.cmp(&b.name));
     }
+
+    pub fn hide(&mut self) -> Command<Message> {
+        self.active_surface = false;
+        self.new_group = None;
+        self.search_value.clear();
+        self.edit_name = None;
+        self.cur_group = 0;
+        self.group_to_delete = None;
+        self.load_apps();
+        iced::Command::batch(vec![
+            text_input::focus(SEARCH_ID.clone()),
+            destroy_layer_surface(NEW_GROUP_WINDOW_ID),
+            destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
+            destroy_layer_surface(WINDOW_ID),
+            cancel_dnd(),
+            iced::Command::perform(async {}, |_| cosmic::app::Message::App(Message::Clear)),
+        ])
+    }
 }
 
 impl cosmic::Application for CosmicAppLibrary {
     type Message = Message;
     type Executor = executor::Default;
-    type Flags = ();
+    type Flags = Args;
     const APP_ID: &'static str = "com.system76.CosmicAppLibrary";
 
     fn core(&self) -> &Core {
@@ -202,18 +243,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     return commands::popup::destroy_popup(MENU_ID);
                 }
                 if self.active_surface {
-                    self.active_surface = false;
-                    self.edit_name = None;
-                    self.new_group = None;
-                    return iced::Command::batch(vec![
-                        destroy_layer_surface(NEW_GROUP_WINDOW_ID),
-                        destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
-                        destroy_layer_surface(WINDOW_ID),
-                        cancel_dnd(),
-                        iced::Command::perform(async {}, |_| {
-                            cosmic::app::Message::App(Message::Clear)
-                        }),
-                    ]);
+                    return self.hide();
                 }
             }
             Message::Clear => {
@@ -244,7 +274,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 };
                 for arg in exec {
                     // TODO handle "%" args here if necessary?
-                    if !arg.starts_with("%") {
+                    if !arg.starts_with('%') {
                         cmd.arg(arg);
                     }
                 }
@@ -264,44 +294,9 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.scroll_offset = 0.0;
                 self.load_apps();
             }
-            Message::Toggle => {
-                if self.active_surface {
-                    self.active_surface = false;
-                    self.new_group = None;
-                    return Command::batch(vec![
-                        destroy_layer_surface(NEW_GROUP_WINDOW_ID),
-                        destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
-                        destroy_layer_surface(WINDOW_ID),
-                    ]);
-                } else {
-                    let mut cmds = Vec::new();
-                    self.edit_name = None;
-                    self.search_value = "".to_string();
-                    self.active_surface = true;
-                    self.scroll_offset = 0.0;
-                    self.cur_group = 0;
-                    cmds.push(text_input::focus(SEARCH_ID.clone()));
-                    cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
-                        id: WINDOW_ID,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        anchor: Anchor::TOP,
-                        namespace: "app-library".into(),
-                        size: None,
-                        margin: IcedMargin {
-                            top: 16,
-                            right: 0,
-                            bottom: 0,
-                            left: 0,
-                        },
-                        ..Default::default()
-                    }));
-                    return Command::batch(cmds);
-                }
-            }
             Message::LoadApps => {
                 self.load_apps();
             }
-            Message::Ignore => {}
             Message::Delete(group) => {
                 self.group_to_delete = Some(group);
                 return get_layer_surface(SctkLayerSurfaceSettings {
@@ -363,9 +358,9 @@ impl cosmic::Application for CosmicAppLibrary {
                 return destroy_layer_surface(NEW_GROUP_WINDOW_ID);
             }
             Message::OpenContextMenu(rect, i) => {
-                if let Some(i) = self.menu.take() {
-                    if i == i {
-                        return commands::popup::destroy_popup(MENU_ID.clone());
+                if let Some(cur_i) = self.menu.take() {
+                    if i == cur_i {
+                        return commands::popup::destroy_popup(MENU_ID);
                     }
                 } else {
                     self.menu = Some(i);
@@ -394,7 +389,7 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::CloseContextMenu => {
                 self.menu = None;
-                return commands::popup::destroy_popup(MENU_ID.clone());
+                return commands::popup::destroy_popup(MENU_ID);
             }
             Message::SelectAction(action) => {
                 if let Some(info) = self.menu.take().and_then(|i| self.entry_path_input.get(i)) {
@@ -412,20 +407,20 @@ impl cosmic::Application for CosmicAppLibrary {
                             let mut exec = shlex::Shlex::new(&exec);
 
                             let mut cmd = match exec.next() {
-                                Some(cmd) if !cmd.contains("=") => {
+                                Some(cmd) if !cmd.contains('=') => {
                                     tokio::process::Command::new(cmd)
                                 }
                                 _ => return Command::none(),
                             };
                             for arg in exec {
                                 // TODO handle "%" args here if necessary?
-                                if !arg.starts_with("%") {
+                                if !arg.starts_with('%') {
                                     cmd.arg(arg);
                                 }
                             }
                             let _ = cmd.spawn();
                             return iced::Command::batch(vec![
-                                commands::popup::destroy_popup(MENU_ID.clone()),
+                                commands::popup::destroy_popup(MENU_ID),
                                 iced::Command::perform(async {}, |_| {
                                     cosmic::app::Message::App(Message::Hide)
                                 }),
@@ -435,7 +430,6 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
             }
             Message::StartDrag(i) => {
-                // self.dnd_icon = self.entry_path_input.get(i).map(|e| e.icon.clone());
                 self.dnd_icon = Some(i);
             }
             Message::FinishDrag(copy) => {
@@ -445,7 +439,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         .take()
                         .and_then(|i| self.entry_path_input.get(i))
                     {
-                        let _ = self.config.remove_entry(self.cur_group, &info.id);
+                        self.config.remove_entry(self.cur_group, &info.id);
                         if let Some(helper) = self.helper.as_ref() {
                             if let Err(err) = self.config.write_entry(helper) {
                                 error!("{:?}", err);
@@ -502,9 +496,44 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.group_to_delete = None;
                 return destroy_layer_surface(DELETE_GROUP_WINDOW_ID);
             }
+            Message::Ignore => {}
         }
         Command::none()
     }
+
+    fn dbus_activation(&mut self, msg: DbusActivationMessage) -> Command<Self::Message> {
+        if let DbusActivationDetails::Activate = msg.msg {
+            if self.active_surface {
+                self.hide()
+            } else {
+                self.edit_name = None;
+                self.search_value = "".to_string();
+                self.active_surface = true;
+                self.scroll_offset = 0.0;
+                self.cur_group = 0;
+                return Command::batch(vec![
+                    text_input::focus(SEARCH_ID.clone()),
+                    get_layer_surface(SctkLayerSurfaceSettings {
+                        id: WINDOW_ID,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::TOP,
+                        namespace: "app-library".into(),
+                        size: None,
+                        margin: IcedMargin {
+                            top: 16,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                        },
+                        ..Default::default()
+                    }),
+                ]);
+            }
+        } else {
+            Command::none()
+        }
+    }
+
     fn view(&self) -> Element<Message> {
         unimplemented!()
     }
@@ -516,7 +545,6 @@ impl cosmic::Application for CosmicAppLibrary {
         if id == DND_ICON_ID {
             let Some(icon_path) = self
                 .dnd_icon
-                .clone()
                 .and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone()))
             else {
                 return container(horizontal_space(Length::Fixed(1.0)))
@@ -1047,19 +1075,15 @@ impl cosmic::Application for CosmicAppLibrary {
     fn subscription(&self) -> Subscription<Message> {
         Subscription::batch(
             vec![
-                dbus_toggle(0).map(|_| Message::Toggle),
                 desktop_files(0).map(|_| Message::LoadApps),
                 events_with(|e, _status| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, ..),
                     )) => Some(Message::Layer(e)),
                     cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyReleased {
-                        key_code,
+                        key_code: KeyCode::Escape,
                         modifiers: _mods,
-                    }) => match key_code {
-                        KeyCode::Escape => Some(Message::Hide),
-                        _ => None,
-                    },
+                    }) => Some(Message::Hide),
                     _ => None,
                 }),
             ]
