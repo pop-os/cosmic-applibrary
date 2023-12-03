@@ -1,5 +1,5 @@
 cosmic-app-library = Cosmic biblioteka aplikacija
-cosmic-library-home = Početna stranica biblioteke
+cosmic-library-home = Početna
 cosmic-office = Kancelarija
 cosmic-system = Sistem
 cosmic-utilities = Korisno
