@@ -9,7 +9,6 @@ use cosmic::app::{
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::cosmic_theme::Spacing;
 use cosmic::iced::id::Id;
-use cosmic::iced::subscription::events_with;
 use cosmic::iced::wayland::actions::data_device::ActionInner;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::wayland::actions::popup::{SctkPopupSettings, SctkPositioner};
@@ -20,6 +19,7 @@ use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, 
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Length};
 use cosmic::iced::{Color, Limits, Subscription};
 use cosmic::iced_core::Rectangle;
+use cosmic::iced_futures::event::listen_raw;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::keyboard::KeyCode;
@@ -63,11 +63,11 @@ static CANCEL: Lazy<String> = Lazy::new(|| fl!("cancel"));
 static RUN: Lazy<String> = Lazy::new(|| fl!("run"));
 static REMOVE: Lazy<String> = Lazy::new(|| fl!("remove"));
 
-pub(crate) const WINDOW_ID: SurfaceId = SurfaceId(1);
-const NEW_GROUP_WINDOW_ID: SurfaceId = SurfaceId(2);
-const DELETE_GROUP_WINDOW_ID: SurfaceId = SurfaceId(3);
-pub(crate) const DND_ICON_ID: SurfaceId = SurfaceId(4);
-pub(crate) const MENU_ID: SurfaceId = SurfaceId(5);
+pub(crate) static WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+static NEW_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+static DELETE_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+pub(crate) static DND_ICON_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+pub(crate) static MENU_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -193,11 +193,10 @@ impl CosmicAppLibrary {
         self.load_apps();
         iced::Command::batch(vec![
             text_input::focus(SEARCH_ID.clone()),
-            destroy_layer_surface(NEW_GROUP_WINDOW_ID),
-            destroy_layer_surface(DELETE_GROUP_WINDOW_ID),
-            destroy_layer_surface(WINDOW_ID),
+            destroy_layer_surface(NEW_GROUP_WINDOW_ID.clone()),
+            destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone()),
+            destroy_layer_surface(WINDOW_ID.clone()),
             cancel_dnd(),
-            iced::Command::perform(async {}, |_| cosmic::app::Message::App(Message::Clear)),
         ])
     }
 }
@@ -229,7 +228,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     {
                         self.active_surface = false;
                         return iced::Command::batch(vec![
-                            destroy_layer_surface(WINDOW_ID),
+                            destroy_layer_surface(WINDOW_ID.clone()),
                             iced::Command::perform(async {}, |_| {
                                 cosmic::app::Message::App(Message::Clear)
                             }),
@@ -240,7 +239,7 @@ impl cosmic::Application for CosmicAppLibrary {
             },
             Message::Hide => {
                 if self.menu.take().is_some() {
-                    return commands::popup::destroy_popup(MENU_ID);
+                    return commands::popup::destroy_popup(MENU_ID.clone());
                 }
                 if self.active_surface {
                     return self.hide();
@@ -259,7 +258,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     let exec = de.exec.clone();
                     return request_token(
                         Some(String::from(Self::APP_ID)),
-                        Some(WINDOW_ID),
+                        Some(WINDOW_ID.clone()),
                         move |token| {
                             cosmic::app::Message::App(Message::ActivationToken(token, exec))
                         },
@@ -300,7 +299,7 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::Delete(group) => {
                 self.group_to_delete = Some(group);
                 return get_layer_surface(SctkLayerSurfaceSettings {
-                    id: DELETE_GROUP_WINDOW_ID,
+                    id: DELETE_GROUP_WINDOW_ID.clone(),
                     keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     anchor: Anchor::empty(),
                     namespace: "dialog".into(),
@@ -329,7 +328,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.new_group = Some(String::new());
                 return Command::batch(vec![
                     get_layer_surface(SctkLayerSurfaceSettings {
-                        id: NEW_GROUP_WINDOW_ID,
+                        id: NEW_GROUP_WINDOW_ID.clone(),
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
                         anchor: Anchor::empty(),
                         namespace: "dialog".into(),
@@ -351,22 +350,22 @@ impl cosmic::Application for CosmicAppLibrary {
                         error!("{:?}", err);
                     }
                 }
-                return destroy_layer_surface(NEW_GROUP_WINDOW_ID);
+                return destroy_layer_surface(NEW_GROUP_WINDOW_ID.clone());
             }
             Message::CancelNewGroup => {
                 self.new_group = None;
-                return destroy_layer_surface(NEW_GROUP_WINDOW_ID);
+                return destroy_layer_surface(NEW_GROUP_WINDOW_ID.clone());
             }
             Message::OpenContextMenu(rect, i) => {
                 if let Some(cur_i) = self.menu.take() {
                     if i == cur_i {
-                        return commands::popup::destroy_popup(MENU_ID);
+                        return commands::popup::destroy_popup(MENU_ID.clone());
                     }
                 } else {
                     self.menu = Some(i);
                     return commands::popup::get_popup(SctkPopupSettings {
-                        parent: WINDOW_ID,
-                        id: MENU_ID,
+                        parent: WINDOW_ID.clone(),
+                        id: MENU_ID.clone(),
                         positioner: SctkPositioner {
                             size: None,
                             size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
@@ -389,7 +388,7 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::CloseContextMenu => {
                 self.menu = None;
-                return commands::popup::destroy_popup(MENU_ID);
+                return commands::popup::destroy_popup(MENU_ID.clone());
             }
             Message::SelectAction(action) => {
                 if let Some(info) = self.menu.take().and_then(|i| self.entry_path_input.get(i)) {
@@ -420,7 +419,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             }
                             let _ = cmd.spawn();
                             return iced::Command::batch(vec![
-                                commands::popup::destroy_popup(MENU_ID),
+                                commands::popup::destroy_popup(MENU_ID.clone()),
                                 iced::Command::perform(async {}, |_| {
                                     cosmic::app::Message::App(Message::Hide)
                                 }),
@@ -490,11 +489,11 @@ impl cosmic::Application for CosmicAppLibrary {
                     self.cur_group = 0;
                     self.load_apps();
                 }
-                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID);
+                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone());
             }
             Message::CancelDelete => {
                 self.group_to_delete = None;
-                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID);
+                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone());
             }
             Message::Ignore => {}
         }
@@ -514,8 +513,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 return Command::batch(vec![
                     text_input::focus(SEARCH_ID.clone()),
                     get_layer_surface(SctkLayerSurfaceSettings {
-                        id: WINDOW_ID,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        id: WINDOW_ID.clone(),
+                        keyboard_interactivity: KeyboardInteractivity::OnDemand,
                         anchor: Anchor::TOP,
                         namespace: "app-library".into(),
                         size: None,
@@ -542,7 +541,7 @@ impl cosmic::Application for CosmicAppLibrary {
         let theme = cosmic::theme::active();
         let cosmic = theme.cosmic();
         let spacing = &cosmic.spacing;
-        if id == DND_ICON_ID {
+        if id == DND_ICON_ID.clone() {
             let Some(icon_path) = self
                 .dnd_icon
                 .and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone()))
@@ -554,7 +553,7 @@ impl cosmic::Application for CosmicAppLibrary {
             };
             return icon(from_path(icon_path).into()).size(32).into();
         }
-        if id == MENU_ID {
+        if id == MENU_ID.clone() {
             let Some((menu, i)) = self
                 .menu
                 .as_ref()
@@ -681,7 +680,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 ])
                 .into();
         }
-        if id == NEW_GROUP_WINDOW_ID {
+        if id == NEW_GROUP_WINDOW_ID.clone() {
             let Some(group_name) = self.new_group.as_ref() else {
                 return container(horizontal_space(Length::Fixed(1.0)))
                     .width(Length::Fixed(1.0))
@@ -692,7 +691,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 container(text(CREATE_NEW.as_str()).size(24))
                     .align_x(Horizontal::Left)
                     .width(Length::Fixed(432.0)),
-                text_input("", &group_name)
+                text_input("", group_name)
                     .label(&NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
                     .on_submit(Message::SubmitNewGroup)
@@ -743,7 +742,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 .into();
         }
 
-        if id == DELETE_GROUP_WINDOW_ID {
+        if id == DELETE_GROUP_WINDOW_ID.clone() {
             let dialog = column![
                 row![
                     container(
@@ -805,13 +804,15 @@ impl cosmic::Application for CosmicAppLibrary {
         }
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
-            row![search_input(&SEARCH_PLACEHOLDER, &self.search_value)
-                .on_input(Message::InputChanged)
-                .on_paste(Message::InputChanged)
-                .style(TextInput::Search)
-                .width(Length::Fixed(400.0))
-                .size(14)
-                .id(SEARCH_ID.clone())]
+            row![
+                search_input(SEARCH_PLACEHOLDER.as_str(), self.search_value.as_str())
+                    .on_input(Message::InputChanged)
+                    .on_paste(Message::InputChanged)
+                    .style(TextInput::Search)
+                    .width(Length::Fixed(400.0))
+                    .size(14)
+                    .id(SEARCH_ID.clone())
+            ]
             .spacing(spacing.space_xxs)
             .padding(spacing.space_l)
         } else {
@@ -819,7 +820,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 horizontal_space(Length::FillPortion(1)),
                 if let Some(edit_name) = self.edit_name.as_ref() {
                     container(
-                        text_input(&cur_group.name(), edit_name)
+                        text_input(cur_group.name(), edit_name)
                             .on_input(Message::EditName)
                             .on_paste(Message::EditName)
                             .on_clear(Message::EditName(String::new()))
@@ -1076,7 +1077,7 @@ impl cosmic::Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 desktop_files(0).map(|_| Message::LoadApps),
-                events_with(|e, _status| match e {
+                listen_raw(|e, _status| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, ..),
                     )) => Some(Message::Layer(e)),
