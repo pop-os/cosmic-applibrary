@@ -187,7 +187,12 @@ where
         self.content.as_widget().height()
     }
 
-    fn layout(&self, renderer: &cosmic::Renderer, limits: &layout::Limits) -> layout::Node {
+    fn layout(
+        &self,
+        tree: &mut Tree,
+        renderer: &cosmic::Renderer,
+        limits: &layout::Limits,
+    ) -> layout::Node {
         layout(
             renderer,
             limits,
@@ -195,7 +200,11 @@ where
             Widget::<Message, cosmic::Renderer>::height(self),
             u32::MAX,
             u32::MAX,
-            |renderer, limits| self.content.as_widget().layout(renderer, limits),
+            |renderer, limits| {
+                self.content
+                    .as_widget()
+                    .layout(&mut tree.children[0], renderer, limits)
+            },
         )
     }
 
@@ -370,8 +379,8 @@ where
                                     platform_specific::wayland::data_device::ActionInner::StartDnd {
                                         mime_types: vec![MIME_TYPE.to_string()],
                                         actions: DndAction::Copy.union(DndAction::Move),
-                                        origin_id: WINDOW_ID,
-                                        icon_id: Some(DndIcon::Custom(DND_ICON_ID)),
+                                        origin_id: WINDOW_ID.clone(),
+                                        icon_id: Some(DndIcon::Custom(DND_ICON_ID.clone())),
                                         data: Box::new(AppletString(p.clone())),
                                     }
                                 })));
