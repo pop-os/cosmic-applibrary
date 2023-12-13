@@ -568,22 +568,22 @@ impl cosmic::Application for CosmicAppLibrary {
                 .style(theme::Button::Custom {
                     active: Box::new(|focused, theme| {
                         let mut appearance = theme.active(focused, &theme::Button::Text);
-                        appearance.border_radius = 0.0.into();
+                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                         appearance
                     }),
                     hovered: Box::new(|focused, theme| {
                         let mut appearance = theme.hovered(focused, &theme::Button::Text);
-                        appearance.border_radius = 0.0.into();
+                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                         appearance
                     }),
                     disabled: Box::new(|theme| {
                         let mut appearance = theme.disabled(&theme::Button::Text);
-                        appearance.border_radius = 0.0.into();
+                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                         appearance
                     }),
                     pressed: Box::new(|focused, theme| {
                         let mut appearance = theme.pressed(focused, &theme::Button::Text);
-                        appearance.border_radius = 0.0.into();
+                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                         appearance
                     })
                 })
@@ -601,24 +601,28 @@ impl cosmic::Application for CosmicAppLibrary {
                                 active: Box::new(|focused, theme| {
                                     let mut appearance =
                                         theme.active(focused, &theme::Button::Text);
-                                    appearance.border_radius = 0.0.into();
+                                    appearance.border_radius =
+                                        theme.cosmic().corner_radii.radius_0.into();
                                     appearance
                                 }),
                                 hovered: Box::new(|focused, theme| {
                                     let mut appearance =
                                         theme.hovered(focused, &theme::Button::Text);
-                                    appearance.border_radius = 0.0.into();
+                                    appearance.border_radius =
+                                        theme.cosmic().corner_radii.radius_0.into();
                                     appearance
                                 }),
                                 disabled: Box::new(|theme| {
                                     let mut appearance = theme.disabled(&theme::Button::Text);
-                                    appearance.border_radius = 0.0.into();
+                                    appearance.border_radius =
+                                        theme.cosmic().corner_radii.radius_0.into();
                                     appearance
                                 }),
                                 pressed: Box::new(|focused, theme| {
                                     let mut appearance =
                                         theme.pressed(focused, &theme::Button::Text);
-                                    appearance.border_radius = 0.0.into();
+                                    appearance.border_radius =
+                                        theme.cosmic().corner_radii.radius_0.into();
                                     appearance
                                 }),
                             })
@@ -637,22 +641,22 @@ impl cosmic::Application for CosmicAppLibrary {
                     .style(theme::Button::Custom {
                         active: Box::new(|focused, theme| {
                             let mut appearance = theme.active(focused, &theme::Button::Text);
-                            appearance.border_radius = 0.0.into();
+                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                             appearance
                         }),
                         hovered: Box::new(|focused, theme| {
                             let mut appearance = theme.hovered(focused, &theme::Button::Text);
-                            appearance.border_radius = 0.0.into();
+                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                             appearance
                         }),
                         disabled: Box::new(|theme| {
                             let mut appearance = theme.disabled(&theme::Button::Text);
-                            appearance.border_radius = 0.0.into();
+                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                             appearance
                         }),
                         pressed: Box::new(|focused, theme| {
                             let mut appearance = theme.pressed(focused, &theme::Button::Text);
-                            appearance.border_radius = 0.0.into();
+                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
                             appearance
                         }),
                     })
@@ -666,7 +670,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     container::Appearance {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: 16.0.into(),
+                        border_radius: theme.cosmic().corner_radii.radius_m.into(),
                         border_width: 1.0,
                         border_color: theme.cosmic().bg_divider().into(),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
@@ -731,7 +735,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: 16.0.into(),
+                        border_radius: theme.cosmic().corner_radii.radius_m.into(),
                         border_width: 1.0,
                         border_color: theme.cosmic().bg_divider().into(),
                     }
@@ -792,7 +796,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: 16.0.into(),
+                        border_radius: theme.cosmic().corner_radii.radius_m.into(),
                         border_width: 1.0,
                         border_color: theme.cosmic().bg_divider().into(),
                     }
@@ -1060,7 +1064,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 container::Appearance {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
                     background: Some(Color::from(theme.cosmic().background.base).into()),
-                    border_radius: 16.0.into(),
+                    border_radius: theme.cosmic().corner_radii.radius_m.into(),
                     border_width: 1.0,
                     border_color: theme.cosmic().bg_divider().into(),
                     icon_color: Some(theme.cosmic().on_bg_color().into()),

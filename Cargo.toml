@@ -33,6 +33,3 @@ nix = "0.26"
 clap = { version = "4.4.8", features = ["derive"] }
 [profile.release]
 lto = "thin"
-
-[patch.crates-io]
-sctk = { package = "smithay-client-toolkit", git = "https://github.com/pop-os/client-toolkit", branch = "wayland-resize" }
