@@ -52,7 +52,12 @@ pub struct AppGroup {
 }
 
 impl AppGroup {
-    pub fn filtered(&self, locale: Option<&str>, input_value: &str) -> Vec<DesktopEntryData> {
+    pub fn filtered(
+        &self,
+        locale: Option<&str>,
+        input_value: &str,
+        exceptions: &Vec<Self>,
+    ) -> Vec<DesktopEntryData> {
         freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
             .filter_map(|path| {
                 std::fs::read_to_string(&path).ok().and_then(|input| {
@@ -65,15 +70,17 @@ impl AppGroup {
                             return None;
                         };
                         let mut keep_de = !de.no_display() && self.matches(&de);
-                        if keep_de && !input_value.is_empty() {
-                            keep_de = name.to_lowercase().contains(&input_value.to_lowercase())
+                        keep_de &= if input_value.is_empty() {
+                            !exceptions.iter().any(|x| x.matches(&de))
+                        } else {
+                            name.to_lowercase().contains(&input_value.to_lowercase())
                                 || de
                                     .categories()
                                     .map(|cats| {
                                         cats.to_lowercase().contains(&input_value.to_lowercase())
                                     })
                                     .unwrap_or_default()
-                        }
+                        };
                         if keep_de {
                             let icon = freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
                                 .with_size(72)
@@ -308,7 +315,7 @@ impl AppLibraryConfig {
         input_value: &str,
     ) -> Vec<DesktopEntryData> {
         if i == 0 {
-            HOME[0].filtered(locale, input_value)
+            HOME[0].filtered(locale, input_value, &self.groups)
         } else {
             self._filtered(i - 1, locale, input_value)
         }
@@ -322,7 +329,7 @@ impl AppLibraryConfig {
     ) -> Vec<DesktopEntryData> {
         self.groups
             .get(i)
-            .map(|g| g.filtered(locale, input_value))
+            .map(|g| g.filtered(locale, input_value, &Vec::new()))
             .unwrap_or_default()
     }
 }
