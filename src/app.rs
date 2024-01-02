@@ -189,8 +189,11 @@ impl CosmicAppLibrary {
         self.search_value.clear();
         self.edit_name = None;
         self.cur_group = 0;
+        self.menu = None;
         self.group_to_delete = None;
+        self.scroll_offset = 0.0;
         self.load_apps();
+        self.dnd_icon = None;
         iced::Command::batch(vec![
             text_input::focus(SEARCH_ID.clone()),
             destroy_layer_surface(NEW_GROUP_WINDOW_ID.clone()),
@@ -292,6 +295,9 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.cur_group = i;
                 self.scroll_offset = 0.0;
                 self.load_apps();
+                if self.cur_group == 0 {
+                    return text_input::focus(SEARCH_ID.clone());
+                }
             }
             Message::LoadApps => {
                 self.load_apps();
@@ -1038,7 +1044,6 @@ impl cosmic::Application for CosmicAppLibrary {
         if let Some(add_group_button) = add_group_btn.take() {
             group_rows.push(
                 row![add_group_button]
-                    .height(Length::Fixed(100.0))
                     .spacing(8)
                     .padding([spacing.space_s, spacing.space_none])
                     .align_items(Alignment::Center),

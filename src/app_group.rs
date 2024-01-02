@@ -20,7 +20,7 @@ static HOME: Lazy<[AppGroup; 1]> = Lazy::new(|| {
     }]
 });
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum FilterType {
     /// A list of application IDs to include in the group.
     AppIds(Vec<String>),
@@ -43,7 +43,7 @@ impl Default for FilterType {
 }
 
 // Object holding the state
-#[derive(Default, Serialize, Deserialize, Clone, Debug)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct AppGroup {
     pub name: String,
     pub icon: String,
