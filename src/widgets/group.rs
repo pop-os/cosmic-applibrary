@@ -76,7 +76,7 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
                         .height(Length::Fixed(icon_size))
                 )
                 .padding(spacing.space_xxs),
-                text(name).horizontal_alignment(Horizontal::Center)
+                text(name).horizontal_alignment(Horizontal::Center).size(14)
             ]
             .align_items(Alignment::Center)
             .width(Length::Fill),

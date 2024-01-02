@@ -86,7 +86,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                     .height(Length::Fixed(72.0)),
                 text(name)
                     .horizontal_alignment(Horizontal::Center)
-                    .size(11)
+                    .size(14)
                     .height(Length::Fixed(40.0))
             ]
             .width(Length::Fixed(120.0))
