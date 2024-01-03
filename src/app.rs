@@ -1,6 +1,5 @@
+use std::borrow::Cow;
 use std::fmt::Debug;
-
-use std::sync::Arc;
 
 use clap::Parser;
 use cosmic::app::{
@@ -32,7 +31,7 @@ use cosmic::iced_widget::text_input::focus;
 use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
-use cosmic::widget::icon::{from_name, from_path};
+use cosmic::widget::icon::{from_name, IconFallback};
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
@@ -40,8 +39,10 @@ use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::app_group::{AppLibraryConfig, DesktopEntryData};
+use crate::app_group::{AppLibraryConfig, DesktopAction, DesktopEntryData};
 use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::widgets::application::ApplicationButton;
@@ -110,7 +111,8 @@ pub fn run() -> cosmic::iced::Result {
 #[derive(Default)]
 struct CosmicAppLibrary {
     search_value: String,
-    entry_path_input: Vec<DesktopEntryData>,
+    entry_path_input: Vec<Rc<DesktopEntryData>>,
+    all_entries: Vec<Rc<DesktopEntryData>>,
     menu: Option<usize>,
     helper: Option<Config>,
     config: AppLibraryConfig,
@@ -177,9 +179,69 @@ enum MenuAction {
 
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
+        let locale = self.locale.as_deref();
+        self.all_entries =
+            freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
+                .filter_map(|path| {
+                    std::fs::read_to_string(&path).ok().and_then(|input| {
+                        freedesktop_desktop_entry::DesktopEntry::decode(&path, &input)
+                            .ok()
+                            .and_then(|de| {
+                                let name = de
+                                    .name(self.locale.as_deref())
+                                    .unwrap_or(Cow::Borrowed(de.appid))
+                                    .to_string();
+                                let Some(exec) = de.exec() else {
+                                    return None;
+                                };
+                                (!de.no_display()).then(|| {
+                                    Rc::new(DesktopEntryData {
+                                        id: de.appid.to_string(),
+                                        exec: exec.to_string(),
+                                        name,
+                                        icon: de.icon().map(|s| s.to_string()),
+                                        path: path.clone(),
+                                        categories: de.categories().unwrap_or_default().to_string(),
+                                        desktop_actions: de
+                                            .actions()
+                                            .map(|actions| {
+                                                actions
+                                                    .split(';')
+                                                    .filter_map(|action| {
+                                                        let name = de.action_entry_localized(
+                                                            action, "Name", locale,
+                                                        );
+                                                        let exec = de.action_entry(action, "Exec");
+                                                        if let (Some(name), Some(exec)) =
+                                                            (name, exec)
+                                                        {
+                                                            Some(DesktopAction {
+                                                                name: name.to_string(),
+                                                                exec: exec.to_string(),
+                                                            })
+                                                        } else {
+                                                            None
+                                                        }
+                                                    })
+                                                    .collect_vec()
+                                            })
+                                            .unwrap_or_default(),
+                                    })
+                                })
+                            })
+                    })
+                })
+                .collect();
         self.entry_path_input =
             self.config
-                .filtered(self.cur_group, self.locale.as_deref(), &self.search_value);
+                .filtered(self.cur_group, &self.search_value, &self.all_entries);
+        self.entry_path_input.sort_by(|a, b| a.name.cmp(&b.name));
+    }
+
+    fn filter_apps(&mut self) {
+        self.entry_path_input =
+            self.config
+                .filtered(self.cur_group, &self.search_value, &self.all_entries);
         self.entry_path_input.sort_by(|a, b| a.name.cmp(&b.name));
     }
 
@@ -191,8 +253,9 @@ impl CosmicAppLibrary {
         self.cur_group = 0;
         self.menu = None;
         self.group_to_delete = None;
+        self.all_entries.clear();
+        self.entry_path_input.clear();
         self.scroll_offset = 0.0;
-        self.load_apps();
         self.dnd_icon = None;
         iced::Command::batch(vec![
             text_input::focus(SEARCH_ID.clone()),
@@ -218,7 +281,7 @@ impl cosmic::Application for CosmicAppLibrary {
         match message {
             Message::InputChanged(value) => {
                 self.search_value = value;
-                self.load_apps();
+                self.filter_apps();
             }
             Message::Layer(e) => match e {
                 LayerEvent::Focused => {
@@ -253,7 +316,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.edit_name = None;
                 self.cur_group = 0;
                 self.group_to_delete = None;
-                self.load_apps();
+                self.filter_apps();
             }
             Message::ActivateApp(i) => {
                 self.edit_name = None;
@@ -294,13 +357,13 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.search_value.clear();
                 self.cur_group = i;
                 self.scroll_offset = 0.0;
-                self.load_apps();
+                self.filter_apps();
                 if self.cur_group == 0 {
                     return text_input::focus(SEARCH_ID.clone());
                 }
             }
             Message::LoadApps => {
-                self.load_apps();
+                self.filter_apps();
             }
             Message::Delete(group) => {
                 self.group_to_delete = Some(group);
@@ -406,7 +469,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                     error!("{:?}", err);
                                 }
                             }
-                            self.load_apps();
+                            self.filter_apps();
                         }
                         MenuAction::DesktopAction(exec) => {
                             let mut exec = shlex::Shlex::new(&exec);
@@ -450,7 +513,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                 error!("{:?}", err);
                             }
                         }
-                        self.load_apps();
+                        self.filter_apps();
                     }
                 }
             }
@@ -493,7 +556,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         }
                     }
                     self.cur_group = 0;
-                    self.load_apps();
+                    self.filter_apps();
                 }
                 return destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone());
             }
@@ -516,6 +579,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.active_surface = true;
                 self.scroll_offset = 0.0;
                 self.cur_group = 0;
+                self.load_apps();
                 return Command::batch(vec![
                     text_input::focus(SEARCH_ID.clone()),
                     get_layer_surface(SctkLayerSurfaceSettings {
@@ -548,16 +612,27 @@ impl cosmic::Application for CosmicAppLibrary {
         let cosmic = theme.cosmic();
         let spacing = &cosmic.spacing;
         if id == DND_ICON_ID.clone() {
-            let Some(icon_path) = self
+            let Some(icon_name) = self
                 .dnd_icon
-                .and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.clone()))
+                .and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.as_ref()))
             else {
                 return container(horizontal_space(Length::Fixed(1.0)))
                     .width(Length::Fixed(1.0))
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            return icon(from_path(icon_path).into()).size(32).into();
+            return icon::from_name(
+                icon_name
+                    .as_ref()
+                    .map_or("application-default", |s| s.as_str()),
+            )
+            .size(128)
+            .fallback(Some(IconFallback::Names(vec![
+                "application-default".into(),
+                "application-x-application".into(),
+            ])))
+            .size(32)
+            .into();
         }
         if id == MENU_ID.clone() {
             let Some((menu, i)) = self

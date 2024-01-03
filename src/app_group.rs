@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::vec;
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use freedesktop_desktop_entry::DesktopEntry;
-use itertools::Itertools;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -54,94 +54,32 @@ pub struct AppGroup {
 impl AppGroup {
     pub fn filtered(
         &self,
-        locale: Option<&str>,
         input_value: &str,
         exceptions: &Vec<Self>,
-    ) -> Vec<DesktopEntryData> {
-        freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
-            .filter_map(|path| {
-                std::fs::read_to_string(&path).ok().and_then(|input| {
-                    DesktopEntry::decode(&path, &input).ok().and_then(|de| {
-                        let name = de
-                            .name(locale)
-                            .unwrap_or(Cow::Borrowed(de.appid))
-                            .to_string();
-                        let Some(exec) = de.exec() else {
-                            return None;
-                        };
-                        let mut keep_de = !de.no_display() && self.matches(&de);
-                        keep_de &= if input_value.is_empty() {
-                            !exceptions.iter().any(|x| x.matches(&de))
-                        } else {
-                            name.to_lowercase().contains(&input_value.to_lowercase())
-                                || de
-                                    .categories()
-                                    .map(|cats| {
-                                        cats.to_lowercase().contains(&input_value.to_lowercase())
-                                    })
-                                    .unwrap_or_default()
-                        };
-                        if keep_de {
-                            let icon = freedesktop_icons::lookup(de.icon().unwrap_or(de.appid))
-                                .with_size(72)
-                                .with_cache()
-                                .find()
-                                .or_else(|| {
-                                    freedesktop_icons::lookup("application-default")
-                                        .with_theme("Cosmic")
-                                        .force_svg()
-                                        .with_cache()
-                                        .find()
-                                })
-                                .or_else(|| {
-                                    freedesktop_icons::lookup("application-x-application")
-                                        .with_theme("default")
-                                        .with_size(128)
-                                        .with_cache()
-                                        .find()
-                                })
-                                .unwrap_or_default();
-
-                            Some(DesktopEntryData {
-                                id: de.appid.to_string(),
-                                exec: exec.to_string(),
-                                name,
-                                icon,
-                                path: path.clone(),
-                                desktop_actions: de
-                                    .actions()
-                                    .map(|actions| {
-                                        actions
-                                            .split(';')
-                                            .filter_map(|action| {
-                                                let name = de
-                                                    .action_entry_localized(action, "Name", locale);
-                                                let exec = de.action_entry(action, "Exec");
-                                                if let (Some(name), Some(exec)) = (name, exec) {
-                                                    Some(DesktopAction {
-                                                        name: name.to_string(),
-                                                        exec: exec.to_string(),
-                                                    })
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                            .collect_vec()
-                                    })
-                                    .unwrap_or_default(),
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                })
+        all_entries: &Vec<Rc<DesktopEntryData>>,
+    ) -> Vec<Rc<DesktopEntryData>> {
+        all_entries
+            .iter()
+            .filter(|de| {
+                let mut keep_de = self.matches(de);
+                keep_de &= if input_value.is_empty() {
+                    !exceptions.iter().any(|x| x.matches(de))
+                } else {
+                    de.name.to_lowercase().contains(&input_value.to_lowercase())
+                        || de
+                            .categories
+                            .to_lowercase()
+                            .contains(&input_value.to_lowercase())
+                };
+                keep_de
             })
+            .cloned()
             .collect()
     }
 
-    fn matches(&self, entry: &DesktopEntry) -> bool {
+    fn matches(&self, entry: &DesktopEntryData) -> bool {
         match &self.filter {
-            FilterType::AppIds(names) => names.iter().any(|id| id == entry.appid),
+            FilterType::AppIds(names) => names.iter().any(|id| id == &entry.id),
             FilterType::Categories {
                 categories,
                 include,
@@ -149,10 +87,10 @@ impl AppGroup {
             } => {
                 categories.iter().any(|cat| {
                     entry
-                        .categories()
-                        .map(|cats| cats.to_lowercase().contains(&cat.to_lowercase()))
-                        .unwrap_or_default()
-                }) || include.iter().any(|id| id == entry.appid)
+                        .categories
+                        .to_lowercase()
+                        .contains(&cat.to_lowercase())
+                }) || include.iter().any(|id| id == &entry.id)
             }
             FilterType::None => true,
         }
@@ -189,8 +127,9 @@ pub struct DesktopEntryData {
     pub id: String,
     pub exec: String,
     pub name: String,
-    pub icon: PathBuf,
+    pub icon: Option<String>,
     pub path: PathBuf,
+    pub categories: String,
     pub desktop_actions: Vec<DesktopAction>,
 }
 
@@ -204,14 +143,13 @@ impl TryFrom<PathBuf> for DesktopEntryData {
         let Some(exec) = de.exec() else {
             anyhow::bail!("No exec found in desktop entry")
         };
-        let Some(icon) = de.icon() else {
-            anyhow::bail!("No icon found in desktop entry")
-        };
+
         Ok(DesktopEntryData {
             id: de.appid.to_string(),
             exec: exec.to_string(),
             name,
-            icon: icon.into(),
+            icon: de.icon().map(|icon| icon.to_string()),
+            categories: de.categories().unwrap_or_default().to_string(),
             path: path.clone(),
             desktop_actions: de
                 .actions()
@@ -230,7 +168,7 @@ impl TryFrom<PathBuf> for DesktopEntryData {
                                 None
                             }
                         })
-                        .collect_vec()
+                        .collect()
                 })
                 .unwrap_or_default(),
         })
@@ -311,25 +249,25 @@ impl AppLibraryConfig {
     pub fn filtered(
         &self,
         i: usize,
-        locale: Option<&str>,
         input_value: &str,
-    ) -> Vec<DesktopEntryData> {
+        entries: &Vec<Rc<DesktopEntryData>>,
+    ) -> Vec<Rc<DesktopEntryData>> {
         if i == 0 {
-            HOME[0].filtered(locale, input_value, &self.groups)
+            HOME[0].filtered(input_value, &self.groups, entries)
         } else {
-            self._filtered(i - 1, locale, input_value)
+            self._filtered(i - 1, input_value, entries)
         }
     }
 
     pub fn _filtered(
         &self,
         i: usize,
-        locale: Option<&str>,
         input_value: &str,
-    ) -> Vec<DesktopEntryData> {
+        entries: &Vec<Rc<DesktopEntryData>>,
+    ) -> Vec<Rc<DesktopEntryData>> {
         self.groups
             .get(i)
-            .map(|g| g.filtered(locale, input_value, &Vec::new()))
+            .map(|g| g.filtered(input_value, &Vec::new(), entries))
             .unwrap_or_default()
     }
 }
