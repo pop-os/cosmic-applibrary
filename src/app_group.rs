@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::vec;
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
@@ -56,8 +56,8 @@ impl AppGroup {
         &self,
         input_value: &str,
         exceptions: &Vec<Self>,
-        all_entries: &Vec<Rc<DesktopEntryData>>,
-    ) -> Vec<Rc<DesktopEntryData>> {
+        all_entries: &Vec<Arc<DesktopEntryData>>,
+    ) -> Vec<Arc<DesktopEntryData>> {
         all_entries
             .iter()
             .filter(|de| {
@@ -250,8 +250,8 @@ impl AppLibraryConfig {
         &self,
         i: usize,
         input_value: &str,
-        entries: &Vec<Rc<DesktopEntryData>>,
-    ) -> Vec<Rc<DesktopEntryData>> {
+        entries: &Vec<Arc<DesktopEntryData>>,
+    ) -> Vec<Arc<DesktopEntryData>> {
         if i == 0 {
             HOME[0].filtered(input_value, &self.groups, entries)
         } else {
@@ -263,8 +263,8 @@ impl AppLibraryConfig {
         &self,
         i: usize,
         input_value: &str,
-        entries: &Vec<Rc<DesktopEntryData>>,
-    ) -> Vec<Rc<DesktopEntryData>> {
+        entries: &Vec<Arc<DesktopEntryData>>,
+    ) -> Vec<Arc<DesktopEntryData>> {
         self.groups
             .get(i)
             .map(|g| g.filtered(input_value, &Vec::new(), entries))
