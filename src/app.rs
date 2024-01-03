@@ -780,8 +780,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .align_x(Horizontal::Left)
                     .width(Length::Fixed(432.0)),
                 text_input("", group_name)
-                    // FIXME text input is a bit broken
-                    // .label(&NEW_GROUP_PLACEHOLDER)
+                    .label(&NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
                     .on_submit(Message::SubmitNewGroup)
                     .width(Length::Fixed(432.0))
@@ -791,6 +790,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     row![
                         button(
                             text(&CANCEL.as_str())
+                                .size(14.0)
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                         )
@@ -799,6 +799,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         .width(142),
                         button(
                             text(&SAVE.as_str())
+                                .size(14.0)
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                         )
@@ -1041,7 +1042,9 @@ impl cosmic::Application for CosmicAppLibrary {
                             .height(Length::Fixed(group_icon_size))
                     )
                     .padding(spacing.space_xxs),
-                    text("Add group").horizontal_alignment(Horizontal::Center)
+                    text("Add group")
+                        .size(14.0)
+                        .horizontal_alignment(Horizontal::Center)
                 ]
                 .align_items(Alignment::Center)
                 .width(Length::Fill),
