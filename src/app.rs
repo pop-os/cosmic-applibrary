@@ -129,6 +129,38 @@ struct CosmicAppLibrary {
     group_to_delete: Option<usize>,
 }
 
+impl CosmicAppLibrary {
+    pub fn activate(&mut self) -> Command<Message> {
+        if self.active_surface {
+            self.hide()
+        } else {
+            self.edit_name = None;
+            self.search_value = "".to_string();
+            self.active_surface = true;
+            self.scroll_offset = 0.0;
+            self.cur_group = 0;
+            self.load_apps();
+            return Command::batch(vec![
+                text_input::focus(SEARCH_ID.clone()),
+                get_layer_surface(SctkLayerSurfaceSettings {
+                    id: WINDOW_ID.clone(),
+                    keyboard_interactivity: KeyboardInteractivity::OnDemand,
+                    anchor: Anchor::TOP,
+                    namespace: "app-library".into(),
+                    size: None,
+                    margin: IcedMargin {
+                        top: 16,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                    },
+                    ..Default::default()
+                }),
+            ]);
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 enum Message {
     InputChanged(String),
@@ -573,34 +605,8 @@ impl cosmic::Application for CosmicAppLibrary {
     }
 
     fn dbus_activation(&mut self, msg: DbusActivationMessage) -> Command<Self::Message> {
-        if let DbusActivationDetails::Activate = msg.msg {
-            if self.active_surface {
-                self.hide()
-            } else {
-                self.edit_name = None;
-                self.search_value = "".to_string();
-                self.active_surface = true;
-                self.scroll_offset = 0.0;
-                self.cur_group = 0;
-                self.load_apps();
-                return Command::batch(vec![
-                    text_input::focus(SEARCH_ID.clone()),
-                    get_layer_surface(SctkLayerSurfaceSettings {
-                        id: WINDOW_ID.clone(),
-                        keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                        anchor: Anchor::TOP,
-                        namespace: "app-library".into(),
-                        size: None,
-                        margin: IcedMargin {
-                            top: 16,
-                            right: 0,
-                            bottom: 0,
-                            left: 0,
-                        },
-                        ..Default::default()
-                    }),
-                ]);
-            }
+        if matches!(msg.msg, DbusActivationDetails::Activate) {
+            self.activate()
         } else {
             Command::none()
         }
@@ -1199,7 +1205,7 @@ impl cosmic::Application for CosmicAppLibrary {
 
     fn init(
         core: Core,
-        _flags: Self::Flags,
+        _flags: Args,
     ) -> (Self, iced::Command<cosmic::app::Message<Self::Message>>) {
         let helper = AppLibraryConfig::helper();
 
@@ -1214,16 +1220,15 @@ impl cosmic::Application for CosmicAppLibrary {
                 })
             })
             .unwrap_or_default();
-        (
-            CosmicAppLibrary {
-                locale: current_locale::current_locale().ok(),
-                config,
-                core,
-                helper,
-                ..Default::default()
-            },
-            Command::none(),
-        )
+        let mut self_ = Self {
+            locale: current_locale::current_locale().ok(),
+            config,
+            core,
+            helper,
+            ..Default::default()
+        };
+
+        (self_, Command::none())
     }
 }
 
