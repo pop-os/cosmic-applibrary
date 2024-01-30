@@ -11,12 +11,13 @@ use cosmic::iced_core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::command::platform_specific;
 use cosmic::iced_widget::graphics::image::image_rs::EncodableLayout;
 
+use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
 use cosmic::iced_core::{
     event, layout, mouse, overlay, renderer, Alignment, Clipboard, Element, Event, Length, Padding,
     Point, Rectangle, Shell, Widget,
 };
 
-use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
+use cosmic::desktop::{load_desktop_file, DesktopEntryData};
 use cosmic::widget::container;
 use cosmic::widget::icon::from_name;
 use cosmic::{
@@ -24,8 +25,6 @@ use cosmic::{
     theme,
     widget::{button, icon},
 };
-
-use crate::app_group::DesktopEntryData;
 
 use super::application::MIME_TYPE;
 
@@ -444,7 +443,7 @@ where
                                     .ok()
                                     .and_then(|s| url::Url::from_str(s).ok())
                                     .and_then(|url| url.to_file_path().ok())
-                                    .and_then(|p| DesktopEntryData::try_from(p).ok())
+                                    .and_then(|p| load_desktop_file(None, p))
                                 {
                                     shell.publish(on_finish(data));
 

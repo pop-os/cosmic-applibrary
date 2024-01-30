@@ -1,11 +1,9 @@
-use std::borrow::Cow;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::vec;
 
 use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use freedesktop_desktop_entry::DesktopEntry;
+use cosmic::desktop::DesktopEntryData;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
@@ -114,65 +112,6 @@ impl AppGroup {
 #[derive(Debug, Clone, Serialize, Deserialize, CosmicConfigEntry)]
 pub struct AppLibraryConfig {
     groups: Vec<AppGroup>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DesktopAction {
-    pub name: String,
-    pub exec: String,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DesktopEntryData {
-    pub id: String,
-    pub exec: String,
-    pub name: String,
-    pub icon: Option<String>,
-    pub path: PathBuf,
-    pub categories: String,
-    pub desktop_actions: Vec<DesktopAction>,
-}
-
-impl TryFrom<PathBuf> for DesktopEntryData {
-    type Error = anyhow::Error;
-
-    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
-        let input = std::fs::read_to_string(&path)?;
-        let de = DesktopEntry::decode(&path, &input)?;
-        let name = de.name(None).unwrap_or(Cow::Borrowed(de.appid)).to_string();
-        let Some(exec) = de.exec() else {
-            anyhow::bail!("No exec found in desktop entry")
-        };
-
-        Ok(DesktopEntryData {
-            id: de.appid.to_string(),
-            exec: exec.to_string(),
-            name,
-            icon: de.icon().map(|icon| icon.to_string()),
-            categories: de.categories().unwrap_or_default().to_string(),
-            path: path.clone(),
-            desktop_actions: de
-                .actions()
-                .map(|actions| {
-                    actions
-                        .split(';')
-                        .filter_map(|action| {
-                            let name = de.action_entry_localized(action, "name", None);
-                            let exec = de.action_entry(action, "exec");
-                            if let (Some(name), Some(exec)) = (name, exec) {
-                                Some(DesktopAction {
-                                    name: name.to_string(),
-                                    exec: exec.to_string(),
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
-        })
-    }
 }
 
 impl AppLibraryConfig {

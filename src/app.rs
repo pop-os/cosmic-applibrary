@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fmt::Debug;
 
 use clap::Parser;
@@ -7,6 +6,7 @@ use cosmic::app::{
 };
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::cosmic_theme::Spacing;
+use cosmic::desktop::DesktopEntryData;
 use cosmic::iced::id::Id;
 use cosmic::iced::wayland::actions::data_device::ActionInner;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
@@ -32,7 +32,7 @@ use cosmic::iced_widget::text_input::focus;
 use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
-use cosmic::widget::icon::{from_name, IconFallback};
+use cosmic::widget::icon::from_name;
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
 use iced::wayland::actions::layer_surface::IcedMargin;
@@ -42,7 +42,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::app_group::{AppLibraryConfig, DesktopAction, DesktopEntryData};
+use crate::app_group::AppLibraryConfig;
 use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::widgets::application::ApplicationButton;
@@ -213,58 +213,12 @@ enum MenuAction {
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
         let locale = self.locale.as_deref();
-        self.all_entries =
-            freedesktop_desktop_entry::Iter::new(freedesktop_desktop_entry::default_paths())
-                .filter_map(|path| {
-                    std::fs::read_to_string(&path).ok().and_then(|input| {
-                        freedesktop_desktop_entry::DesktopEntry::decode(&path, &input)
-                            .ok()
-                            .and_then(|de| {
-                                let name = de
-                                    .name(self.locale.as_deref())
-                                    .unwrap_or(Cow::Borrowed(de.appid))
-                                    .to_string();
-                                let Some(exec) = de.exec() else {
-                                    return None;
-                                };
-                                (!de.no_display()).then(|| {
-                                    Arc::new(DesktopEntryData {
-                                        id: de.appid.to_string(),
-                                        exec: exec.to_string(),
-                                        name,
-                                        icon: de.icon().map(|s| s.to_string()),
-                                        path: path.clone(),
-                                        categories: de.categories().unwrap_or_default().to_string(),
-                                        desktop_actions: de
-                                            .actions()
-                                            .map(|actions| {
-                                                actions
-                                                    .split(';')
-                                                    .filter_map(|action| {
-                                                        let name = de.action_entry_localized(
-                                                            action, "Name", locale,
-                                                        );
-                                                        let exec = de.action_entry(action, "Exec");
-                                                        if let (Some(name), Some(exec)) =
-                                                            (name, exec)
-                                                        {
-                                                            Some(DesktopAction {
-                                                                name: name.to_string(),
-                                                                exec: exec.to_string(),
-                                                            })
-                                                        } else {
-                                                            None
-                                                        }
-                                                    })
-                                                    .collect_vec()
-                                            })
-                                            .unwrap_or_default(),
-                                    })
-                                })
-                            })
-                    })
-                })
-                .collect();
+        self.all_entries = cosmic::desktop::load_applications_filtered(locale, |entry| {
+            entry.exec().is_some() && !entry.no_display()
+        })
+        .into_iter()
+        .map(Arc::new)
+        .collect();
         self.entry_path_input =
             self.config
                 .filtered(self.cur_group, &self.search_value, &self.all_entries);
@@ -355,7 +309,7 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::ActivateApp(i) => {
                 self.edit_name = None;
                 if let Some(de) = self.entry_path_input.get(i) {
-                    let exec = de.exec.clone();
+                    let exec = de.exec.clone().unwrap();
                     return request_token(
                         Some(String::from(Self::APP_ID)),
                         Some(WINDOW_ID.clone()),
@@ -621,27 +575,16 @@ impl cosmic::Application for CosmicAppLibrary {
         let cosmic = theme.cosmic();
         let spacing = &cosmic.spacing;
         if id == DND_ICON_ID.clone() {
-            let Some(icon_name) = self
+            let Some(icon_source) = self
                 .dnd_icon
-                .and_then(|i| self.entry_path_input.get(i).map(|e| e.icon.as_ref()))
+                .and_then(|i| self.entry_path_input.get(i).map(|e| &e.icon))
             else {
                 return container(horizontal_space(Length::Fixed(1.0)))
                     .width(Length::Fixed(1.0))
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            return icon::from_name(
-                icon_name
-                    .as_ref()
-                    .map_or("application-default", |s| s.as_str()),
-            )
-            .size(128)
-            .fallback(Some(IconFallback::Names(vec![
-                "application-default".into(),
-                "application-x-application".into(),
-            ])))
-            .size(32)
-            .into();
+            return icon_source.as_cosmic_icon().size(32).into();
         }
         if id == MENU_ID.clone() {
             let Some((menu, i)) = self
@@ -1220,7 +1163,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 })
             })
             .unwrap_or_default();
-        let mut self_ = Self {
+        let self_ = Self {
             locale: current_locale::current_locale().ok(),
             config,
             core,
