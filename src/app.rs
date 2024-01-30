@@ -42,6 +42,7 @@ use log::error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use switcheroo_control::Gpu;
 
 use crate::app_group::AppLibraryConfig;
 use crate::fl;
@@ -128,6 +129,24 @@ struct CosmicAppLibrary {
     scroll_offset: f32,
     core: Core,
     group_to_delete: Option<usize>,
+    gpus: Option<Vec<Gpu>>,
+}
+
+async fn try_get_gpus() -> Option<Vec<Gpu>> {
+    let connection = zbus::Connection::system().await.ok()?;
+    let proxy = switcheroo_control::SwitcherooControlProxy::new(&connection)
+        .await
+        .ok()?;
+
+    if !proxy.has_dual_gpu().await.ok()? {
+        return None;
+    }
+
+    let gpus = proxy.get_gpus().await.ok()?;
+    if gpus.is_empty() {
+        return None;
+    }
+    Some(gpus)
 }
 
 impl CosmicAppLibrary {
@@ -141,6 +160,9 @@ impl CosmicAppLibrary {
             self.scroll_offset = 0.0;
             self.cur_group = 0;
             self.load_apps();
+            let fetch_gpus = Command::perform(try_get_gpus(), |gpus| {
+                cosmic::app::Message::App(Message::GpuUpdate(gpus))
+            });
             return Command::batch(vec![
                 text_input::focus(SEARCH_ID.clone()),
                 get_layer_surface(SctkLayerSurfaceSettings {
@@ -157,6 +179,7 @@ impl CosmicAppLibrary {
                     },
                     ..Default::default()
                 }),
+                fetch_gpus,
             ]);
         }
     }
@@ -167,8 +190,8 @@ enum Message {
     InputChanged(String),
     Layer(LayerEvent, SurfaceId),
     Hide,
-    ActivateApp(usize),
-    ActivationToken(Option<String>, String),
+    ActivateApp(usize, Option<usize>),
+    ActivationToken(Option<String>, String, Option<usize>),
     SelectGroup(usize),
     Delete(usize),
     ConfirmDelete,
@@ -194,6 +217,7 @@ enum Message {
     LeaveDndOffer,
     ScrollYOffset(f32),
     Ignore,
+    GpuUpdate(Option<Vec<Gpu>>),
 }
 
 #[derive(Clone)]
@@ -322,7 +346,7 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::Hide => {
                 return self.hide();
             }
-            Message::ActivateApp(i) => {
+            Message::ActivateApp(i, gpu_idx) => {
                 self.edit_name = None;
                 if let Some(de) = self.entry_path_input.get(i) {
                     let exec = de.exec.clone().unwrap();
@@ -330,16 +354,21 @@ impl cosmic::Application for CosmicAppLibrary {
                         Some(String::from(Self::APP_ID)),
                         Some(WINDOW_ID.clone()),
                         move |token| {
-                            cosmic::app::Message::App(Message::ActivationToken(token, exec))
+                            cosmic::app::Message::App(Message::ActivationToken(
+                                token, exec, gpu_idx,
+                            ))
                         },
                     );
                 }
             }
-            Message::ActivationToken(token, exec) => {
+            Message::ActivationToken(token, exec, gpu_idx) => {
                 let mut env_vars = Vec::new();
                 if let Some(token) = token {
-                    env_vars.push(("XDG_ACTIVATION_TOKEN", token.clone()));
-                    env_vars.push(("DESKTOP_STARTUP_ID", token));
+                    env_vars.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
+                    env_vars.push(("DESKTOP_STARTUP_ID".to_string(), token));
+                }
+                if let (Some(gpus), Some(idx)) = (self.gpus.as_ref(), gpu_idx) {
+                    env_vars.extend(gpus[idx].environment.clone().into_iter());
                 }
                 tokio::task::spawn_blocking(move || {
                     cosmic::desktop::spawn_desktop_exec(exec, env_vars)
@@ -560,6 +589,9 @@ impl cosmic::Application for CosmicAppLibrary {
                     return self.filter_apps();
                 }
             }
+            Message::GpuUpdate(gpus) => {
+                self.gpus = gpus;
+            }
         }
         Command::none()
     }
@@ -604,26 +636,59 @@ impl cosmic::Application for CosmicAppLibrary {
                     .into();
             };
 
-            let mut list_column =
-                column![menu_button(text(RUN.clone())).on_press(Message::ActivateApp(*i))]
-                    .padding([8, 0]);
+            let mut list_column = Vec::new();
 
-            if menu.desktop_actions.len() > 0 {
-                list_column = list_column.push(menu_divider(spacing));
-                for action in menu.desktop_actions.iter() {
-                    list_column = list_column.push(menu_button(text(&action.name)).on_press(
-                        Message::SelectAction(MenuAction::DesktopAction(action.exec.clone())),
-                    ));
+            if let Some(gpus) = self.gpus.as_ref() {
+                for (j, gpu) in gpus.iter().enumerate() {
+                    let default_idx = if menu.prefers_dgpu {
+                        gpus.iter().position(|gpu| !gpu.default).unwrap_or(0)
+                    } else {
+                        gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
+                    };
+                    list_column.push(
+                        menu_button(text(format!(
+                            "{} {}",
+                            fl!("run-on", gpu = gpu.name.clone()),
+                            if j == default_idx {
+                                fl!("run-on-default")
+                            } else {
+                                String::new()
+                            }
+                        )))
+                        .on_press(Message::ActivateApp(*i, Some(j)))
+                        .into(),
+                    )
                 }
-                list_column = list_column.push(menu_divider(spacing));
+            } else {
+                list_column.push(
+                    menu_button(text(RUN.clone()))
+                        .on_press(Message::ActivateApp(*i, None))
+                        .into(),
+                );
             }
 
-            list_column = list_column.push(
+            if menu.desktop_actions.len() > 0 {
+                list_column.push(menu_divider(spacing).into());
+                for action in menu.desktop_actions.iter() {
+                    list_column.push(
+                        menu_button(text(&action.name))
+                            .on_press(Message::SelectAction(
+                                MenuAction::DesktopAction(action.exec.clone()).into(),
+                            ))
+                            .into(),
+                    );
+                }
+                list_column.push(menu_divider(spacing).into());
+            }
+
+            list_column.push(
                 menu_button(text(REMOVE.clone()))
-                    .on_press(Message::SelectAction(MenuAction::Remove)),
+                    .on_press(Message::SelectAction(MenuAction::Remove))
+                    .into(),
             );
 
-            return container(list_column)
+            return container(scrollable(Column::with_children(list_column)))
+                .padding([8, 0])
                 .style(theme::Container::Custom(Box::new(|theme| {
                     container::Appearance {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
@@ -851,8 +916,15 @@ impl cosmic::Application for CosmicAppLibrary {
                     spacing,
                 );
                 if self.menu.is_none() {
+                    let gpu_idx = self.gpus.as_ref().map(|gpus| {
+                        if entry.prefers_dgpu {
+                            gpus.iter().position(|gpu| !gpu.default).unwrap_or(0)
+                        } else {
+                            gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
+                        }
+                    });
                     b = b
-                        .on_pressed(Message::ActivateApp(i))
+                        .on_pressed(Message::ActivateApp(i, gpu_idx))
                         .on_cancel(Message::CancelDrag)
                         .on_finish(Message::FinishDrag)
                         .on_create_dnd_source(Message::StartDrag(i))

@@ -843,6 +843,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "shlex",
+ "switcheroo-control",
  "tokio",
  "url",
  "xdg",
@@ -4188,6 +4189,14 @@ checksum = "3b7c73c813353c347272919aa1af2885068b05e625e5532b43049e4f641ae77f"
 dependencies = [
  "yazi",
  "zeno",
+]
+
+[[package]]
+name = "switcheroo-control"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/dbus-settings-bindings#5dea929b730460f883935357a1a8fb9736f36f95"
+dependencies = [
+ "zbus",
 ]
 
 [[package]]
