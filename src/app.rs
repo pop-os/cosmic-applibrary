@@ -17,7 +17,8 @@ use cosmic::iced::wayland::layer_surface::{
 use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, text};
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Length};
 use cosmic::iced::{Color, Limits, Subscription};
-use cosmic::iced_core::Rectangle;
+use cosmic::iced_core::alignment::Vertical;
+use cosmic::iced_core::{Padding, Rectangle};
 use cosmic::iced_futures::event::listen_raw;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
@@ -208,6 +209,21 @@ impl Debug for DndCommand {
 enum MenuAction {
     Remove,
     DesktopAction(String),
+}
+
+pub fn menu_button<'a, Message>(
+    content: impl Into<Element<'a, Message>>,
+) -> cosmic::widget::Button<'a, Message, cosmic::Renderer> {
+    cosmic::widget::Button::new(content)
+        .style(Button::AppletMenu)
+        .padding(menu_control_padding())
+        .width(Length::Fill)
+}
+
+pub fn menu_control_padding() -> Padding {
+    let theme = cosmic::theme::active();
+    let cosmic = theme.cosmic();
+    [cosmic.space_xxs(), cosmic.space_m()].into()
 }
 
 impl CosmicAppLibrary {
@@ -587,108 +603,27 @@ impl cosmic::Application for CosmicAppLibrary {
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            let mut list_column = column![button(text(RUN.clone()))
-                .style(theme::Button::Custom {
-                    active: Box::new(|focused, theme| {
-                        let mut appearance = theme.active(focused, &theme::Button::Text);
-                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                        appearance
-                    }),
-                    hovered: Box::new(|focused, theme| {
-                        let mut appearance = theme.hovered(focused, &theme::Button::Text);
-                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                        appearance
-                    }),
-                    disabled: Box::new(|theme| {
-                        let mut appearance = theme.disabled(&theme::Button::Text);
-                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                        appearance
-                    }),
-                    pressed: Box::new(|focused, theme| {
-                        let mut appearance = theme.pressed(focused, &theme::Button::Text);
-                        appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                        appearance
-                    })
-                })
-                .on_press(Message::ActivateApp(*i))
-                .padding([spacing.space_xxs, spacing.space_m])
-                .width(Length::Fill)]
-            .spacing(8);
+
+            let mut list_column =
+                column![menu_button(text(RUN.clone())).on_press(Message::ActivateApp(*i))]
+                    .padding([8, 0]);
 
             if menu.desktop_actions.len() > 0 {
                 list_column = list_column.push(menu_divider(spacing));
                 for action in menu.desktop_actions.iter() {
-                    list_column = list_column.push(
-                        button(text(&action.name))
-                            .style(theme::Button::Custom {
-                                active: Box::new(|focused, theme| {
-                                    let mut appearance =
-                                        theme.active(focused, &theme::Button::Text);
-                                    appearance.border_radius =
-                                        theme.cosmic().corner_radii.radius_0.into();
-                                    appearance
-                                }),
-                                hovered: Box::new(|focused, theme| {
-                                    let mut appearance =
-                                        theme.hovered(focused, &theme::Button::Text);
-                                    appearance.border_radius =
-                                        theme.cosmic().corner_radii.radius_0.into();
-                                    appearance
-                                }),
-                                disabled: Box::new(|theme| {
-                                    let mut appearance = theme.disabled(&theme::Button::Text);
-                                    appearance.border_radius =
-                                        theme.cosmic().corner_radii.radius_0.into();
-                                    appearance
-                                }),
-                                pressed: Box::new(|focused, theme| {
-                                    let mut appearance =
-                                        theme.pressed(focused, &theme::Button::Text);
-                                    appearance.border_radius =
-                                        theme.cosmic().corner_radii.radius_0.into();
-                                    appearance
-                                }),
-                            })
-                            .on_press(Message::SelectAction(MenuAction::DesktopAction(
-                                action.exec.clone(),
-                            )))
-                            .padding([spacing.space_xxs, spacing.space_m])
-                            .width(Length::Fill),
-                    );
+                    list_column = list_column.push(menu_button(text(&action.name)).on_press(
+                        Message::SelectAction(MenuAction::DesktopAction(action.exec.clone())),
+                    ));
                 }
                 list_column = list_column.push(menu_divider(spacing));
             }
 
             list_column = list_column.push(
-                button(text(REMOVE.clone()))
-                    .style(theme::Button::Custom {
-                        active: Box::new(|focused, theme| {
-                            let mut appearance = theme.active(focused, &theme::Button::Text);
-                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                            appearance
-                        }),
-                        hovered: Box::new(|focused, theme| {
-                            let mut appearance = theme.hovered(focused, &theme::Button::Text);
-                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                            appearance
-                        }),
-                        disabled: Box::new(|theme| {
-                            let mut appearance = theme.disabled(&theme::Button::Text);
-                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                            appearance
-                        }),
-                        pressed: Box::new(|focused, theme| {
-                            let mut appearance = theme.pressed(focused, &theme::Button::Text);
-                            appearance.border_radius = theme.cosmic().corner_radii.radius_0.into();
-                            appearance
-                        }),
-                    })
-                    .on_press(Message::SelectAction(MenuAction::Remove))
-                    .padding([spacing.space_xxs, spacing.space_m])
-                    .width(Length::Fill),
+                menu_button(text(REMOVE.clone()))
+                    .on_press(Message::SelectAction(MenuAction::Remove)),
             );
 
-            return container(scrollable(list_column))
+            return container(list_column)
                 .style(theme::Container::Custom(Box::new(|theme| {
                     container::Appearance {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
@@ -699,12 +634,10 @@ impl cosmic::Application for CosmicAppLibrary {
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                     }
                 })))
-                .padding([
-                    spacing.space_s,
-                    spacing.space_none,
-                    spacing.space_s,
-                    spacing.space_none,
-                ])
+                .width(Length::Shrink)
+                .height(Length::Shrink)
+                .align_x(Horizontal::Center)
+                .align_y(Vertical::Top)
                 .into();
         }
         if id == NEW_GROUP_WINDOW_ID.clone() {
