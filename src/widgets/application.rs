@@ -15,8 +15,8 @@ use cosmic::iced_core::{
     Point, Rectangle, Shell, Widget,
 };
 
+use cosmic::desktop::DesktopEntryData;
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
-use cosmic::widget::icon::{from_name, IconFallback};
 use cosmic::{
     iced::widget::{column, text},
     theme,
@@ -24,7 +24,6 @@ use cosmic::{
 };
 
 use crate::app::{DND_ICON_ID, WINDOW_ID};
-use crate::app_group::DesktopEntryData;
 
 pub const MIME_TYPE: &str = "text/uri-list";
 const DRAG_THRESHOLD: f32 = 25.0;
@@ -81,16 +80,10 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         };
         let content = button(
             column![
-                cosmic::widget::Icon::from(
-                    from_name(image.as_ref().map_or("application-default", |s| s.as_str()))
-                        .size(128)
-                        .fallback(Some(IconFallback::Names(vec![
-                            "application-default".into(),
-                            "application-x-application".into(),
-                        ])))
-                )
-                .width(Length::Fixed(72.0))
-                .height(Length::Fixed(72.0)),
+                image
+                    .as_cosmic_icon()
+                    .width(Length::Fixed(72.0))
+                    .height(Length::Fixed(72.0)),
                 text(name)
                     .horizontal_alignment(Horizontal::Center)
                     .size(14)
@@ -112,7 +105,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         }
         .into();
         Self {
-            path: path.clone(),
+            path: path.clone().unwrap(),
             content,
             on_right_release: Box::new(on_right_release),
             on_pressed,
