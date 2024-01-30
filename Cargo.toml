@@ -17,7 +17,7 @@ xdg = "2.4.0"
 i18n-embed = { version = "0.13.4", features = ["fluent-system", "desktop-requester"] }
 i18n-embed-fl = "0.6.4"
 rust-embed = "6.3.0"
-zbus = "3.13"
+zbus = "3.14"
 glob = "0.3.0"
 freedesktop-desktop-entry = "0.5.0"
 shlex = "1.1.0"
@@ -31,5 +31,7 @@ current_locale = "0.1.1"
 url = "2.4"
 nix = "0.26"
 clap = { version = "4.4.8", features = ["derive"] }
+switcheroo-control = { git = "https://github.com/pop-os/dbus-settings-bindings" }
+
 [profile.release]
 lto = "thin"
