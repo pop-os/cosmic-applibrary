@@ -31,7 +31,7 @@ use super::application::MIME_TYPE;
 /// A widget that can be dragged and dropped.
 #[allow(missing_debug_implementations)]
 pub struct GroupButton<'a, Message> {
-    content: Element<'a, Message, cosmic::Renderer>,
+    content: Element<'a, Message, cosmic::Theme, cosmic::Renderer>,
 
     on_offer: Option<Message>,
 
@@ -136,16 +136,19 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
     }
 }
 
-impl<'a, Message> From<GroupButton<'a, Message>> for Element<'a, Message, cosmic::Renderer>
+impl<'a, Message> From<GroupButton<'a, Message>>
+    for Element<'a, Message, cosmic::Theme, cosmic::Renderer>
 where
     Message: Clone + 'a,
 {
-    fn from(dnd_source: GroupButton<'a, Message>) -> Element<'a, Message, cosmic::Renderer> {
+    fn from(
+        dnd_source: GroupButton<'a, Message>,
+    ) -> Element<'a, Message, cosmic::Theme, cosmic::Renderer> {
         Element::new(dnd_source)
     }
 }
 
-impl<'a, Message> Widget<Message, cosmic::Renderer> for GroupButton<'a, Message>
+impl<'a, Message> Widget<Message, cosmic::Theme, cosmic::Renderer> for GroupButton<'a, Message>
 where
     Message: Clone,
 {
@@ -157,12 +160,8 @@ where
         tree.diff_children(std::slice::from_mut(&mut self.content));
     }
 
-    fn width(&self) -> Length {
-        self.content.as_widget().width()
-    }
-
-    fn height(&self) -> Length {
-        self.content.as_widget().height()
+    fn size(&self) -> cosmic::iced_core::Size<Length> {
+        self.content.as_widget().size()
     }
 
     fn layout(
@@ -171,11 +170,12 @@ where
         renderer: &cosmic::Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
+        let size = self.size();
         layout(
             renderer,
             limits,
-            Widget::<Message, cosmic::Renderer>::width(self),
-            Widget::<Message, cosmic::Renderer>::height(self),
+            size.width,
+            size.height,
             u32::MAX,
             u32::MAX,
             |renderer, limits| {
@@ -229,7 +229,7 @@ where
         tree: &'b mut Tree,
         layout: layout::Layout<'_>,
         renderer: &cosmic::Renderer,
-    ) -> Option<overlay::Element<'b, Message, cosmic::Renderer>> {
+    ) -> Option<overlay::Element<'b, Message, cosmic::Theme, cosmic::Renderer>> {
         self.content.as_widget_mut().overlay(
             &mut tree.children[0],
             layout.children().next().unwrap(),
@@ -510,7 +510,7 @@ pub fn layout<Renderer>(
         .height(height);
 
     let content = layout_content(renderer, &limits);
-    let size = limits.resolve(content.size());
+    let size = limits.resolve(width, height, content.size());
 
     layout::Node::with_children(size, vec![content])
 }

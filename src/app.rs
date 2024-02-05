@@ -18,11 +18,12 @@ use cosmic::iced::widget::{column, container, horizontal_rule, row, scrollable, 
 use cosmic::iced::{alignment::Horizontal, executor, Alignment, Length};
 use cosmic::iced::{Color, Limits, Subscription};
 use cosmic::iced_core::alignment::Vertical;
-use cosmic::iced_core::{Padding, Rectangle};
+use cosmic::iced_core::keyboard::key::Named;
+use cosmic::iced_core::keyboard::Key;
+use cosmic::iced_core::{Border, Padding, Rectangle, Shadow};
 use cosmic::iced_futures::event::listen_raw;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
-use cosmic::iced_runtime::core::keyboard::KeyCode;
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
 use cosmic::iced_sctk::commands;
 use cosmic::iced_sctk::commands::activation::request_token;
@@ -237,7 +238,7 @@ enum MenuAction {
 
 pub fn menu_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
-) -> cosmic::widget::Button<'a, Message, cosmic::Renderer> {
+) -> cosmic::widget::Button<'a, Message, cosmic::Theme, cosmic::Renderer> {
     cosmic::widget::Button::new(content)
         .style(Button::AppletMenu)
         .padding(menu_control_padding())
@@ -693,9 +694,12 @@ impl cosmic::Application for CosmicAppLibrary {
                     container::Appearance {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: theme.cosmic().corner_radii.radius_m.into(),
-                        border_width: 1.0,
-                        border_color: theme.cosmic().bg_divider().into(),
+                        border: Border {
+                            color: theme.cosmic().bg_divider().into(),
+                            radius: theme.cosmic().corner_radii.radius_m.into(),
+                            width: 1.0,
+                        },
+                        shadow: Shadow::default(),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                     }
                 })))
@@ -758,9 +762,12 @@ impl cosmic::Application for CosmicAppLibrary {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: theme.cosmic().corner_radii.radius_m.into(),
-                        border_width: 1.0,
-                        border_color: theme.cosmic().bg_divider().into(),
+                        border: Border {
+                            color: theme.cosmic().bg_divider().into(),
+                            radius: theme.cosmic().corner_radii.radius_m.into(),
+                            width: 1.0,
+                        },
+                        shadow: Shadow::default(),
                     }
                 })))
                 .width(Length::Shrink)
@@ -819,9 +826,12 @@ impl cosmic::Application for CosmicAppLibrary {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border_radius: theme.cosmic().corner_radii.radius_m.into(),
-                        border_width: 1.0,
-                        border_color: theme.cosmic().bg_divider().into(),
+                        border: Border {
+                            color: theme.cosmic().bg_divider().into(),
+                            radius: theme.cosmic().corner_radii.radius_m.into(),
+                            width: 1.0,
+                        },
+                        shadow: Shadow::default(),
                     }
                 })))
                 .width(Length::Shrink)
@@ -1095,9 +1105,12 @@ impl cosmic::Application for CosmicAppLibrary {
                 container::Appearance {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
                     background: Some(Color::from(theme.cosmic().background.base).into()),
-                    border_radius: theme.cosmic().corner_radii.radius_m.into(),
-                    border_width: 1.0,
-                    border_color: theme.cosmic().bg_divider().into(),
+                    border: Border {
+                        radius: theme.cosmic().corner_radii.radius_m.into(),
+                        width: 1.0,
+                        color: theme.cosmic().bg_divider().into(),
+                    },
+                    shadow: Shadow::default(),
                     icon_color: Some(theme.cosmic().on_bg_color().into()),
                 }
             })))
@@ -1117,8 +1130,9 @@ impl cosmic::Application for CosmicAppLibrary {
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),
                     cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyReleased {
-                        key_code: KeyCode::Escape,
+                        key: Key::Named(Named::Escape),
                         modifiers: _mods,
+                        ..
                     }) => Some(Message::Hide),
                     _ => None,
                 }),
@@ -1170,7 +1184,7 @@ impl cosmic::Application for CosmicAppLibrary {
     }
 }
 
-fn menu_divider<'a>(spacing: &Spacing) -> Container<'a, Message, cosmic::Renderer> {
+fn menu_divider<'a>(spacing: &Spacing) -> Container<'a, Message, cosmic::Theme, cosmic::Renderer> {
     container(horizontal_rule(1))
         .padding([spacing.space_none, spacing.space_s])
         .width(Length::Fill)
