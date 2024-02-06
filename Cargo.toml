@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["Ashley Wulber <ashley@system76.com>"]
 edition = "2021"
 [features]
-default = ["wgpu"]
+default = []
 wgpu = ["libcosmic/wgpu"]
 
 [dependencies]
-libcosmic = { git = "https://github.com/pop-os/libcosmic/", default-features = false, features = ["wayland", "tokio", "single-instance", "dbus-config", "desktop"], branch = "update-iced-latest"}
+libcosmic = { git = "https://github.com/pop-os/libcosmic/", default-features = false, features = ["wayland", "tokio", "single-instance", "dbus-config", "desktop"]}
 tokio = { version = "1.17.0", features = ["sync", "rt", "process"] }
 pretty_env_logger = "0.5"
 log = "0.4"
