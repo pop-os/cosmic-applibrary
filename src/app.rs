@@ -841,7 +841,7 @@ impl cosmic::Application for CosmicAppLibrary {
         }
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
-            row![
+            row![container(
                 search_input(SEARCH_PLACEHOLDER.as_str(), self.search_value.as_str())
                     .on_input(Message::InputChanged)
                     .on_paste(Message::InputChanged)
@@ -849,9 +849,11 @@ impl cosmic::Application for CosmicAppLibrary {
                     .width(Length::Fixed(400.0))
                     .size(14)
                     .id(SEARCH_ID.clone())
-            ]
+            )
+            .align_y(Vertical::Center)
+            .height(Length::Fixed(96.0))]
+            .align_items(Alignment::Center)
             .spacing(spacing.space_xxs)
-            .padding(spacing.space_l)
         } else {
             row![
                 horizontal_space(Length::FillPortion(1)),
@@ -883,20 +885,26 @@ impl cosmic::Application for CosmicAppLibrary {
                             if self.edit_name.is_none() {
                                 b = b.on_press(Message::StartEditName(cur_group.name()));
                             }
-                            b
+                            container(b)
+                                .height(Length::Fixed(96.0))
+                                .align_y(Vertical::Center)
                         },
                         fl!("rename"),
                         tooltip::Position::Bottom
                     ),
                     tooltip(
-                        button(
-                            icon(from_name("edit-delete-symbolic").into())
-                                .width(Length::Fixed(32.0))
-                                .height(Length::Fixed(32.0)),
+                        container(
+                            button(
+                                icon(from_name("edit-delete-symbolic").into())
+                                    .width(Length::Fixed(32.0))
+                                    .height(Length::Fixed(32.0)),
+                            )
+                            .padding(spacing.space_xs)
+                            .style(Button::Icon)
+                            .on_press(Message::Delete(self.cur_group))
                         )
-                        .padding(spacing.space_xs)
-                        .style(Button::Icon)
-                        .on_press(Message::Delete(self.cur_group)),
+                        .height(Length::Fixed(96.0))
+                        .align_y(Vertical::Center),
                         fl!("delete"),
                         tooltip::Position::Bottom
                     )
@@ -904,8 +912,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 .spacing(spacing.space_xxs)
                 .width(Length::FillPortion(1))
             ]
+            .padding([0, spacing.space_l])
             .align_items(Alignment::Center)
-            .padding(spacing.space_l)
         };
 
         // TODO grid widget in libcosmic
