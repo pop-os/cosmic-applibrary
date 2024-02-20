@@ -53,8 +53,8 @@ impl AppGroup {
     pub fn filtered(
         &self,
         input_value: &str,
-        exceptions: &Vec<Self>,
-        all_entries: &Vec<Arc<DesktopEntryData>>,
+        exceptions: &[Self],
+        all_entries: &[Arc<DesktopEntryData>],
     ) -> Vec<Arc<DesktopEntryData>> {
         all_entries
             .iter()
@@ -81,6 +81,7 @@ impl AppGroup {
             FilterType::Categories {
                 categories,
                 include,
+                exclude,
                 ..
             } => {
                 categories.iter().any(|cat| {
@@ -88,7 +89,8 @@ impl AppGroup {
                         .categories
                         .to_lowercase()
                         .contains(&cat.to_lowercase())
-                }) || include.iter().any(|id| id == &entry.id)
+                }) && exclude.iter().all(|id| id != &entry.id)
+                    || include.iter().any(|id| id == &entry.id)
             }
             FilterType::None => true,
         }
