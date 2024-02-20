@@ -681,12 +681,13 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
                 list_column.push(menu_divider(spacing).into());
             }
-
-            list_column.push(
-                menu_button(text(REMOVE.clone()))
-                    .on_press(Message::SelectAction(MenuAction::Remove))
-                    .into(),
-            );
+            if self.cur_group > 0 {
+                list_column.push(
+                    menu_button(text(REMOVE.clone()))
+                        .on_press(Message::SelectAction(MenuAction::Remove))
+                        .into(),
+                );
+            }
 
             return container(scrollable(Column::with_children(list_column)))
                 .padding([8, 0])
