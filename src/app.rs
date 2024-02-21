@@ -31,13 +31,12 @@ use cosmic::iced_sctk::commands::data_device::cancel_dnd;
 use cosmic::iced_sctk::commands::popup::destroy_popup;
 use cosmic::iced_style::application::{self, Appearance};
 use cosmic::iced_widget::text_input::focus;
-use cosmic::iced_widget::{horizontal_space, mouse_area, Container};
+use cosmic::iced_widget::{horizontal_space, mouse_area, vertical_space, Container};
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
 use cosmic::widget::icon::from_name;
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
-use iced::wayland::actions::layer_surface::IcedMargin;
 use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
@@ -169,15 +168,9 @@ impl CosmicAppLibrary {
                 get_layer_surface(SctkLayerSurfaceSettings {
                     id: WINDOW_ID.clone(),
                     keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                    anchor: Anchor::TOP,
+                    anchor: Anchor::all(),
                     namespace: "app-library".into(),
-                    size: None,
-                    margin: IcedMargin {
-                        top: 16,
-                        right: 0,
-                        bottom: 0,
-                        left: 0,
-                    },
+                    size: Some((None, None)),
                     ..Default::default()
                 }),
                 fetch_gpus,
@@ -840,6 +833,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 .padding(spacing.space_m)
                 .into();
         }
+
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
             row![container(
@@ -985,8 +979,9 @@ impl cosmic::Application for CosmicAppLibrary {
                     .map(|g| g.name.clone())
                     .unwrap_or_else(|| "unknown-group".to_string()),
             ))
-            .height(Length::Fixed(600.0)),
-        );
+            .height(Length::Fill),
+        )
+        .max_height(444.0);
 
         // TODO use the spacing variables from the theme
         let (group_icon_size, h_padding, group_width, group_height, chunks) =
@@ -1108,8 +1103,10 @@ impl cosmic::Application for CosmicAppLibrary {
         .align_items(Alignment::Center);
 
         let window = container(content)
-            .width(Length::Fixed(1200.0))
-            .height(Length::Shrink)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .max_height(656)
+            .max_width(1200.0)
             .style(theme::Container::Custom(Box::new(|theme| {
                 container::Appearance {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
@@ -1124,10 +1121,50 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
             })))
             .center_x();
-        mouse_area(window)
-            .on_release(Message::CloseContextMenu)
-            .on_right_release(Message::CloseContextMenu)
-            .into()
+        row![
+            mouse_area(
+                container(horizontal_space(Length::Fixed(1.0)))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+            )
+            .on_press(Message::Hide),
+            container(
+                column![
+                    mouse_area(
+                        container(vertical_space(Length::Fill))
+                            .width(Length::Fill)
+                            .height(Length::Fixed(16.0))
+                    )
+                    .on_press(Message::Hide),
+                    container(
+                        mouse_area(window)
+                            .on_release(Message::CloseContextMenu)
+                            .on_right_release(Message::CloseContextMenu)
+                    )
+                    .width(Length::Shrink)
+                    .height(Length::Shrink),
+                    mouse_area(
+                        container(vertical_space(Length::Fill))
+                            .width(Length::Fill)
+                            .height(Length::Fill)
+                    )
+                    .on_press(Message::Hide)
+                ]
+                .height(Length::Fill)
+            )
+            .max_width(1200.0)
+            .width(Length::Shrink)
+            .height(Length::Fill),
+            mouse_area(
+                container(horizontal_space(Length::Fixed(1.0)))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+            )
+            .on_press(Message::Hide),
+        ]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
