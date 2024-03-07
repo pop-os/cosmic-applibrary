@@ -7,6 +7,7 @@ use cosmic::app::{
 use cosmic::cosmic_config::{Config, CosmicConfigEntry};
 use cosmic::cosmic_theme::Spacing;
 use cosmic::desktop::DesktopEntryData;
+use cosmic::iced::event::listen_with;
 use cosmic::iced::id::Id;
 use cosmic::iced::wayland::actions::data_device::ActionInner;
 use cosmic::iced::wayland::actions::layer_surface::SctkLayerSurfaceSettings;
@@ -21,7 +22,6 @@ use cosmic::iced_core::alignment::Vertical;
 use cosmic::iced_core::keyboard::key::Named;
 use cosmic::iced_core::keyboard::Key;
 use cosmic::iced_core::{Border, Padding, Rectangle, Shadow};
-use cosmic::iced_futures::event::listen_raw;
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::core::window::Id as SurfaceId;
@@ -281,6 +281,13 @@ impl CosmicAppLibrary {
     }
 
     pub fn hide(&mut self) -> Command<Message> {
+        // cancel existing dnd if it exists then try again...
+        if self.dnd_icon.take().is_some() {
+            return Command::batch(vec![
+                cancel_dnd(),
+                Command::perform(async {}, |_| cosmic::app::Message::App(Message::Hide)),
+            ]);
+        }
         self.active_surface = false;
         self.new_group = None;
         self.search_value.clear();
@@ -289,14 +296,12 @@ impl CosmicAppLibrary {
         self.menu = None;
         self.group_to_delete = None;
         self.scroll_offset = 0.0;
-        self.dnd_icon = None;
         iced::Command::batch(vec![
             text_input::focus(SEARCH_ID.clone()),
             destroy_popup(MENU_ID.clone()),
             destroy_layer_surface(NEW_GROUP_WINDOW_ID.clone()),
             destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone()),
             destroy_layer_surface(WINDOW_ID.clone()),
-            cancel_dnd(),
         ])
     }
 }
@@ -1171,7 +1176,7 @@ impl cosmic::Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 desktop_files(0).map(|_| Message::LoadApps),
-                listen_raw(|e, _status| match e {
+                listen_with(|e, _status| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),
