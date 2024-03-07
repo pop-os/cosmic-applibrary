@@ -66,8 +66,8 @@ impl AppGroup {
                     de.name.to_lowercase().contains(&input_value.to_lowercase())
                         || de
                             .categories
-                            .to_lowercase()
-                            .contains(&input_value.to_lowercase())
+                            .iter()
+                            .any(|acat| acat.to_lowercase() == input_value.to_lowercase())
                 };
                 keep_de
             })
@@ -87,8 +87,8 @@ impl AppGroup {
                 categories.iter().any(|cat| {
                     entry
                         .categories
-                        .to_lowercase()
-                        .contains(&cat.to_lowercase())
+                        .iter()
+                        .any(|acat| acat.to_lowercase() == cat.to_lowercase())
                 }) && exclude.iter().all(|id| id != &entry.id)
                     || include.iter().any(|id| id == &entry.id)
             }
