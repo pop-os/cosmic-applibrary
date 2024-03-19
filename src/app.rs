@@ -1042,7 +1042,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             // TODO customize the IconVertical to highlight in the way we need
                             Button::Custom {
                                 active: Box::new(|focused, theme| {
-                                    let s = theme.pressed(focused, &Button::IconVertical);
+                                    let s = theme.pressed(focused, false, &Button::IconVertical);
                                     s
                                 }),
                                 disabled: Box::new(|theme| {
@@ -1050,11 +1050,11 @@ impl cosmic::Application for CosmicAppLibrary {
                                     s
                                 }),
                                 hovered: Box::new(|focused, theme| {
-                                    let s = theme.hovered(focused, &Button::IconVertical);
+                                    let s = theme.hovered(focused, false, &Button::IconVertical);
                                     s
                                 }),
                                 pressed: Box::new(|focused, theme| {
-                                    let s = theme.pressed(focused, &Button::IconVertical);
+                                    let s = theme.pressed(focused, false, &Button::IconVertical);
                                     s
                                 }),
                             }
