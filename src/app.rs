@@ -210,7 +210,6 @@ enum Message {
     FinishDndOffer(usize, DesktopEntryData),
     LeaveDndOffer,
     ScrollYOffset(f32),
-    Ignore,
     GpuUpdate(Option<Vec<Gpu>>),
 }
 
@@ -580,7 +579,6 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.group_to_delete = None;
                 return destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone());
             }
-            Message::Ignore => {}
             Message::FilterApps(input, filtered_apps) => {
                 self.entry_path_input = filtered_apps;
                 self.waiting_for_filtered = false;
@@ -922,27 +920,25 @@ impl cosmic::Application for CosmicAppLibrary {
             .iter()
             .enumerate()
             .map(|(i, entry)| {
+                let gpu_idx = self.gpus.as_ref().map(|gpus| {
+                    if entry.prefers_dgpu {
+                        gpus.iter().position(|gpu| !gpu.default).unwrap_or(0)
+                    } else {
+                        gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
+                    }
+                });
                 let mut b = ApplicationButton::new(
                     &entry,
-                    Message::Ignore,
                     move |rect| Message::OpenContextMenu(rect, i),
-                    if self.menu.is_some() {
-                        None
+                    if self.menu.is_none() {
+                        Some(Message::ActivateApp(i, gpu_idx))
                     } else {
-                        Some(Message::Ignore)
+                        None
                     },
                     spacing,
                 );
                 if self.menu.is_none() {
-                    let gpu_idx = self.gpus.as_ref().map(|gpus| {
-                        if entry.prefers_dgpu {
-                            gpus.iter().position(|gpu| !gpu.default).unwrap_or(0)
-                        } else {
-                            gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
-                        }
-                    });
                     b = b
-                        .on_pressed(Message::ActivateApp(i, gpu_idx))
                         .on_cancel(Message::CancelDrag)
                         .on_finish(Message::FinishDrag)
                         .on_create_dnd_source(Message::StartDrag(i))

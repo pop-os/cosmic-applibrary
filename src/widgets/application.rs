@@ -36,8 +36,6 @@ pub struct ApplicationButton<'a, Message> {
 
     on_right_release: Box<dyn Fn(Rectangle) -> Message + 'a>,
 
-    on_pressed: Option<Message>,
-
     on_create_dnd_source: Option<Message>,
 
     on_finish: Option<Box<dyn Fn(bool) -> Message + 'a>>,
@@ -68,7 +66,6 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             path,
             ..
         }: &'a DesktopEntryData,
-        ignore_button: Message,
         on_right_release: impl Fn(Rectangle) -> Message + 'a,
         on_pressed: Option<Message>,
         spacing: &Spacing,
@@ -99,7 +96,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         .style(theme::Button::IconVertical)
         .padding(spacing.space_s);
         let content = if on_pressed.is_some() {
-            content.on_press(ignore_button.clone())
+            content.on_press_maybe(on_pressed.clone())
         } else {
             content
         }
@@ -108,18 +105,10 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             path: path.clone().unwrap(),
             content,
             on_right_release: Box::new(on_right_release),
-            on_pressed,
             on_create_dnd_source: None,
             on_dnd_command_produced: None,
             on_finish: None,
             on_cancel: None,
-        }
-    }
-
-    pub fn on_pressed(self, on_pressed: Message) -> Self {
-        Self {
-            on_pressed: Some(on_pressed),
-            ..self
         }
     }
 
@@ -390,16 +379,6 @@ where
                             } else {
                                 DraggingState::Pressed(start)
                             }
-                        }
-                        event::Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
-                        | event::Event::Touch(
-                            touch::Event::FingerLifted { .. } | touch::Event::FingerLost { .. },
-                        ) => {
-                            ret = event::Status::Captured;
-                            if let Some(on_pressed) = self.on_pressed.clone() {
-                                shell.publish(on_pressed);
-                            }
-                            DraggingState::None
                         }
                         _ => DraggingState::Pressed(start),
                     }
