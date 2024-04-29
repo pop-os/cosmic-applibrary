@@ -101,7 +101,6 @@ pub fn run() -> cosmic::iced::Result {
             .antialiasing(true)
             .client_decorations(true)
             .debug(false)
-            .default_icon_theme("Pop")
             .default_text_size(16.0)
             .scale_factor(1.0)
             .no_main_window(true)
