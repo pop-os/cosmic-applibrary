@@ -1,4 +1,4 @@
-cosmic-app-library = Biblioteka aplikacija
+cosmic-app-library = COSMIC Biblioteka aplikacija
 cosmic-library-home = Početna
 cosmic-office = Kancelarija
 cosmic-system = Sistem
