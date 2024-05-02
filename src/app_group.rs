@@ -180,6 +180,26 @@ impl AppLibraryConfig {
                 exclude.retain(|conf_id| conf_id != id);
                 include.push(id.to_string());
             }
+        } else {
+            // add to filter of all groups, forcing it to the Home group
+            for group in &mut self.groups {
+                match &mut group.filter {
+                    FilterType::AppIds(ids) => {
+                        ids.retain(|conf_id| conf_id != id);
+                    }
+                    FilterType::Categories {
+                        categories: _,
+                        exclude,
+                        include,
+                    } => {
+                        include.retain(|conf_id| conf_id != id);
+                        if exclude.iter().all(|conf_id| conf_id != id) {
+                            exclude.push(id.to_string());
+                        }
+                    }
+                    FilterType::None => {}
+                }
+            }
         }
     }
 

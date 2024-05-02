@@ -544,10 +544,6 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::FinishDndOffer(i, entry) => {
                 self.offer_group = None;
 
-                if self.cur_group == i {
-                    return Command::none();
-                }
-
                 self.config.add_entry(i, &entry.id);
                 if let Some(helper) = self.helper.as_ref() {
                     if let Err(err) = self.config.write_entry(helper) {
@@ -1062,15 +1058,13 @@ impl cosmic::Application for CosmicAppLibrary {
                         group_height,
                         spacing,
                     );
-                    if i != 0 {
-                        group_button = group_button
-                            .on_finish(move |entry| Message::FinishDndOffer(i, entry))
-                            .on_cancel(Message::LeaveDndOffer)
-                            .on_offer(Message::StartDndOffer(i))
-                            .on_dnd_command_produced(|c| {
-                                Message::DndCommandProduced(DndCommand(Arc::new(c)))
-                            });
-                    }
+                    group_button = group_button
+                        .on_finish(move |entry| Message::FinishDndOffer(i, entry))
+                        .on_cancel(Message::LeaveDndOffer)
+                        .on_offer(Message::StartDndOffer(i))
+                        .on_dnd_command_produced(|c| {
+                            Message::DndCommandProduced(DndCommand(Arc::new(c)))
+                        });
 
                     group_row = group_row.push(group_button);
                 }
