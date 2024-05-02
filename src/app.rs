@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use switcheroo_control::Gpu;
 
-use crate::app_group::AppLibraryConfig;
+use crate::app_group::{AppLibraryConfig, FilterType};
 use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::widgets::application::ApplicationButton;
@@ -1201,7 +1201,7 @@ impl cosmic::Application for CosmicAppLibrary {
     ) -> (Self, iced::Command<cosmic::app::Message<Self::Message>>) {
         let helper = AppLibraryConfig::helper();
 
-        let config: AppLibraryConfig = helper
+        let mut config: AppLibraryConfig = helper
             .as_ref()
             .map(|helper| {
                 AppLibraryConfig::get_entry(helper).unwrap_or_else(|(errors, config)| {
@@ -1212,6 +1212,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 })
             })
             .unwrap_or_default();
+        config.groups.sort();
+
         let self_ = Self {
             locale: current_locale::current_locale().ok(),
             config,

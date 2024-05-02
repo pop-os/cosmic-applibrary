@@ -18,7 +18,7 @@ static HOME: Lazy<[AppGroup; 1]> = Lazy::new(|| {
     }]
 });
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum FilterType {
     /// A list of application IDs to include in the group.
     AppIds(Vec<String>),
@@ -40,13 +40,56 @@ impl Default for FilterType {
     }
 }
 
+impl Ord for FilterType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (FilterType::AppIds(_), FilterType::AppIds(_)) => std::cmp::Ordering::Equal,
+            (FilterType::None, FilterType::None) => std::cmp::Ordering::Equal,
+            (FilterType::Categories { .. }, FilterType::Categories { .. }) => {
+                std::cmp::Ordering::Equal
+            }
+            (FilterType::Categories { .. } | FilterType::None, FilterType::AppIds(_)) => {
+                std::cmp::Ordering::Less
+            }
+            (FilterType::AppIds(_), FilterType::Categories { .. } | FilterType::None) => {
+                std::cmp::Ordering::Greater
+            }
+            (FilterType::Categories { .. }, FilterType::None) => std::cmp::Ordering::Greater,
+            (FilterType::None, FilterType::Categories { .. }) => std::cmp::Ordering::Less,
+        }
+    }
+}
+
+impl PartialOrd for FilterType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 // Object holding the state
-#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct AppGroup {
     pub name: String,
     pub icon: String,
     pub filter: FilterType,
     // pub popup: bool,
+}
+
+impl PartialOrd for AppGroup {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for AppGroup {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (&self.filter, &other.filter) {
+            (FilterType::AppIds(_), FilterType::AppIds(_)) => {
+                self.name.to_lowercase().cmp(&other.name.to_lowercase())
+            }
+            (a, b) => a.cmp(b),
+        }
+    }
 }
 
 impl AppGroup {
@@ -113,7 +156,7 @@ impl AppGroup {
 
 #[derive(Debug, Clone, Serialize, Deserialize, CosmicConfigEntry)]
 pub struct AppLibraryConfig {
-    groups: Vec<AppGroup>,
+    pub(crate) groups: Vec<AppGroup>,
 }
 
 impl AppLibraryConfig {
@@ -131,6 +174,7 @@ impl AppLibraryConfig {
             icon: "folder-symbolic".to_string(),
             filter: FilterType::AppIds(Vec::new()),
         });
+        self.groups.sort();
     }
 
     pub fn remove(&mut self, i: usize) {
