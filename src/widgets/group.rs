@@ -28,7 +28,6 @@ use cosmic::{
 
 use super::application::MIME_TYPE;
 
-/// A widget that can be dragged and dropped.
 #[allow(missing_debug_implementations)]
 pub struct GroupButton<'a, Message> {
     content: Element<'a, Message, cosmic::Theme, cosmic::Renderer>,
