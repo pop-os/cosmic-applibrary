@@ -57,6 +57,7 @@ use crate::widgets::group::GroupButton;
 static SEARCH_ID: Lazy<Id> = Lazy::new(|| Id::new("search"));
 static EDIT_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("edit_group"));
 static NEW_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("new_group"));
+static SUBMIT_DELETE_ID: Lazy<Id> = Lazy::new(|| Id::new("cancel_delete"));
 
 static CREATE_NEW: Lazy<String> = Lazy::new(|| fl!("create-new"));
 static SEARCH_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("search-placeholder"));
@@ -322,7 +323,13 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::Layer(e, id) => match e {
                 LayerEvent::Focused => {
-                    return text_input::focus(SEARCH_ID.clone());
+                    if id == WINDOW_ID.clone() {
+                        return text_input::focus(SEARCH_ID.clone());
+                    } else if id == DELETE_GROUP_WINDOW_ID.clone() {
+                        return button::focus(SUBMIT_DELETE_ID.clone());
+                    } else if id == NEW_GROUP_WINDOW_ID.clone() {
+                        return text_input::focus(NEW_GROUP_ID.clone());
+                    }
                 }
                 LayerEvent::Unfocused => {
                     if self.active_surface
@@ -388,14 +395,17 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::Delete(group) => {
                 self.group_to_delete = Some(group);
-                return get_layer_surface(SctkLayerSurfaceSettings {
-                    id: DELETE_GROUP_WINDOW_ID.clone(),
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    anchor: Anchor::empty(),
-                    namespace: "dialog".into(),
-                    size: None,
-                    ..Default::default()
-                });
+                return Command::batch(vec![
+                    get_layer_surface(SctkLayerSurfaceSettings {
+                        id: DELETE_GROUP_WINDOW_ID.clone(),
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::empty(),
+                        namespace: "dialog".into(),
+                        size: None,
+                        ..Default::default()
+                    }),
+                    button::focus(SUBMIT_DELETE_ID.clone()),
+                ]);
             }
             Message::EditName(name) => {
                 self.edit_name = Some(name);
@@ -412,7 +422,7 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::StartEditName(name) => {
                 self.edit_name = Some(name);
-                return focus(NEW_GROUP_ID.clone());
+                return focus(EDIT_GROUP_ID.clone());
             }
             Message::StartNewGroup => {
                 self.new_group = Some(String::new());
@@ -558,6 +568,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.scroll_offset = y;
             }
             Message::ConfirmDelete => {
+                let mut cmds = vec![destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone())];
                 if let Some(group) = self.group_to_delete.take() {
                     self.config.remove(group);
                     if let Some(helper) = self.helper.as_ref() {
@@ -566,9 +577,9 @@ impl cosmic::Application for CosmicAppLibrary {
                         }
                     }
                     self.cur_group = 0;
-                    return self.filter_apps();
+                    cmds.push(self.filter_apps());
                 }
-                return destroy_layer_surface(DELETE_GROUP_WINDOW_ID.clone());
+                return Command::batch(cmds);
             }
             Message::CancelDelete => {
                 self.group_to_delete = None;
@@ -800,6 +811,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
                         )
+                        .id(SUBMIT_DELETE_ID.clone())
                         .style(Button::Destructive)
                         .on_press(Message::ConfirmDelete)
                         .padding([spacing.space_xxs, spacing.space_m])
