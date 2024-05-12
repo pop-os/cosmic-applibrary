@@ -370,7 +370,10 @@ where
                                         mime_types: vec![MIME_TYPE.to_string()],
                                         actions: DndAction::Copy.union(DndAction::Move),
                                         origin_id: WINDOW_ID.clone(),
-                                        icon_id: Some(DndIcon::Custom(DND_ICON_ID.clone())),
+                                        icon_id: Some((
+                                            DndIcon::Custom(DND_ICON_ID.clone()),
+                                            cosmic::iced::Vector::default(),
+                                        )),
                                         data: Box::new(AppletString(p.clone())),
                                     }
                                 })));
