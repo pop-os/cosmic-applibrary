@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::time::{Duration, Instant};
 
 use clap::Parser;
 use cosmic::app::{
@@ -44,7 +45,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use switcheroo_control::Gpu;
 
-use crate::app_group::{AppLibraryConfig, FilterType};
+use crate::app_group::AppLibraryConfig;
 use crate::fl;
 use crate::subscriptions::desktop_files::desktop_files;
 use crate::widgets::application::ApplicationButton;
@@ -130,6 +131,7 @@ struct CosmicAppLibrary {
     core: Core,
     group_to_delete: Option<usize>,
     gpus: Option<Vec<Gpu>>,
+    last_hide: Option<Instant>,
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -152,8 +154,11 @@ async fn try_get_gpus() -> Option<Vec<Gpu>> {
 impl CosmicAppLibrary {
     pub fn activate(&mut self) -> Command<Message> {
         if self.active_surface {
-            self.hide()
-        } else {
+            return self.hide();
+        } else if !self
+            .last_hide
+            .is_some_and(|i| i.elapsed() < Duration::from_millis(100))
+        {
             self.edit_name = None;
             self.search_value = "".to_string();
             self.active_surface = true;
@@ -176,6 +181,7 @@ impl CosmicAppLibrary {
                 fetch_gpus,
             ]);
         }
+        Command::none()
     }
 }
 
@@ -230,7 +236,7 @@ enum MenuAction {
 
 pub fn menu_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
-) -> cosmic::widget::Button<'a, Message, cosmic::Theme, cosmic::Renderer> {
+) -> cosmic::widget::Button<'a, Message> {
     cosmic::widget::Button::new(content)
         .style(Button::AppletMenu)
         .padding(menu_control_padding())
@@ -332,6 +338,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     }
                 }
                 LayerEvent::Unfocused => {
+                    self.last_hide = Some(Instant::now());
                     if self.active_surface
                         && id == WINDOW_ID.clone()
                         && self.menu.is_none()
@@ -1231,6 +1238,7 @@ impl cosmic::Application for CosmicAppLibrary {
             config,
             core,
             helper,
+            last_hide: None,
             ..Default::default()
         };
 
