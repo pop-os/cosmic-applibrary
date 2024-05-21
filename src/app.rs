@@ -785,7 +785,6 @@ impl cosmic::Application for CosmicAppLibrary {
                 .padding(spacing.space_s)
                 .into();
         }
-
         if id == DELETE_GROUP_WINDOW_ID.clone() {
             let dialog = column![
                 row![
@@ -1032,12 +1031,14 @@ impl cosmic::Application for CosmicAppLibrary {
             .config
             .groups()
             .chunks(chunks)
-            .map(|groups| {
+            .enumerate()
+            .map(|(chunk, groups)| {
                 let mut group_row = row![]
                     .spacing(spacing.space_xxs)
                     .padding([spacing.space_s, spacing.space_none])
                     .align_items(Alignment::Center);
                 for (i, group) in groups.iter().enumerate() {
+                    let i = i + chunk * chunks;
                     let mut group_button = GroupButton::new(
                         group.name(),
                         &group.icon,
