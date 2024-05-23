@@ -14,6 +14,7 @@ libcosmic = { git = "https://github.com/pop-os/libcosmic/", features = [
     "single-instance",
     "dbus-config",
     "desktop",
+    "xdg-portal"
 ] }
 tokio = { version = "1.17.0", features = ["sync", "rt", "process"] }
 pretty_env_logger = "0.5"
