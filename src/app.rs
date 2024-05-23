@@ -688,9 +688,9 @@ impl cosmic::Application for CosmicAppLibrary {
                             .into(),
                     );
                 }
-                list_column.push(menu_divider(spacing).into());
             }
             if self.cur_group > 0 {
+                list_column.push(menu_divider(spacing).into());
                 list_column.push(
                     menu_button(text(REMOVE.clone()))
                         .on_press(Message::SelectAction(MenuAction::Remove))
