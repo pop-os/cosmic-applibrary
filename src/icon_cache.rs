@@ -64,7 +64,3 @@ pub fn icon_cache_handle(name: &'static str, size: u16) -> icon::Handle {
         .unwrap();
     icon_cache.get(name, size)
 }
-
-pub fn icon_cache_icon(name: &'static str, size: u16) -> icon::Icon {
-    icon::icon(icon_cache_handle(name, size)).size(size)
-}

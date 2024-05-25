@@ -86,7 +86,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                     source.as_icon().map(|i| {
                         Element::from(
                             container(i)
-                                .style(cosmic::theme::Container::Primary)
+                                .style(cosmic::theme::Container::Card)
                                 .width(Length::Fixed(24.0))
                                 .height(Length::Fixed(24.0))
                                 .align_x(Horizontal::Center)
