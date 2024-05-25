@@ -2,6 +2,7 @@
 mod config;
 mod app;
 mod app_group;
+mod icon_cache;
 mod localize;
 mod subscriptions;
 mod widgets;

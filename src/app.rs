@@ -1,4 +1,7 @@
-use std::fmt::Debug;
+use std::collections::HashMap;
+use std::fmt::{Debug, Display};
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use clap::Parser;
@@ -31,6 +34,7 @@ use cosmic::iced_sctk::commands::activation::request_token;
 use cosmic::iced_sctk::commands::data_device::cancel_dnd;
 use cosmic::iced_sctk::commands::popup::destroy_popup;
 use cosmic::iced_style::application::{self, Appearance};
+use cosmic::iced_style::svg;
 use cosmic::iced_widget::text_input::focus;
 use cosmic::iced_widget::{horizontal_space, mouse_area, vertical_space, Container};
 use cosmic::theme::{self, Button, TextInput};
@@ -38,6 +42,7 @@ use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
 use cosmic::widget::icon::from_name;
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
+use freedesktop_desktop_entry::PathSource;
 use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
@@ -67,6 +72,11 @@ static SAVE: Lazy<String> = Lazy::new(|| fl!("save"));
 static CANCEL: Lazy<String> = Lazy::new(|| fl!("cancel"));
 static RUN: Lazy<String> = Lazy::new(|| fl!("run"));
 static REMOVE: Lazy<String> = Lazy::new(|| fl!("remove"));
+static FLATPAK: Lazy<String> = Lazy::new(|| fl!("flatpak"));
+static LOCAL: Lazy<String> = Lazy::new(|| fl!("local"));
+static NIX: Lazy<String> = Lazy::new(|| fl!("nix"));
+static SNAP: Lazy<String> = Lazy::new(|| fl!("snap"));
+static SYSTEM: Lazy<String> = Lazy::new(|| fl!("system"));
 
 pub(crate) static WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 static NEW_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
@@ -111,6 +121,55 @@ pub fn run() -> cosmic::iced::Result {
     )
 }
 
+pub struct AppSource(PathSource);
+
+impl AppSource {
+    pub fn as_icon(&self) -> Option<cosmic::widget::icon::Icon> {
+        let name = match &self.0 {
+            PathSource::Local | PathSource::LocalDesktop => "app-source-local-symbolic",
+            PathSource::System | PathSource::SystemLocal => "app-source-system-symbolic",
+            PathSource::LocalFlatpak | PathSource::SystemFlatpak => "app-source-flatpak",
+            PathSource::SystemSnap => "app-source-snap",
+            PathSource::Nix | PathSource::LocalNix => "app-source-nix",
+            PathSource::Other(_) => return None,
+        };
+        let handle = crate::icon_cache::icon_cache_handle(name, 16);
+        let symbolic = handle.symbolic;
+
+        Some(icon(handle).size(16).style(if symbolic {
+            cosmic::theme::Svg::Custom(Rc::new(|t| {
+                let color = t.cosmic().on_primary_component_color().into();
+                svg::Appearance { color: Some(color) }
+            }))
+        } else {
+            cosmic::theme::Svg::Default
+        }))
+    }
+}
+
+impl<'a> From<&'a Path> for AppSource {
+    fn from(path: &'a Path) -> Self {
+        AppSource(PathSource::guess_from(path))
+    }
+}
+
+impl<'a> Display for AppSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:.7}",
+            match &self.0 {
+                PathSource::Local | PathSource::LocalDesktop => LOCAL.as_str(),
+                PathSource::SystemFlatpak | PathSource::LocalFlatpak => FLATPAK.as_str(),
+                PathSource::SystemSnap => SNAP.as_str(),
+                PathSource::Nix | PathSource::LocalNix => NIX.as_str(),
+                PathSource::System | PathSource::SystemLocal => SYSTEM.as_str(),
+                PathSource::Other(s) => s.as_str(),
+            }
+        )
+    }
+}
+
 #[derive(Default)]
 struct CosmicAppLibrary {
     search_value: String,
@@ -132,6 +191,7 @@ struct CosmicAppLibrary {
     group_to_delete: Option<usize>,
     gpus: Option<Vec<Gpu>>,
     last_hide: Option<Instant>,
+    duplicates: HashMap<PathBuf, AppSource>,
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -258,10 +318,43 @@ impl CosmicAppLibrary {
         .into_iter()
         .map(Arc::new)
         .collect();
+        self.all_entries.sort_by(|a, b| a.name.cmp(&b.name));
+
         self.entry_path_input =
             self.config
                 .filtered(self.cur_group, &self.search_value, &self.all_entries);
-        self.entry_path_input.sort_by(|a, b| a.name.cmp(&b.name));
+
+        // collect duplicates
+        self.duplicates.clear();
+        self.duplicates = self
+            .all_entries
+            .iter()
+            .enumerate()
+            .fold(
+                (std::mem::take(&mut self.duplicates), 0, "", ""),
+                |(mut dups, cur_count, cur_name, cur_id): (HashMap<_, _>, usize, &str, &str),
+                 (i, e)| {
+                    if cur_name.to_lowercase().trim() == e.name.to_lowercase().trim()
+                        || e.id == cur_id
+                    {
+                        if cur_count == 1 {
+                            // insert previous entry
+                            if let Some(path) = self.all_entries[i - 1].path.as_ref() {
+                                let source = AppSource::from(path.as_ref());
+                                dups.insert(path.clone(), source);
+                            }
+                        }
+                        if let Some(path) = e.path.as_ref() {
+                            let source = AppSource::from(path.as_ref());
+                            dups.insert(path.clone(), source);
+                        }
+                        (dups, cur_count + 1, cur_name, cur_id)
+                    } else {
+                        (dups, 1, e.name.as_str(), e.id.as_str())
+                    }
+                },
+            )
+            .0;
     }
 
     fn filter_apps(&mut self) -> Command<Message> {
@@ -940,6 +1033,10 @@ impl cosmic::Application for CosmicAppLibrary {
                         gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
                     }
                 });
+                let dup = entry
+                    .path
+                    .as_ref()
+                    .and_then(|path| self.duplicates.get(path));
                 let mut b = ApplicationButton::new(
                     &entry,
                     move |rect| Message::OpenContextMenu(rect, i),
@@ -949,6 +1046,8 @@ impl cosmic::Application for CosmicAppLibrary {
                         None
                     },
                     spacing,
+                    // TODO add icon and text if duplicated
+                    dup,
                 );
                 if self.menu.is_none() {
                     b = b
