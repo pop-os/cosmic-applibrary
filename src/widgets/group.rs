@@ -53,7 +53,7 @@ pub struct GroupButton<'a, Message> {
 }
 
 impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
-    /// Creates a new [`ApplicationButton`].
+    /// Creates a new [`GroupButton`].
     #[must_use]
     pub fn new(
         name: String,

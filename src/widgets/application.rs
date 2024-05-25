@@ -1,29 +1,34 @@
 //! A widget that can be dragged and dropped.
 
-use std::mem;
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::{iter, mem};
 
 use cosmic::cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
 use cosmic::cosmic_theme::Spacing;
+use cosmic::iced::alignment::Vertical;
 use cosmic::iced::wayland::actions::data_device::{DataFromMimeType, DndIcon};
+use cosmic::iced::{Size, Vector};
 use cosmic::iced_core::alignment::Horizontal;
 use cosmic::iced_core::event::{wayland, PlatformSpecific};
 use cosmic::iced_runtime::command::platform_specific;
 
 use cosmic::iced_core::{
-    event, layout, mouse, overlay, renderer, touch, Alignment, Clipboard, Element, Event, Length,
-    Point, Rectangle, Shell, Widget,
+    event, layout, mouse, overlay, renderer, touch, Alignment, Clipboard, Event, Length, Point,
+    Rectangle, Shell, Widget,
 };
 
 use cosmic::desktop::DesktopEntryData;
 use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
+use cosmic::widget::container;
+use cosmic::Element;
 use cosmic::{
     iced::widget::{column, text},
     theme,
     widget::button,
 };
 
-use crate::app::{DND_ICON_ID, WINDOW_ID};
+use crate::app::{AppSource, DND_ICON_ID, WINDOW_ID};
 
 pub const MIME_TYPE: &str = "text/uri-list";
 const DRAG_THRESHOLD: f32 = 25.0;
@@ -32,7 +37,7 @@ const DRAG_THRESHOLD: f32 = 25.0;
 pub struct ApplicationButton<'a, Message> {
     path: PathBuf,
 
-    content: Element<'a, Message, cosmic::Theme, cosmic::Renderer>,
+    content: Element<'a, Message>,
 
     on_right_release: Box<dyn Fn(Rectangle) -> Message + 'a>,
 
@@ -54,6 +59,9 @@ pub struct ApplicationButton<'a, Message> {
                 + 'a,
         >,
     >,
+
+    // Optional icon, and text
+    source_icon: Option<Element<'a, Message>>,
 }
 
 impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
@@ -69,11 +77,40 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         on_right_release: impl Fn(Rectangle) -> Message + 'a,
         on_pressed: Option<Message>,
         spacing: &Spacing,
+        source: Option<&AppSource>,
     ) -> Self {
-        let name = if name.len() > 27 {
-            format!("{:.24}...", name)
+        let (source_icon, source_suffix_len) = match source {
+            Some(source) => {
+                let source_name = source.to_string();
+                (
+                    source.as_icon().map(|i| {
+                        Element::from(
+                            container(i)
+                                .style(cosmic::theme::Container::Primary)
+                                .width(Length::Fixed(24.0))
+                                .height(Length::Fixed(24.0))
+                                .align_x(Horizontal::Center)
+                                .align_y(Vertical::Center),
+                        )
+                    }),
+                    source_name.len().saturating_add(3), // 3 for the parentheses
+                )
+            }
+            None => (None, 0),
+        };
+        let max_name_len = 27 - source_suffix_len;
+        let name = if name.len() > max_name_len {
+            if let Some(source) = source {
+                format!("{name:.17}... ({source})")
+            } else {
+                format!("{name:.24}...")
+            }
         } else {
-            name.to_string()
+            if let Some(source) = source {
+                format!("{name} ({source})")
+            } else {
+                name.to_string()
+            }
         };
         let content = button(
             column![
@@ -109,6 +146,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             on_dnd_command_produced: None,
             on_finish: None,
             on_cancel: None,
+            source_icon,
         }
     }
 
@@ -147,14 +185,11 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
     }
 }
 
-impl<'a, Message> From<ApplicationButton<'a, Message>>
-    for Element<'a, Message, cosmic::Theme, cosmic::Renderer>
+impl<'a, Message> From<ApplicationButton<'a, Message>> for Element<'a, Message>
 where
     Message: Clone + 'a,
 {
-    fn from(
-        dnd_source: ApplicationButton<'a, Message>,
-    ) -> Element<'a, Message, cosmic::Theme, cosmic::Renderer> {
+    fn from(dnd_source: ApplicationButton<'a, Message>) -> Element<'a, Message> {
         Element::new(dnd_source)
     }
 }
@@ -165,11 +200,16 @@ where
     Message: Clone,
 {
     fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(&self.content)]
+        iter::once(Tree::new(&self.content))
+            .chain(self.source_icon.as_ref().map(|i| Tree::new(i)))
+            .collect()
     }
 
     fn diff(&mut self, tree: &mut Tree) {
-        tree.diff_children(std::slice::from_mut(&mut self.content));
+        let mut children: Vec<_> = iter::once(&mut self.content)
+            .chain(self.source_icon.as_mut())
+            .collect();
+        tree.diff_children(children.as_mut_slice());
     }
 
     fn size(&self) -> cosmic::iced_core::Size<Length> {
@@ -183,6 +223,7 @@ where
         limits: &layout::Limits,
     ) -> layout::Node {
         let size = self.size();
+        let tree = RefCell::new(tree);
         layout(
             renderer,
             limits,
@@ -191,9 +232,15 @@ where
             u32::MAX,
             u32::MAX,
             |renderer, limits| {
+                let content_state = &mut tree.borrow_mut().children[0];
                 self.content
                     .as_widget()
-                    .layout(&mut tree.children[0], renderer, limits)
+                    .layout(content_state, renderer, limits)
+            },
+            self.source_icon.as_ref(),
+            |renderer, limits, icon| {
+                let icon_state = &mut tree.borrow_mut().children[1];
+                icon.as_widget().layout(icon_state, renderer, limits)
             },
         )
     }
@@ -217,6 +264,18 @@ where
             cursor_position,
             viewport,
         );
+
+        if let Some(icon) = self.source_icon.as_ref() {
+            icon.as_widget().draw(
+                &tree.children[1],
+                renderer,
+                theme,
+                renderer_style,
+                layout.children().nth(1).unwrap(),
+                cursor_position,
+                viewport,
+            );
+        }
     }
 
     fn operate(
@@ -411,7 +470,7 @@ where
 }
 
 /// Computes the layout of a [`ApplicationButton`].
-pub fn layout<Renderer>(
+pub fn layout<'a, Renderer, M>(
     renderer: &Renderer,
     limits: &layout::Limits,
     width: Length,
@@ -419,6 +478,8 @@ pub fn layout<Renderer>(
     max_height: u32,
     max_width: u32,
     layout_content: impl FnOnce(&Renderer, &layout::Limits) -> layout::Node,
+    icon: Option<&Element<'a, M>>,
+    layout_icon: impl FnOnce(&Renderer, &layout::Limits, &Element<'a, M>) -> layout::Node,
 ) -> layout::Node {
     let limits = limits
         .loose()
@@ -429,8 +490,23 @@ pub fn layout<Renderer>(
 
     let content = layout_content(renderer, &limits);
     let size = limits.resolve(width, height, content.size());
+    let mut children = vec![content];
+    let app_icon_node = &children[0].children()[0].children()[0];
+    if let Some(icon) = icon {
+        let app_icon_size = app_icon_node.size();
+        let mut icon_node = layout_icon(
+            renderer,
+            &layout::Limits::new(Size::new(24., 24.), Size::new(24., 24.)),
+            icon,
+        );
+        icon_node = icon_node.move_to(app_icon_node.bounds().position());
+        // translate to the bottom right corner
+        icon_node = icon_node.translate(Vector::new(app_icon_size.width, app_icon_size.height));
 
-    layout::Node::with_children(size, vec![content])
+        children.push(icon_node);
+    }
+
+    layout::Node::with_children(size, children)
 }
 
 /// A string which can be sent to the clipboard or drag-and-dropped.
