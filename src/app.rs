@@ -297,7 +297,7 @@ enum MenuAction {
 pub fn menu_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
 ) -> cosmic::widget::Button<'a, Message> {
-    cosmic::widget::Button::new(content)
+    cosmic::widget::button(content)
         .style(Button::AppletMenu)
         .padding(menu_control_padding())
         .width(Length::Fill)
