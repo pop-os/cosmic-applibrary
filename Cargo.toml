@@ -3,9 +3,8 @@ name = "cosmic-app-library"
 version = "0.1.0"
 authors = ["Ashley Wulber <ashley@system76.com>"]
 edition = "2021"
-
 [features]
-default = ["wgpu"]
+default = []
 wgpu = ["libcosmic/wgpu"]
 
 [dependencies]
