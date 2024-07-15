@@ -286,7 +286,11 @@ impl Default for AppLibraryConfig {
                     icon: "folder-symbolic".to_string(),
                     filter: FilterType::Categories {
                         categories: vec!["Office".to_string()],
-                        include: Vec::new(),
+                        include: vec![
+                            "org.gnome.Totem".to_string(),
+                            "org.gnome.eog".to_string(),
+                            "simple-scan".to_string(),
+                        ],
                         exclude: Vec::new(),
                     },
                 },
@@ -295,8 +299,15 @@ impl Default for AppLibraryConfig {
                     icon: "folder-symbolic".to_string(),
                     filter: FilterType::Categories {
                         categories: vec!["System".to_string()],
-                        include: Vec::new(),
-                        exclude: Vec::new(),
+                        include: vec![
+                            "gnome-language-selector".to_string(),
+                            "im-config".to_string(),
+                            "org.freedesktop.IBus.Setup".to_string(),
+                        ],
+                        exclude: vec![
+                            "com.system76.CosmicStore".to_string(),
+                            "com.system76.CosmicTerm".to_string(),
+                        ],
                     },
                 },
                 AppGroup {
@@ -305,7 +316,10 @@ impl Default for AppLibraryConfig {
                     filter: FilterType::Categories {
                         categories: vec!["Utility".to_string()],
                         include: Vec::new(),
-                        exclude: Vec::new(),
+                        exclude: vec![
+                            "com.system76.CosmicEdit".to_string(),
+                            "com.system76.CosmicFiles".to_string(),
+                        ],
                     },
                 },
             ],
