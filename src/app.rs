@@ -40,6 +40,7 @@ use cosmic::iced_widget::{horizontal_space, mouse_area, vertical_space, Containe
 use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
 use cosmic::widget::icon::from_name;
+use cosmic::widget::text::body;
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
 use freedesktop_desktop_entry::PathSource;
@@ -749,7 +750,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
                     };
                     list_column.push(
-                        menu_button(text(format!(
+                        menu_button(body(format!(
                             "{} {}",
                             fl!("run-on", gpu = gpu.name.clone()),
                             if j == default_idx {
@@ -764,7 +765,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
             } else {
                 list_column.push(
-                    menu_button(text(RUN.clone()))
+                    menu_button(body(RUN.clone()))
                         .on_press(Message::ActivateApp(*i, None))
                         .into(),
                 );
@@ -774,7 +775,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 list_column.push(menu_divider(spacing).into());
                 for action in menu.desktop_actions.iter() {
                     list_column.push(
-                        menu_button(text(&action.name))
+                        menu_button(body(&action.name))
                             .on_press(Message::SelectAction(
                                 MenuAction::DesktopAction(action.exec.clone()).into(),
                             ))
@@ -785,7 +786,7 @@ impl cosmic::Application for CosmicAppLibrary {
             if self.cur_group > 0 {
                 list_column.push(menu_divider(spacing).into());
                 list_column.push(
-                    menu_button(text(REMOVE.clone()))
+                    menu_button(body(REMOVE.clone()))
                         .on_press(Message::SelectAction(MenuAction::Remove))
                         .into(),
                 );
@@ -1353,6 +1354,6 @@ impl cosmic::Application for CosmicAppLibrary {
 
 fn menu_divider<'a>(spacing: &Spacing) -> Container<'a, Message, cosmic::Theme, cosmic::Renderer> {
     container(horizontal_rule(1))
-        .padding([spacing.space_none, spacing.space_s])
+        .padding([spacing.space_none, spacing.space_xxs])
         .width(Length::Fill)
 }
