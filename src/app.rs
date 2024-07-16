@@ -1082,7 +1082,12 @@ impl cosmic::Application for CosmicAppLibrary {
                 column(app_grid_list)
                     .width(Length::Fill)
                     .spacing(spacing.space_xxs)
-                    .padding([spacing.space_none, spacing.space_xxl]),
+                    .padding([
+                        spacing.space_none,
+                        spacing.space_xxl,
+                        spacing.space_xxs,
+                        spacing.space_xxl,
+                    ]),
             )
             .on_scroll(|viewport| Message::ScrollYOffset(viewport.absolute_offset().y))
             .id(Id::new(
@@ -1218,7 +1223,7 @@ impl cosmic::Application for CosmicAppLibrary {
         let window = container(content)
             .width(Length::Fill)
             .height(Length::Fill)
-            .max_height(684)
+            .max_height(685)
             .max_width(1200.0)
             .style(theme::Container::Custom(Box::new(|theme| {
                 container::Appearance {
