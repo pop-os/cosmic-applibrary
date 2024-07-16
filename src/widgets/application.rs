@@ -78,6 +78,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         on_pressed: Option<Message>,
         spacing: &Spacing,
         source: Option<&AppSource>,
+        selected: bool,
     ) -> Self {
         let (source_icon, source_suffix_len) = match source {
             Some(source) => {
@@ -129,14 +130,11 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             .align_items(Alignment::Center)
             .width(Length::Fill),
         )
+        .selected(selected)
         .width(Length::FillPortion(1))
         .style(theme::Button::IconVertical)
-        .padding(spacing.space_s);
-        let content = if on_pressed.is_some() {
-            content.on_press_maybe(on_pressed.clone())
-        } else {
-            content
-        }
+        .padding(spacing.space_s)
+        .on_press_maybe(on_pressed.clone())
         .into();
         Self {
             path: path.clone().unwrap(),
