@@ -1037,17 +1037,22 @@ impl cosmic::Application for CosmicAppLibrary {
                     .path
                     .as_ref()
                     .and_then(|path| self.duplicates.get(path));
+                let selected = self.menu.is_some_and(|m| m == i);
+
                 let mut b = ApplicationButton::new(
                     &entry,
                     move |rect| Message::OpenContextMenu(rect, i),
                     if self.menu.is_none() {
                         Some(Message::ActivateApp(i, gpu_idx))
+                    } else if selected {
+                        Some(Message::CloseContextMenu)
                     } else {
                         None
                     },
                     spacing,
                     // TODO add icon and text if duplicated
                     dup,
+                    selected,
                 );
                 if self.menu.is_none() {
                     b = b
