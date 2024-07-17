@@ -25,6 +25,7 @@ use cosmic::iced::{Color, Limits, Subscription};
 use cosmic::iced_core::alignment::Vertical;
 use cosmic::iced_core::keyboard::key::Named;
 use cosmic::iced_core::keyboard::Key;
+use cosmic::iced_core::text::LineHeight;
 use cosmic::iced_core::{Border, Padding, Rectangle, Shadow};
 use cosmic::iced_runtime::core::event::wayland::LayerEvent;
 use cosmic::iced_runtime::core::event::{wayland, PlatformSpecific};
@@ -41,8 +42,9 @@ use cosmic::theme::{self, Button, TextInput};
 use cosmic::widget::button::StyleSheet as ButtonStyleSheet;
 use cosmic::widget::icon::from_name;
 use cosmic::widget::text::body;
-use cosmic::widget::{button, icon, search_input, text_input, tooltip, Column};
+use cosmic::widget::{button, icon, search_input, text_input, tooltip, Checkbox, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
+use cosmic_app_list_config::AppListConfig;
 use freedesktop_desktop_entry::PathSource;
 use itertools::Itertools;
 use log::error;
@@ -193,6 +195,7 @@ struct CosmicAppLibrary {
     gpus: Option<Vec<Gpu>>,
     last_hide: Option<Instant>,
     duplicates: HashMap<PathBuf, AppSource>,
+    app_list_config: AppListConfig,
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -278,6 +281,9 @@ enum Message {
     LeaveDndOffer,
     ScrollYOffset(f32),
     GpuUpdate(Option<Vec<Gpu>>),
+    PinToAppTray(usize),
+    UnPinFromAppTray(usize),
+    AppListConfig(AppListConfig),
 }
 
 #[derive(Clone)]
@@ -696,6 +702,26 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::GpuUpdate(gpus) => {
                 self.gpus = gpus;
             }
+            Message::PinToAppTray(usize) => {
+                let pinned_id = self.entry_path_input.get(usize).map(|e| e.id.clone());
+                if let Some((pinned_id, app_list_helper)) = pinned_id
+                    .zip(Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok())
+                {
+                    self.app_list_config.add_pinned(pinned_id, &app_list_helper);
+                }
+            }
+            Message::UnPinFromAppTray(usize) => {
+                let pinned_id = self.entry_path_input.get(usize).map(|e| e.id.clone());
+                if let Some((pinned_id, app_list_helper)) = pinned_id
+                    .zip(Config::new(cosmic_app_list_config::APP_ID, AppListConfig::VERSION).ok())
+                {
+                    self.app_list_config
+                        .remove_pinned(&pinned_id, &app_list_helper);
+                }
+            }
+            Message::AppListConfig(config) => {
+                self.app_list_config = config;
+            }
         }
         Command::none()
     }
@@ -783,6 +809,35 @@ impl cosmic::Application for CosmicAppLibrary {
                     );
                 }
             }
+
+            // add to pinned
+            let spacing_xxs = cosmic.spacing.space_xxs;
+            let svg_accent = Rc::new(|theme: &cosmic::Theme| {
+                let color = theme.cosmic().accent_color().into();
+                svg::Appearance { color: Some(color) }
+            });
+            let is_pinned = self.app_list_config.favorites.iter().any(|p| p == &menu.id);
+            let pin_to_app_tray = menu_button(
+                if is_pinned {
+                    row![
+                        icon(from_name("checkbox-checked-symbolic").into())
+                            .size(16)
+                            .style(cosmic::theme::Svg::Custom(svg_accent.clone())),
+                        body(fl!("pin-to-app-tray"))
+                    ]
+                } else {
+                    row![horizontal_space(16.0), body(fl!("pin-to-app-tray"))]
+                }
+                .spacing(spacing_xxs),
+            )
+            .on_press(if is_pinned {
+                Message::UnPinFromAppTray(*i)
+            } else {
+                Message::PinToAppTray(*i)
+            });
+            list_column.push(menu_divider(spacing).into());
+            list_column.push(pin_to_app_tray.into());
+
             if self.cur_group > 0 {
                 list_column.push(menu_divider(spacing).into());
                 list_column.push(
@@ -1301,6 +1356,11 @@ impl cosmic::Application for CosmicAppLibrary {
                     }) => Some(Message::Hide),
                     _ => None,
                 }),
+                self.core
+                    .watch_config::<cosmic_app_list_config::AppListConfig>(
+                        cosmic_app_list_config::APP_ID,
+                    )
+                    .map(|config| Message::AppListConfig(config.config)),
             ]
             .into_iter(),
         )
