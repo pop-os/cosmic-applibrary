@@ -10,6 +10,7 @@ save = Save
 cancel = Cancel
 search-placeholder = Type to search apps...
 new-group-placeholder = Folder Name
+pin-to-app-tray = Pin to App Tray
 run = Run
 run-on = Run on {$gpu}
 run-on-default = (Default)

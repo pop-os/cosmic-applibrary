@@ -949,6 +949,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "cosmic-app-list-config",
  "current_locale",
  "freedesktop-desktop-entry",
  "freedesktop-icons",
@@ -972,6 +973,15 @@ dependencies = [
  "url",
  "xdg",
  "zbus 4.2.2",
+]
+
+[[package]]
+name = "cosmic-app-list-config"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/cosmic-applets?branch=wip-overflow#5529ed5b631919f1fcfd8ec3257bc902e1121da3"
+dependencies = [
+ "libcosmic",
+ "serde",
 ]
 
 [[package]]
@@ -1014,6 +1024,21 @@ source = "git+https://github.com/pop-os/libcosmic/#deb0348ad260f8f61ba6bf7e275ea
 dependencies = [
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "cosmic-panel-config"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/cosmic-panel#05420b20035cdb9f2fa52517e9c5abce9e0f0bb5"
+dependencies = [
+ "anyhow",
+ "cosmic-config",
+ "ron",
+ "serde",
+ "smithay-client-toolkit",
+ "tracing",
+ "wayland-protocols-wlr",
+ "xdg-shell-wrapper-config",
 ]
 
 [[package]]
@@ -2890,6 +2915,7 @@ dependencies = [
  "chrono",
  "cosmic-client-toolkit",
  "cosmic-config",
+ "cosmic-panel-config",
  "cosmic-settings-daemon",
  "cosmic-theme",
  "css-color",
@@ -5154,6 +5180,7 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "wayland-scanner",
+ "wayland-server",
 ]
 
 [[package]]
@@ -5602,6 +5629,15 @@ checksum = "ca91dcf8f93db085f3a0a29358cd0b9d670915468f4290e8b85d118a34211ab8"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "xdg-shell-wrapper-config"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/xdg-shell-wrapper#b5480042615ecfcf30262d5a40625e8f430b474a"
+dependencies = [
+ "serde",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]
