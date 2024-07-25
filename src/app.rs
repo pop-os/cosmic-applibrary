@@ -255,7 +255,7 @@ enum Message {
     Layer(LayerEvent, SurfaceId),
     Hide,
     ActivateApp(usize, Option<usize>),
-    ActivationToken(Option<String>, String, Option<usize>),
+    ActivationToken(Option<String>, String, String, Option<usize>),
     SelectGroup(usize),
     Delete(usize),
     ConfirmDelete,
@@ -460,19 +460,20 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::ActivateApp(i, gpu_idx) => {
                 self.edit_name = None;
                 if let Some(de) = self.entry_path_input.get(i) {
+                    let app_id = de.id.clone();
                     let exec = de.exec.clone().unwrap();
                     return request_token(
                         Some(String::from(Self::APP_ID)),
                         Some(WINDOW_ID.clone()),
                         move |token| {
                             cosmic::app::Message::App(Message::ActivationToken(
-                                token, exec, gpu_idx,
+                                token, app_id, exec, gpu_idx,
                             ))
                         },
                     );
                 }
             }
-            Message::ActivationToken(token, exec, gpu_idx) => {
+            Message::ActivationToken(token, app_id, exec, gpu_idx) => {
                 let mut env_vars = Vec::new();
                 if let Some(token) = token {
                     env_vars.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
@@ -481,8 +482,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 if let (Some(gpus), Some(idx)) = (self.gpus.as_ref(), gpu_idx) {
                     env_vars.extend(gpus[idx].environment.clone().into_iter());
                 }
-                tokio::task::spawn_blocking(move || {
-                    cosmic::desktop::spawn_desktop_exec(exec, env_vars)
+                tokio::spawn(async move {
+                    cosmic::desktop::spawn_desktop_exec(exec, env_vars, Some(&app_id)).await
                 });
                 return self.update(Message::Hide);
             }
