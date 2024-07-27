@@ -10,6 +10,7 @@ save = Zapisz
 cancel = Anuluj
 search-placeholder = Napisz, by wyszukać aplikację...
 new-group-placeholder = Nazwa Katalogu
+pin-to-app-tray = Przypnij do Zasobnika Apek
 run = Uruchom
 run-on = Uruchom na {$gpu}
 run-on-default = (Domyślnie)
