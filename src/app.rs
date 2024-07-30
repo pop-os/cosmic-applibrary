@@ -319,8 +319,17 @@ pub fn menu_control_padding() -> Padding {
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
         let locale = self.locale.as_deref();
+        let xdg_current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
         self.all_entries = cosmic::desktop::load_applications_filtered(locale, |entry| {
-            entry.exec().is_some() && !entry.no_display()
+            entry.exec().is_some()
+                && !entry.no_display()
+                && xdg_current_desktop
+                    .as_ref()
+                    .zip(entry.only_show_in())
+                    .map(|(xdg_current_desktop, only_show_in)| {
+                        only_show_in.contains(xdg_current_desktop)
+                    })
+                    .unwrap_or(true)
         })
         .into_iter()
         .map(Arc::new)
