@@ -69,6 +69,7 @@ static NEW_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("new_group"));
 static SUBMIT_DELETE_ID: Lazy<Id> = Lazy::new(|| Id::new("cancel_delete"));
 
 static CREATE_NEW: Lazy<String> = Lazy::new(|| fl!("create-new"));
+static ADD_GROUP: Lazy<String> = Lazy::new(|| fl!("add-group"));
 static SEARCH_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("search-placeholder"));
 static NEW_GROUP_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("new-group-placeholder"));
 static SAVE: Lazy<String> = Lazy::new(|| fl!("save"));
@@ -1184,7 +1185,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .height(Length::Fixed(group_icon_size))
                     )
                     .padding(spacing.space_xxs),
-                    text("Add group")
+                    text(&fl!("add-group").as_str())
                         .size(14.0)
                         .horizontal_alignment(Horizontal::Center)
                 ]
