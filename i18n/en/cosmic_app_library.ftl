@@ -16,6 +16,7 @@ run-on = Run on {$gpu}
 run-on-default = (Default)
 remove = Move to library home
 create-new = Create new folder
+add-group = Add group
 delete = Delete
 rename = Rename
 delete-folder = Delete folder?
