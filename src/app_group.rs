@@ -290,6 +290,7 @@ impl Default for AppLibraryConfig {
                             "org.gnome.Totem".to_string(),
                             "org.gnome.eog".to_string(),
                             "simple-scan".to_string(),
+                            "thunderbird".to_string(),
                         ],
                         exclude: Vec::new(),
                     },
@@ -303,6 +304,7 @@ impl Default for AppLibraryConfig {
                             "gnome-language-selector".to_string(),
                             "im-config".to_string(),
                             "org.freedesktop.IBus.Setup".to_string(),
+                            "system76-driver".to_string(),
                         ],
                         exclude: vec![
                             "com.system76.CosmicStore".to_string(),
@@ -315,7 +317,7 @@ impl Default for AppLibraryConfig {
                     icon: "folder-symbolic".to_string(),
                     filter: FilterType::Categories {
                         categories: vec!["Utility".to_string()],
-                        include: Vec::new(),
+                        include: vec!["nm-connection-editor".to_string()],
                         exclude: vec![
                             "com.system76.CosmicEdit".to_string(),
                             "com.system76.CosmicFiles".to_string(),
