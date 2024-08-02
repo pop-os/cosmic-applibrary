@@ -16,6 +16,7 @@ run-on = Uruchom na {$gpu}
 run-on-default = (Domyślnie)
 remove = Usuń
 create-new = Stwórz nowy katalog
+add-group = Dodaj katalog
 delete = Usuń
 rename = Zmień nazwę
 delete-folder = Usunąć katalog?
