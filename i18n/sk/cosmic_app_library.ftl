@@ -16,6 +16,7 @@ run-on = Spustiť na {$gpu}
 run-on-default = (Predvolené)
 remove = Presunúť do priečinku Domov
 create-new = Vytvoriť nový priečinok
+add-group = Pridať priečinok
 delete = Odstrániť
 rename = Premenovať
 delete-folder = Vymazať priečinok?
