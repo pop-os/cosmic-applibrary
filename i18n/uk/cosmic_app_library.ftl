@@ -16,6 +16,7 @@ run-on = Запустити на {$gpu}
 run-on-default = (типовій)
 remove = Перемістити до домівки бібліотеки
 create-new = Створити нову теку
+add-group = Додати категорію
 delete = Вилучити
 rename = Перейменувати
 delete-folder = Вилучити теку?
