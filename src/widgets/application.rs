@@ -113,7 +113,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                 name.to_string()
             }
         };
-        let content = button(
+        let content = button::custom(
             column![
                 image
                     .as_cosmic_icon()
