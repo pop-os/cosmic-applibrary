@@ -305,7 +305,7 @@ enum MenuAction {
 pub fn menu_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
 ) -> cosmic::widget::Button<'a, Message> {
-    cosmic::widget::button(content)
+    cosmic::widget::button::custom(content)
         .style(Button::AppletMenu)
         .padding(menu_control_padding())
         .width(Length::Fill)
@@ -899,7 +899,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .id(NEW_GROUP_ID.clone()),
                 container(
                     row![
-                        button(
+                        button::custom(
                             text(&CANCEL.as_str())
                                 .size(14.0)
                                 .horizontal_alignment(Horizontal::Center)
@@ -908,7 +908,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         .on_press(Message::CancelNewGroup)
                         .padding([spacing.space_xxs, spacing.space_s])
                         .width(142),
-                        button(
+                        button::custom(
                             text(&SAVE.as_str())
                                 .size(14.0)
                                 .horizontal_alignment(Horizontal::Center)
@@ -964,7 +964,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 .spacing(16),
                 container(
                     row![
-                        button(
+                        button::custom(
                             text(&CANCEL.as_str())
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
@@ -972,7 +972,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         .on_press(Message::CancelDelete)
                         .padding([spacing.space_xxs, spacing.space_m])
                         .width(142),
-                        button(
+                        button::custom(
                             text(&fl!("delete"))
                                 .horizontal_alignment(Horizontal::Center)
                                 .width(Length::Fill)
@@ -1046,7 +1046,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     horizontal_space(Length::Fill),
                     tooltip(
                         {
-                            let mut b = button(
+                            let mut b = button::custom(
                                 icon(from_name("edit-symbolic").into())
                                     .width(Length::Fixed(32.0))
                                     .height(Length::Fixed(32.0)),
@@ -1065,7 +1065,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     ),
                     tooltip(
                         container(
-                            button(
+                            button::custom(
                                 icon(from_name("edit-delete-symbolic").into())
                                     .width(Length::Fixed(32.0))
                                     .height(Length::Fixed(32.0)),
@@ -1174,15 +1174,19 @@ impl cosmic::Application for CosmicAppLibrary {
         .max_height(444.0);
 
         // TODO use the spacing variables from the theme
-        let (group_icon_size, h_padding, group_width, group_height, chunks) =
-            if self.config.groups().len() > 15 {
-                (16.0, spacing.space_xxs, 96.0, 60.0, 11)
-            } else {
-                (32.0, spacing.space_s, 128.0, 76.0, 8)
-            };
+        let (group_icon_size, h_padding, group_width, chunks) = if self.config.groups().len() > 15 {
+            (16.0, spacing.space_xxs, 96.0, 11)
+        } else {
+            (32.0, spacing.space_s, 128.0, 8)
+        };
+        let group_height = group_icon_size
+            + (h_padding as f32)
+            + 20.0
+            + (spacing.space_none as f32)
+            + (spacing.space_xxs as f32);
 
         let mut add_group_btn = Some(
-            button(
+            button::custom(
                 column![
                     container(
                         icon(from_name("folder-new-symbolic").into())

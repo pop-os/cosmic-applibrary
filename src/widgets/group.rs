@@ -66,7 +66,7 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
         height: f32,
         spacing: &Spacing,
     ) -> Self {
-        let content = button(
+        let content = button::custom(
             column![
                 container(
                     icon(from_name(icon_name).into())
