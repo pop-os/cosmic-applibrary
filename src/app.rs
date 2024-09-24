@@ -1180,10 +1180,10 @@ impl cosmic::Application for CosmicAppLibrary {
             (32.0, spacing.space_s, 128.0, 8)
         };
         let group_height = group_icon_size
-            + (h_padding as f32)
             + 20.0
             + (spacing.space_none as f32)
-            + (spacing.space_xxs as f32);
+            + (spacing.space_xxs as f32)
+            + (spacing.space_s as f32);
 
         let mut add_group_btn = Some(
             button::custom(
