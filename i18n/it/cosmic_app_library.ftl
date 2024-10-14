@@ -1,4 +1,4 @@
-cosmic-app-library = Cosmic App Library
+cosmic-app-library = COSMIC App Library
 cosmic-library-home = Library Home
 cosmic-office = Ufficio
 cosmic-system = Sistema
@@ -10,7 +10,7 @@ save = Salva
 cancel = Annulla
 search-placeholder = Digita per cercare...
 new-group-placeholder = Nome cartella
-pin-to-app-tray = Blocca sul Tray to App Tray
+pin-to-app-tray = Fissa sulla barra della app
 run = Esegui
 run-on = Esegui usando: {$gpu}
 run-on-default = (Default)
