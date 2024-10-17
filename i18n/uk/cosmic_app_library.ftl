@@ -1,4 +1,4 @@
-cosmic-app-library = Бібліотека застосунків Cosmic
+cosmic-app-library = Бібліотека застосунків COSMIC
 cosmic-library-home = Домівка бібліотеки
 cosmic-office = Офіс
 cosmic-system = Система

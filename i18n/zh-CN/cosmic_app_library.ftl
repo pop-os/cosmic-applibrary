@@ -1,4 +1,4 @@
-cosmic-app-library = Cosmic 应用库
+cosmic-app-library = COSMIC 应用库
 cosmic-library-home = 应用库首页
 cosmic-system = 系统
 cosmic-utilities = 社区

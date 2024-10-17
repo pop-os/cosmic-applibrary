@@ -1,4 +1,4 @@
-cosmic-app-library = Biblioteca de Aplicativos Cosmic
+cosmic-app-library = Biblioteca de Aplicativos COSMIC
 cosmic-library-home = Aplicativos
 cosmic-office = Escritório
 cosmic-system = Sistema
