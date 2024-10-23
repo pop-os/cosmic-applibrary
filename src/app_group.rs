@@ -1,14 +1,13 @@
-use std::sync::Arc;
-use std::vec;
+use std::{sync::Arc, vec};
 
-use cosmic::cosmic_config::cosmic_config_derive::CosmicConfigEntry;
-use cosmic::cosmic_config::{self, CosmicConfigEntry};
-use cosmic::desktop::DesktopEntryData;
+use cosmic::{
+    cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, CosmicConfigEntry},
+    desktop::DesktopEntryData,
+};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use crate::config::APP_ID;
-use crate::fl;
+use crate::{config::APP_ID, fl};
 
 static HOME: Lazy<[AppGroup; 1]> = Lazy::new(|| {
     [AppGroup {
