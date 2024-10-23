@@ -1099,6 +1099,7 @@ dependencies = [
  "clap",
  "cosmic-app-list-config",
  "current_locale",
+ "dirs 5.0.1",
  "freedesktop-desktop-entry",
  "freedesktop-icons",
  "futures",
