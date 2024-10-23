@@ -45,13 +45,14 @@ use cosmic::widget::text::body;
 use cosmic::widget::{button, icon, search_input, text_input, tooltip, Checkbox, Column};
 use cosmic::{cctk::sctk, iced, Element, Theme};
 use cosmic_app_list_config::AppListConfig;
-use freedesktop_desktop_entry::PathSource;
+use freedesktop_desktop_entry::{DesktopEntry, PathSource};
 use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use switcheroo_control::Gpu;
+use tokio::io::AsyncWriteExt;
 
 use crate::app_group::AppLibraryConfig;
 use crate::fl;
@@ -284,6 +285,7 @@ enum Message {
     GpuUpdate(Option<Vec<Gpu>>),
     PinToAppTray(usize),
     UnPinFromAppTray(usize),
+    DesktopShortcut(usize),
     AppListConfig(AppListConfig),
 }
 
@@ -730,6 +732,20 @@ impl cosmic::Application for CosmicAppLibrary {
                         .remove_pinned(&pinned_id, &app_list_helper);
                 }
             }
+            Message::DesktopShortcut(i) => {
+                if let Some(entry) = self.entry_path_input.get(i) {
+                    let entry = Arc::clone(entry);
+                    return Command::perform(
+                        async move {
+                            if let Err(e) = desktop_shortcut(entry).await {
+                                error!("Failed copying desktop entry to desktop: {e:?}");
+                            }
+                            cosmic::app::Message::None
+                        },
+                        |x| x,
+                    );
+                }
+            }
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
             }
@@ -848,6 +864,13 @@ impl cosmic::Application for CosmicAppLibrary {
             });
             list_column.push(menu_divider(spacing).into());
             list_column.push(pin_to_app_tray.into());
+
+            // Desktop shortcut
+            list_column.push(
+                menu_button(body(fl!("add-desktop-shortcut")))
+                    .on_press(Message::DesktopShortcut(*i))
+                    .into(),
+            );
 
             if self.cur_group > 0 {
                 list_column.push(menu_divider(spacing).into());
@@ -1436,4 +1459,16 @@ fn menu_divider<'a>(spacing: &Spacing) -> Container<'a, Message, cosmic::Theme, 
     container(horizontal_rule(1))
         .padding([spacing.space_none, spacing.space_xxs])
         .width(Length::Fill)
+}
+
+/// Copy application desktop entry to the user's desktop
+async fn desktop_shortcut(entry: Arc<DesktopEntryData>) -> tokio::io::Result<u64> {
+    let source = entry
+        .path
+        .as_deref()
+        .ok_or(tokio::io::Error::other("Desktop entry doesn't have a path"))?;
+    let dest = dirs::desktop_dir()
+        .ok_or(tokio::io::Error::other("User doesn't have a desktop dir"))?
+        .join(format!("{}.desktop", &*entry.name));
+    tokio::fs::copy(source, dest).await
 }
