@@ -1,31 +1,33 @@
 //! A widget that can be dragged and dropped.
 
-use std::cell::RefCell;
-use std::path::PathBuf;
-use std::{iter, mem};
+use std::{cell::RefCell, iter, mem, path::PathBuf};
 
-use cosmic::cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
-use cosmic::cosmic_theme::Spacing;
-use cosmic::iced::alignment::Vertical;
-use cosmic::iced::wayland::actions::data_device::{DataFromMimeType, DndIcon};
-use cosmic::iced::{Size, Vector};
-use cosmic::iced_core::alignment::Horizontal;
-use cosmic::iced_core::event::{wayland, PlatformSpecific};
-use cosmic::iced_runtime::command::platform_specific;
+use cosmic::{
+    cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction,
+    iced::{
+        alignment::Vertical,
+        wayland::actions::data_device::{DataFromMimeType, DndIcon},
+        Size, Vector,
+    },
+    iced_core::{
+        alignment::Horizontal,
+        event::{wayland, PlatformSpecific},
+    },
+    iced_runtime::platform_specific,
+};
 
 use cosmic::iced_core::{
     event, layout, mouse, overlay, renderer, touch, Alignment, Clipboard, Event, Length, Point,
     Rectangle, Shell, Widget,
 };
 
-use cosmic::desktop::DesktopEntryData;
-use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
-use cosmic::widget::container;
-use cosmic::Element;
 use cosmic::{
+    desktop::DesktopEntryData,
     iced::widget::{column, text},
+    iced_core::widget::{tree, Operation, Tree},
     theme,
-    widget::button,
+    widget::{button, container},
+    Element,
 };
 
 use crate::app::{AppSource, DND_ICON_ID, WINDOW_ID};
@@ -76,10 +78,13 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         }: &'a DesktopEntryData,
         on_right_release: impl Fn(Rectangle) -> Message + 'a,
         on_pressed: Option<Message>,
-        spacing: &Spacing,
         source: Option<&AppSource>,
         selected: bool,
     ) -> Self {
+        let cosmic::cosmic_theme::Spacing {
+            space_xxs, space_s, ..
+        } = theme::active().cosmic().spacing;
+
         let (source_icon, source_suffix_len) = match source {
             Some(source) => {
                 let source_name = source.to_string();
@@ -126,14 +131,14 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             ]
             .width(Length::Fixed(120.0))
             .height(Length::Fixed(120.0))
-            .spacing(spacing.space_xxs)
+            .spacing(space_xxs)
             .align_items(Alignment::Center)
             .width(Length::Fill),
         )
         .selected(selected)
         .width(Length::FillPortion(1))
         .style(theme::Button::IconVertical)
-        .padding(spacing.space_s)
+        .padding(space_s)
         .on_press_maybe(on_pressed.clone())
         .into();
         Self {
@@ -281,7 +286,7 @@ where
         tree: &mut Tree,
         layout: layout::Layout<'_>,
         renderer: &cosmic::Renderer,
-        operation: &mut dyn Operation<OperationOutputWrapper<Message>>,
+        operation: &mut dyn Operation<()>,
     ) {
         operation.container(None, layout.bounds(), &mut |operation| {
             self.content.as_widget().operate(
@@ -298,11 +303,13 @@ where
         tree: &'b mut Tree,
         layout: layout::Layout<'_>,
         renderer: &cosmic::Renderer,
+        translation: Vector,
     ) -> Option<overlay::Element<'b, Message, cosmic::Theme, cosmic::Renderer>> {
         self.content.as_widget_mut().overlay(
             &mut tree.children[0],
             layout.children().next().unwrap(),
             renderer,
+            translation,
         )
     }
 

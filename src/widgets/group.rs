@@ -4,26 +4,28 @@ use std::mem;
 
 use std::str::FromStr;
 
-use cosmic::cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction;
-use cosmic::cosmic_theme::Spacing;
-use cosmic::iced_core::alignment::Horizontal;
-use cosmic::iced_core::event::{wayland, PlatformSpecific};
-use cosmic::iced_runtime::command::platform_specific;
-use cosmic::iced_widget::graphics::image::image_rs::EncodableLayout;
-
-use cosmic::iced_core::widget::{operation::OperationOutputWrapper, tree, Operation, Tree};
-use cosmic::iced_core::{
-    event, layout, mouse, overlay, renderer, Alignment, Clipboard, Element, Event, Length, Padding,
-    Point, Rectangle, Shell, Widget,
+use cosmic::{
+    cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction,
+    iced::Vector,
+    iced_core::{
+        alignment::Horizontal,
+        event::{wayland, PlatformSpecific},
+    },
+    iced_runtime::platform_specific,
+    iced_widget::graphics::image::image_rs::EncodableLayout,
+    theme,
 };
 
-use cosmic::desktop::{load_desktop_file, DesktopEntryData};
-use cosmic::widget::container;
-use cosmic::widget::icon::from_name;
+use cosmic::iced_core::{
+    event, layout, mouse, overlay, renderer,
+    widget::{tree, Operation, Tree},
+    Alignment, Clipboard, Element, Event, Length, Padding, Point, Rectangle, Shell, Widget,
+};
+
 use cosmic::{
+    desktop::{load_desktop_file, DesktopEntryData},
     iced::widget::{column, text},
-    theme,
-    widget::{button, icon},
+    widget::{button, container, icon, icon::from_name},
 };
 
 use super::application::MIME_TYPE;
@@ -64,8 +66,8 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
         padding: impl Into<Padding>,
         width: f32,
         height: f32,
-        spacing: &Spacing,
     ) -> Self {
+        let space_xxs = theme::active().cosmic().spacing.space_xxs;
         let content = button::custom(
             column![
                 container(
@@ -73,7 +75,7 @@ impl<'a, Message: Clone + 'static> GroupButton<'a, Message> {
                         .width(Length::Fixed(icon_size))
                         .height(Length::Fixed(icon_size))
                 )
-                .padding(spacing.space_xxs),
+                .padding(space_xxs),
                 text(name).horizontal_alignment(Horizontal::Center).size(14)
             ]
             .align_items(Alignment::Center)
@@ -211,7 +213,7 @@ where
         tree: &mut Tree,
         layout: layout::Layout<'_>,
         renderer: &cosmic::Renderer,
-        operation: &mut dyn Operation<OperationOutputWrapper<Message>>,
+        operation: &mut dyn Operation<()>,
     ) {
         operation.container(None, layout.bounds(), &mut |operation| {
             self.content.as_widget().operate(
@@ -228,11 +230,13 @@ where
         tree: &'b mut Tree,
         layout: layout::Layout<'_>,
         renderer: &cosmic::Renderer,
+        translate: Vector,
     ) -> Option<overlay::Element<'b, Message, cosmic::Theme, cosmic::Renderer>> {
         self.content.as_widget_mut().overlay(
             &mut tree.children[0],
             layout.children().next().unwrap(),
             renderer,
+            translate,
         )
     }
 

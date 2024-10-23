@@ -1,7 +1,6 @@
-use cosmic::iced::subscription;
+use cosmic::iced::Subscription;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
-use std::fmt::Debug;
-use std::hash::Hash;
+use std::{fmt::Debug, hash::Hash};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 #[derive(Debug)]
