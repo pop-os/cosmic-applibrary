@@ -109,8 +109,10 @@ static SYSTEM: Lazy<String> = Lazy::new(|| fl!("system"));
 
 pub(crate) static WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 static NEW_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+static NEW_GROUP_AUTOSIZE_ID: Lazy<cosmic::widget::Id> = Lazy::new(|| cosmic::widget::Id::unique());
 static DELETE_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
-pub(crate) static DND_ICON_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+static DELETE_GROUP_AUTOSIZE_ID: Lazy<cosmic::widget::Id> =
+    Lazy::new(|| cosmic::widget::Id::unique());
 pub(crate) static MENU_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 pub(crate) static MENU_AUTOSIZE_ID: Lazy<cosmic::widget::Id> =
     Lazy::new(|| cosmic::widget::Id::unique());
@@ -789,18 +791,6 @@ impl cosmic::Application for CosmicAppLibrary {
             ..
         } = theme::active().cosmic().spacing;
 
-        if id == DND_ICON_ID.clone() {
-            let Some(icon_source) = self
-                .dnd_icon
-                .and_then(|i| self.entry_path_input.get(i).map(|e| &e.icon))
-            else {
-                return container(horizontal_space())
-                    .width(Length::Fixed(1.0))
-                    .height(Length::Fixed(1.0))
-                    .into();
-            };
-            return icon_source.as_cosmic_icon().size(32).into();
-        }
         if id == MENU_ID.clone() {
             let Some((menu, i)) = self
                 .menu
@@ -965,24 +955,27 @@ impl cosmic::Application for CosmicAppLibrary {
             ]
             .align_x(Alignment::Center)
             .spacing(space_s);
-            return container(dialog)
-                .class(theme::Container::Custom(Box::new(|theme| {
-                    container::Style {
-                        text_color: Some(theme.cosmic().on_bg_color().into()),
-                        icon_color: Some(theme.cosmic().on_bg_color().into()),
-                        background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border: Border {
-                            color: theme.cosmic().bg_divider().into(),
-                            radius: theme.cosmic().corner_radii.radius_m.into(),
-                            width: 1.0,
-                        },
-                        shadow: Shadow::default(),
-                    }
-                })))
-                .width(Length::Shrink)
-                .height(Length::Shrink)
-                .padding(space_s)
-                .into();
+            return autosize(
+                container(dialog)
+                    .class(theme::Container::Custom(Box::new(|theme| {
+                        container::Style {
+                            text_color: Some(theme.cosmic().on_bg_color().into()),
+                            icon_color: Some(theme.cosmic().on_bg_color().into()),
+                            background: Some(Color::from(theme.cosmic().background.base).into()),
+                            border: Border {
+                                color: theme.cosmic().bg_divider().into(),
+                                radius: theme.cosmic().corner_radii.radius_m.into(),
+                                width: 1.0,
+                            },
+                            shadow: Shadow::default(),
+                        }
+                    })))
+                    .width(Length::Shrink)
+                    .height(Length::Shrink)
+                    .padding(space_s),
+                NEW_GROUP_AUTOSIZE_ID.clone(),
+            )
+            .into();
         }
         if id == DELETE_GROUP_WINDOW_ID.clone() {
             let dialog = column![
@@ -1029,24 +1022,27 @@ impl cosmic::Application for CosmicAppLibrary {
             ]
             .align_x(Alignment::Center)
             .spacing(space_l);
-            return container(dialog)
-                .class(theme::Container::Custom(Box::new(|theme| {
-                    container::Style {
-                        text_color: Some(theme.cosmic().on_bg_color().into()),
-                        icon_color: Some(theme.cosmic().on_bg_color().into()),
-                        background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border: Border {
-                            color: theme.cosmic().bg_divider().into(),
-                            radius: theme.cosmic().corner_radii.radius_m.into(),
-                            width: 1.0,
-                        },
-                        shadow: Shadow::default(),
-                    }
-                })))
-                .width(Length::Shrink)
-                .height(Length::Shrink)
-                .padding(space_m)
-                .into();
+            return autosize(
+                container(dialog)
+                    .class(theme::Container::Custom(Box::new(|theme| {
+                        container::Style {
+                            text_color: Some(theme.cosmic().on_bg_color().into()),
+                            icon_color: Some(theme.cosmic().on_bg_color().into()),
+                            background: Some(Color::from(theme.cosmic().background.base).into()),
+                            border: Border {
+                                color: theme.cosmic().bg_divider().into(),
+                                radius: theme.cosmic().corner_radii.radius_m.into(),
+                                width: 1.0,
+                            },
+                            shadow: Shadow::default(),
+                        }
+                    })))
+                    .width(Length::Shrink)
+                    .height(Length::Shrink)
+                    .padding(space_m),
+                DELETE_GROUP_AUTOSIZE_ID.clone(),
+            )
+            .into();
         }
 
         let cur_group = self.config.groups()[self.cur_group];
