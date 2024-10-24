@@ -1,4 +1,5 @@
 use cosmic::iced::Subscription;
+use futures::stream;
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{fmt::Debug, hash::Hash};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
@@ -21,15 +22,18 @@ pub enum DesktopFileEvent {
 pub fn desktop_files<I: 'static + Hash + Copy + Send + Sync + Debug>(
     id: I,
 ) -> cosmic::iced::Subscription<(I, DesktopFileEvent)> {
-    subscription::unfold(id, State::Ready, move |mut state| async move {
-        loop {
+    Subscription::run_with_id(
+        id,
+        stream::unfold(State::Ready, move |mut state| async move {
             let (event, new_state) = start_watching(id, state).await;
             state = new_state;
             if let Some(event) = event {
-                return (event, state);
+                return Some((event, state));
+            } else {
+                None
             }
-        }
-    })
+        }),
+    )
 }
 
 async fn start_watching<I: Copy>(id: I, state: State) -> (Option<(I, DesktopFileEvent)>, State) {

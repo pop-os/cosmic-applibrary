@@ -16,11 +16,10 @@ use cosmic::{
     },
     cosmic_config::{Config, CosmicConfigEntry},
     cosmic_theme::Spacing,
-    desktop::DesktopEntryData,
+    desktop::{load_desktop_file, DesktopEntryData},
     iced::{
         self,
         alignment::Horizontal,
-        application::{self, Appearance},
         event::listen_with,
         executor,
         id::Id,
@@ -49,15 +48,20 @@ use cosmic::{
             popup::{SctkPopupSettings, SctkPositioner},
         },
     },
-    iced_widget::{horizontal_space, mouse_area, text_input::focus, vertical_space},
-    iced_winit::{
-        commands::layer_surface::{destroy_layer_surface, get_layer_surface},
-        commands::{self, activation::request_token, popup::destroy_popup},
+    iced_widget::{horizontal_space, mouse_area, vertical_space},
+    iced_winit::commands::{
+        self,
+        activation::request_token,
+        layer_surface::{destroy_layer_surface, get_layer_surface},
+        popup::destroy_popup,
     },
     theme::{self, Button, TextInput},
     widget::{
         button::{self, Catalog as ButtonStyleSheet},
-        divider, icon, search_input, svg,
+        divider,
+        dnd_destination::dnd_destination_for_data,
+        icon::{self, from_name},
+        search_input, svg,
         text::body,
         text_input, tooltip, Column,
     },
@@ -76,7 +80,7 @@ use crate::{
     app_group::AppLibraryConfig,
     fl,
     subscriptions::desktop_files::desktop_files,
-    widgets::{application::ApplicationButton, group::GroupButton},
+    widgets::application::{AppletString, ApplicationButton},
 };
 
 // popovers should show options, but also the desktop info options
@@ -160,7 +164,7 @@ impl AppSource {
         let handle = crate::icon_cache::icon_cache_handle(name, 16);
         let symbolic = handle.symbolic;
 
-        Some(icon::from_svg_bytes(handle).size(16).style(if symbolic {
+        Some(icon::icon(handle).size(16).class(if symbolic {
             cosmic::theme::Svg::Custom(Rc::new(|t| {
                 let color = t.cosmic().on_primary_component_color().into();
                 svg::Style { color: Some(color) }
@@ -294,12 +298,11 @@ enum Message {
     CloseContextMenu,
     SelectAction(MenuAction),
     StartDrag(usize),
-    DndCommandProduced(DndCommand),
     FinishDrag(bool),
     CancelDrag,
     StartDndOffer(usize),
-    FinishDndOffer(usize, DesktopEntryData),
-    LeaveDndOffer,
+    FinishDndOffer(usize, Option<DesktopEntryData>),
+    LeaveDndOffer(usize),
     ScrollYOffset(f32),
     GpuUpdate(Option<Vec<Gpu>>),
     PinToAppTray(usize),
@@ -326,7 +329,7 @@ pub fn menu_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
 ) -> cosmic::widget::Button<'a, Message> {
     cosmic::widget::button::custom(content)
-        .style(Button::AppletMenu)
+        .class(Button::AppletMenu)
         .padding(menu_control_padding())
         .width(Length::Fill)
 }
@@ -495,12 +498,15 @@ impl cosmic::Application for CosmicAppLibrary {
                     return request_token(
                         Some(String::from(Self::APP_ID)),
                         Some(WINDOW_ID.clone()),
-                        /*move |token| {
-                            cosmic::app::Message::App(Message::ActivationToken(
-                                token, app_id, exec, gpu_idx,
-                            ))
-                        },*/
-                    );
+                    )
+                    .map(move |t| {
+                        cosmic::app::Message::App(Message::ActivationToken(
+                            t,
+                            app_id.clone(),
+                            exec.clone(),
+                            gpu_idx,
+                        ))
+                    });
                 }
             }
             Message::ActivationToken(token, app_id, exec, gpu_idx) => {
@@ -560,7 +566,7 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::StartEditName(name) => {
                 self.edit_name = Some(name);
-                return focus(EDIT_GROUP_ID.clone());
+                return text_input::focus(EDIT_GROUP_ID.clone());
             }
             Message::StartNewGroup => {
                 self.new_group = Some(String::new());
@@ -682,16 +688,15 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::CancelDrag => {
                 self.dnd_icon = None;
             }
-            Message::DndCommandProduced(DndCommand(cmd)) => {
-                let action = cmd();
-                return commands::data_device::action(action);
-            }
+
             Message::StartDndOffer(i) => {
                 self.offer_group = Some(i);
             }
             Message::FinishDndOffer(i, entry) => {
                 self.offer_group = None;
-
+                let Some(entry) = entry else {
+                    return Task::none();
+                };
                 self.config.add_entry(i, &entry.id);
                 if let Some(helper) = self.helper.as_ref() {
                     if let Err(err) = self.config.write_entry(helper) {
@@ -699,8 +704,8 @@ impl cosmic::Application for CosmicAppLibrary {
                     }
                 }
             }
-            Message::LeaveDndOffer => {
-                self.offer_group = None;
+            Message::LeaveDndOffer(i) => {
+                self.offer_group = self.offer_group.filter(|g| *g != i);
             }
             Message::ScrollYOffset(y) => {
                 self.scroll_offset = y;
@@ -837,7 +842,7 @@ impl cosmic::Application for CosmicAppLibrary {
             }
 
             if menu.desktop_actions.len() > 0 {
-                list_column.push(divider::horizontal::light());
+                list_column.push(divider::horizontal::light().into());
                 for action in menu.desktop_actions.iter() {
                     list_column.push(
                         menu_button(body(&action.name))
@@ -858,9 +863,8 @@ impl cosmic::Application for CosmicAppLibrary {
             let pin_to_app_tray = menu_button(
                 if is_pinned {
                     row![
-                        icon::from_name("checkbox-checked-symbolic")
-                            .size(16)
-                            .style(cosmic::theme::Svg::Custom(svg_accent.clone())),
+                        icon::icon(icon::from_name("checkbox-checked-symbolic").size(16).into())
+                            .class(cosmic::theme::Svg::Custom(svg_accent.clone())),
                         body(fl!("pin-to-app-tray"))
                     ]
                 } else {
@@ -873,11 +877,11 @@ impl cosmic::Application for CosmicAppLibrary {
             } else {
                 Message::PinToAppTray(*i)
             });
-            list_column.push(divider::horizontal::light());
+            list_column.push(divider::horizontal::light().into());
             list_column.push(pin_to_app_tray.into());
 
             if self.cur_group > 0 {
-                list_column.push(divider::horizontal::light());
+                list_column.push(divider::horizontal::light().into());
                 list_column.push(
                     menu_button(body(REMOVE.clone()))
                         .on_press(Message::SelectAction(MenuAction::Remove))
@@ -887,7 +891,7 @@ impl cosmic::Application for CosmicAppLibrary {
 
             return container(scrollable(Column::with_children(list_column)))
                 .padding([8, 0])
-                .style(theme::Container::Custom(Box::new(|theme| {
+                .class(theme::Container::Custom(Box::new(|theme| {
                     container::Style {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         background: Some(Color::from(theme.cosmic().background.base).into()),
@@ -927,21 +931,21 @@ impl cosmic::Application for CosmicAppLibrary {
                 container(
                     row![
                         button::custom(
-                            text(&CANCEL.as_str())
+                            text(CANCEL.to_string())
                                 .size(14.0)
-                                .horizontal_alignment(Horizontal::Center)
+                                .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
                         .on_press(Message::CancelNewGroup)
                         .padding([space_xxs, space_s])
                         .width(142),
                         button::custom(
-                            text(&SAVE.as_str())
+                            text(SAVE.to_string())
                                 .size(14.0)
-                                .horizontal_alignment(Horizontal::Center)
+                                .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
-                        .style(Button::Suggested)
+                        .class(Button::Suggested)
                         .on_press(Message::SubmitNewGroup)
                         .padding([space_xxs, space_s])
                         .width(142),
@@ -951,10 +955,10 @@ impl cosmic::Application for CosmicAppLibrary {
                 .width(Length::Fixed(432.0))
                 .align_x(Horizontal::Right)
             ]
-            .align_items(Alignment::Center)
+            .align_x(Alignment::Center)
             .spacing(space_s);
             return container(dialog)
-                .style(theme::Container::Custom(Box::new(|theme| {
+                .class(theme::Container::Custom(Box::new(|theme| {
                     container::Style {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
@@ -976,14 +980,14 @@ impl cosmic::Application for CosmicAppLibrary {
             let dialog = column![
                 row![
                     container(
-                        icon::from_name("edit-delete-symbolic")
+                        icon::icon(icon::from_name("edit-delete-symbolic").into())
                             .width(Length::Fixed(48.0))
                             .height(Length::Fixed(48.0))
                     )
                     .padding(8),
                     column![
-                        text(&fl!("delete-folder").as_str()).size(24),
-                        text(&fl!("delete-folder", "msg").as_str())
+                        text(fl!("delete-folder")).size(24),
+                        text(fl!("delete-folder", "msg"))
                     ]
                     .spacing(8)
                     .width(Length::Fixed(360.0))
@@ -992,20 +996,20 @@ impl cosmic::Application for CosmicAppLibrary {
                 container(
                     row![
                         button::custom(
-                            text(&CANCEL.as_str())
-                                .horizontal_alignment(Horizontal::Center)
+                            text(CANCEL.as_str())
+                                .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
                         .on_press(Message::CancelDelete)
                         .padding([space_xxs, space_m])
                         .width(142),
                         button::custom(
-                            text(&fl!("delete"))
-                                .horizontal_alignment(Horizontal::Center)
+                            text(fl!("delete"))
+                                .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
                         .id(SUBMIT_DELETE_ID.clone())
-                        .style(Button::Destructive)
+                        .class(Button::Destructive)
                         .on_press(Message::ConfirmDelete)
                         .padding([space_xxs, space_m])
                         .width(142),
@@ -1015,10 +1019,10 @@ impl cosmic::Application for CosmicAppLibrary {
                 .width(Length::Fixed(432.0))
                 .align_x(Horizontal::Right)
             ]
-            .align_items(Alignment::Center)
+            .align_x(Alignment::Center)
             .spacing(space_l);
             return container(dialog)
-                .style(theme::Container::Custom(Box::new(|theme| {
+                .class(theme::Container::Custom(Box::new(|theme| {
                     container::Style {
                         text_color: Some(theme.cosmic().on_bg_color().into()),
                         icon_color: Some(theme.cosmic().on_bg_color().into()),
@@ -1050,7 +1054,7 @@ impl cosmic::Application for CosmicAppLibrary {
             )
             .align_y(Vertical::Center)
             .height(Length::Fixed(96.0))]
-            .align_items(Alignment::Center)
+            .align_y(Alignment::Center)
             .spacing(space_xxs)
         } else {
             row![
@@ -1067,19 +1071,19 @@ impl cosmic::Application for CosmicAppLibrary {
                             .size(14),
                     )
                 } else {
-                    container(text(&cur_group.name()).size(24))
+                    container(text(cur_group.name()).size(24))
                 },
                 row![
                     horizontal_space(),
                     tooltip(
                         {
                             let mut b = button::custom(
-                                icon::from_name("edit-symbolic")
+                                icon::icon(icon::from_name("edit-symbolic").into())
                                     .width(Length::Fixed(32.0))
                                     .height(Length::Fixed(32.0)),
                             )
                             .padding(space_xs)
-                            .style(Button::Icon);
+                            .class(Button::Icon);
                             if self.edit_name.is_none() {
                                 b = b.on_press(Message::StartEditName(cur_group.name()));
                             }
@@ -1087,23 +1091,23 @@ impl cosmic::Application for CosmicAppLibrary {
                                 .height(Length::Fixed(96.0))
                                 .align_y(Vertical::Center)
                         },
-                        fl!("rename"),
+                        text(fl!("rename")),
                         tooltip::Position::Bottom
                     ),
                     tooltip(
                         container(
                             button::custom(
-                                icon::from_name("edit-delete-symbolic")
+                                icon::icon(icon::from_name("edit-delete-symbolic").into())
                                     .width(Length::Fixed(32.0))
                                     .height(Length::Fixed(32.0)),
                             )
                             .padding(space_xs)
-                            .style(Button::Icon)
+                            .class(Button::Icon)
                             .on_press(Message::Delete(self.cur_group))
                         )
                         .height(Length::Fixed(96.0))
                         .align_y(Vertical::Center),
-                        fl!("delete"),
+                        text(fl!("delete")),
                         tooltip::Position::Bottom
                     )
                 ]
@@ -1111,7 +1115,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 .width(Length::FillPortion(1))
             ]
             .padding([0, space_l])
-            .align_items(Alignment::Center)
+            .align_y(Alignment::Center)
         };
 
         // TODO grid widget in libcosmic
@@ -1133,7 +1137,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .and_then(|path| self.duplicates.get(path));
                 let selected = self.menu.is_some_and(|m| m == i);
 
-                let mut b = ApplicationButton::new(
+                let b = ApplicationButton::new(
                     &entry,
                     move |rect| Message::OpenContextMenu(rect, i),
                     if self.menu.is_none() {
@@ -1146,16 +1150,11 @@ impl cosmic::Application for CosmicAppLibrary {
                     // TODO add icon and text if duplicated
                     dup,
                     selected,
+                    self.menu.is_none().then_some(Message::StartDrag(i)),
+                    self.menu.is_none().then_some(Message::FinishDrag(false)),
+                    self.menu.is_none().then_some(Message::CancelDrag),
                 );
-                if self.menu.is_none() {
-                    b = b
-                        .on_cancel(Message::CancelDrag)
-                        .on_finish(Message::FinishDrag)
-                        .on_create_dnd_source(Message::StartDrag(i))
-                        .on_dnd_command_produced(|c| {
-                            Message::DndCommandProduced(DndCommand(Arc::new(c)))
-                        });
-                }
+
                 b.into()
             })
             .chunks(7)
@@ -1206,21 +1205,21 @@ impl cosmic::Application for CosmicAppLibrary {
             button::custom(
                 column![
                     container(
-                        icon::from_name("folder-new-symbolic")
+                        icon::icon(icon::from_name("folder-new-symbolic").into())
                             .width(Length::Fixed(group_icon_size))
                             .height(Length::Fixed(group_icon_size))
                     )
                     .padding(space_xxs),
-                    text(&fl!("add-group").as_str())
+                    text(fl!("add-group"))
                         .size(14.0)
-                        .horizontal_alignment(Horizontal::Center)
+                        .align_x(Horizontal::Center)
                 ]
-                .align_items(Alignment::Center)
+                .align_x(Alignment::Center)
                 .width(Length::Fill),
             )
             .height(Length::Fixed(group_height))
             .width(Length::Fixed(group_width))
-            .style(theme::Button::IconVertical)
+            .class(theme::Button::IconVertical)
             .padding([space_none, h_padding, space_xxs, h_padding])
             .on_press(Message::StartNewGroup),
         );
@@ -1233,54 +1232,66 @@ impl cosmic::Application for CosmicAppLibrary {
                 let mut group_row = row![]
                     .spacing(space_xxs)
                     .padding([space_s, space_none])
-                    .align_items(Alignment::Center);
+                    .align_y(Alignment::Center);
                 for (i, group) in groups.iter().enumerate() {
                     let i = i + chunk * chunks;
-                    let mut group_button = GroupButton::new(
-                        group.name(),
-                        &group.icon,
-                        if self.menu.is_some() {
-                            None
-                        } else {
-                            Some(Message::SelectGroup(i))
+                    let group_button = dnd_destination_for_data::<AppletString, Message>(
+                        button::custom(
+                            column![
+                                container(
+                                    icon::icon(from_name(group.icon.clone()).into())
+                                        .width(Length::Fixed(group_icon_size))
+                                        .height(Length::Fixed(group_icon_size))
+                                )
+                                .padding(space_xxs),
+                                text(group.name()).align_x(Horizontal::Center).size(14)
+                            ]
+                            .align_x(Alignment::Center)
+                            .width(Length::Fill),
+                        )
+                        .height(Length::Fixed(group_height))
+                        .width(Length::Fixed(group_width))
+                        .class(
+                            if self.offer_group == Some(i)
+                                || (self.cur_group == i && self.offer_group.is_none())
+                            {
+                                // TODO customize the IconVertical to highlight in the way we need
+                                Button::Custom {
+                                    active: Box::new(|focused, theme| {
+                                        let s =
+                                            theme.pressed(focused, false, &Button::IconVertical);
+                                        s
+                                    }),
+                                    disabled: Box::new(|theme| {
+                                        let s = theme.disabled(&Button::IconVertical);
+                                        s
+                                    }),
+                                    hovered: Box::new(|focused, theme| {
+                                        let s =
+                                            theme.hovered(focused, false, &Button::IconVertical);
+                                        s
+                                    }),
+                                    pressed: Box::new(|focused, theme| {
+                                        let s =
+                                            theme.pressed(focused, false, &Button::IconVertical);
+                                        s
+                                    }),
+                                }
+                            } else {
+                                Button::IconVertical
+                            },
+                        )
+                        .padding([space_none, h_padding, space_xxs, h_padding])
+                        .on_press_maybe(self.menu.is_none().then_some(Message::SelectGroup(i))),
+                        move |data, _| {
+                            Message::FinishDndOffer(
+                                i,
+                                data.and_then(|data| load_desktop_file(None, data.0)),
+                            )
                         },
-                        if self.offer_group == Some(i)
-                            || (self.cur_group == i && self.offer_group.is_none())
-                        {
-                            // TODO customize the IconVertical to highlight in the way we need
-                            Button::Custom {
-                                active: Box::new(|focused, theme| {
-                                    let s = theme.pressed(focused, false, &Button::IconVertical);
-                                    s
-                                }),
-                                disabled: Box::new(|theme| {
-                                    let s = theme.disabled(&Button::IconVertical);
-                                    s
-                                }),
-                                hovered: Box::new(|focused, theme| {
-                                    let s = theme.hovered(focused, false, &Button::IconVertical);
-                                    s
-                                }),
-                                pressed: Box::new(|focused, theme| {
-                                    let s = theme.pressed(focused, false, &Button::IconVertical);
-                                    s
-                                }),
-                            }
-                        } else {
-                            Button::IconVertical
-                        },
-                        group_icon_size,
-                        [space_none, h_padding, space_xxs, h_padding],
-                        group_width,
-                        group_height,
-                    );
-                    group_button = group_button
-                        .on_finish(move |entry| Message::FinishDndOffer(i, entry))
-                        .on_cancel(Message::LeaveDndOffer)
-                        .on_offer(Message::StartDndOffer(i))
-                        .on_dnd_command_produced(|c| {
-                            Message::DndCommandProduced(DndCommand(Arc::new(c)))
-                        });
+                    )
+                    .on_enter(move |_, _, _| Message::StartDndOffer(i))
+                    .on_leave(move || Message::LeaveDndOffer(i));
 
                     group_row = group_row.push(group_button);
                 }
@@ -1296,7 +1307,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 row![add_group_button]
                     .spacing(8)
                     .padding([space_s, space_none])
-                    .align_items(Alignment::Center),
+                    .align_y(Alignment::Center),
             );
         };
         let group_rows =
@@ -1310,13 +1321,13 @@ impl cosmic::Application for CosmicAppLibrary {
                 .width(Length::Fill),
             group_rows
         ]
-        .align_items(Alignment::Center);
+        .align_x(Alignment::Center);
 
         let window = container(content)
             .height(Length::Fill)
             .max_height(685)
             .max_width(1200.0)
-            .style(theme::Container::Custom(Box::new(|theme| {
+            .class(theme::Container::Custom(Box::new(|theme| {
                 container::Style {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
                     background: Some(Color::from(theme.cosmic().background.base).into()),
@@ -1380,7 +1391,7 @@ impl cosmic::Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 desktop_files(0).map(|_| Message::LoadApps),
-                listen_with(|e, _status| match e {
+                listen_with(|e, _status, _| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),
@@ -1399,16 +1410,6 @@ impl cosmic::Application for CosmicAppLibrary {
             ]
             .into_iter(),
         )
-    }
-
-    fn style(&self) -> Option<application::Appearance> {
-        Some(<application::Appearance>::Style::Custom(Box::new(
-            |theme| Appearance {
-                background_color: Color::from_rgba(0.0, 0.0, 0.0, 0.0),
-                text_color: theme.cosmic().on_bg_color().into(),
-                icon_color: theme.cosmic().on_bg_color().into(),
-            },
-        )))
     }
 
     fn core_mut(&mut self) -> &mut Core {

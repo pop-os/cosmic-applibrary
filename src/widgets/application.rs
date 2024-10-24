@@ -1,24 +1,21 @@
 //! A widget that can be dragged and dropped.
 
-use std::{cell::RefCell, iter, mem, path::PathBuf};
+use core::str;
+use std::{borrow::Cow, cell::RefCell, iter, path::PathBuf, str::FromStr};
 
 use cosmic::{
-    cctk::sctk::reexports::client::protocol::wl_data_device_manager::DndAction,
     iced::{
         alignment::Vertical,
-        wayland::actions::data_device::{DataFromMimeType, DndIcon},
+        clipboard::mime::{AllowedMimeTypes, AsMimeTypes},
         Size, Vector,
     },
-    iced_core::{
-        alignment::Horizontal,
-        event::{wayland, PlatformSpecific},
-    },
-    iced_runtime::platform_specific,
+    iced_core::alignment::Horizontal,
+    widget::dnd_source,
 };
 
 use cosmic::iced_core::{
-    event, layout, mouse, overlay, renderer, touch, Alignment, Clipboard, Event, Length, Point,
-    Rectangle, Shell, Widget,
+    event, layout, mouse, overlay, renderer, Alignment, Clipboard, Event, Length, Rectangle, Shell,
+    Widget,
 };
 
 use cosmic::{
@@ -30,7 +27,7 @@ use cosmic::{
     Element,
 };
 
-use crate::app::{AppSource, DND_ICON_ID, WINDOW_ID};
+use crate::app::AppSource;
 
 pub const MIME_TYPE: &str = "text/uri-list";
 const DRAG_THRESHOLD: f32 = 25.0;
@@ -42,25 +39,6 @@ pub struct ApplicationButton<'a, Message> {
     content: Element<'a, Message>,
 
     on_right_release: Box<dyn Fn(Rectangle) -> Message + 'a>,
-
-    on_create_dnd_source: Option<Message>,
-
-    on_finish: Option<Box<dyn Fn(bool) -> Message + 'a>>,
-
-    on_cancel: Option<Message>,
-
-    on_dnd_command_produced: Option<
-        Box<
-            dyn Fn(
-                    Box<
-                        dyn Send
-                            + Sync
-                            + Fn() -> platform_specific::wayland::data_device::ActionInner,
-                    >,
-                ) -> Message
-                + 'a,
-        >,
-    >,
 
     // Optional icon, and text
     source_icon: Option<Element<'a, Message>>,
@@ -80,6 +58,9 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         on_pressed: Option<Message>,
         source: Option<&AppSource>,
         selected: bool,
+        on_start: Option<Message>,
+        on_finish: Option<Message>,
+        on_cancel: Option<Message>,
     ) -> Self {
         let cosmic::cosmic_theme::Spacing {
             space_xxs, space_s, ..
@@ -92,7 +73,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                     source.as_icon().map(|i| {
                         Element::from(
                             container(i)
-                                .style(cosmic::theme::Container::Card)
+                                .class(cosmic::theme::Container::Card)
                                 .width(Length::Fixed(24.0))
                                 .height(Length::Fixed(24.0))
                                 .align_x(Horizontal::Center)
@@ -118,26 +99,44 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                 name.to_string()
             }
         };
+        let path_ = path.clone();
+        let image_clone = image.clone();
         let content = button::custom(
-            column![
-                image
-                    .as_cosmic_icon()
-                    .width(Length::Fixed(72.0))
-                    .height(Length::Fixed(72.0)),
-                text(name)
-                    .horizontal_alignment(Horizontal::Center)
-                    .size(14)
-                    .height(Length::Fixed(40.0))
-            ]
-            .width(Length::Fixed(120.0))
-            .height(Length::Fixed(120.0))
-            .spacing(space_xxs)
-            .align_items(Alignment::Center)
-            .width(Length::Fill),
+            dnd_source(
+                column![
+                    image
+                        .as_cosmic_icon()
+                        .width(Length::Fixed(72.0))
+                        .height(Length::Fixed(72.0)),
+                    text(name)
+                        .align_x(Horizontal::Center)
+                        .size(14)
+                        .height(Length::Fixed(40.0))
+                ]
+                .width(Length::Fixed(120.0))
+                .height(Length::Fixed(120.0))
+                .spacing(space_xxs)
+                .align_x(Alignment::Center)
+                .width(Length::Fill),
+            )
+            .drag_icon(move || {
+                (
+                    image_clone
+                        .as_cosmic_icon()
+                        .width(Length::Fixed(72.0))
+                        .height(Length::Fixed(72.0))
+                        .into(),
+                    tree::State::None,
+                )
+            })
+            .drag_content(move || AppletString(path_.clone().unwrap()))
+            .on_start(on_start)
+            .on_cancel(on_cancel)
+            .on_finish(on_finish),
         )
         .selected(selected)
         .width(Length::FillPortion(1))
-        .style(theme::Button::IconVertical)
+        .class(theme::Button::IconVertical)
         .padding(space_s)
         .on_press_maybe(on_pressed.clone())
         .into();
@@ -145,45 +144,8 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             path: path.clone().unwrap(),
             content,
             on_right_release: Box::new(on_right_release),
-            on_create_dnd_source: None,
-            on_dnd_command_produced: None,
-            on_finish: None,
-            on_cancel: None,
+
             source_icon,
-        }
-    }
-
-    pub fn on_dnd_command_produced(
-        self,
-        message: impl Fn(
-                Box<dyn Send + Sync + Fn() -> platform_specific::wayland::data_device::ActionInner>,
-            ) -> Message
-            + 'a,
-    ) -> Self {
-        Self {
-            on_dnd_command_produced: Some(Box::new(message)),
-            ..self
-        }
-    }
-
-    pub fn on_finish(self, message: impl Fn(bool) -> Message + 'a) -> Self {
-        Self {
-            on_finish: Some(Box::new(message)),
-            ..self
-        }
-    }
-
-    pub fn on_cancel(self, message: Message) -> Self {
-        Self {
-            on_cancel: Some(message),
-            ..self
-        }
-    }
-
-    pub fn on_create_dnd_source(self, message: Message) -> Self {
-        Self {
-            on_create_dnd_source: Some(message),
-            ..self
         }
     }
 }
@@ -332,7 +294,7 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) -> event::Status {
-        let mut ret = self.content.as_widget_mut().on_event(
+        let ret = self.content.as_widget_mut().on_event(
             &mut tree.children[0],
             event.clone(),
             layout.children().next().unwrap(),
@@ -360,97 +322,6 @@ where
                 }
                 _ => {}
             }
-        }
-
-        if let (
-            Some(on_dnd_command_produced),
-            Some(on_create_dnd_source),
-            Some(on_cancel),
-            Some(on_finish),
-        ) = (
-            self.on_dnd_command_produced.as_ref(),
-            self.on_create_dnd_source.as_ref(),
-            self.on_cancel.as_ref(),
-            self.on_finish.as_ref(),
-        ) {
-            state.dragging_state = match mem::take(&mut state.dragging_state) {
-                DraggingState::None => {
-                    // if no dragging state, listen for press events
-                    match &event {
-                        event::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left))
-                        | event::Event::Touch(touch::Event::FingerPressed { .. })
-                            if cursor_position.is_over(layout.bounds()) =>
-                        {
-                            ret = event::Status::Captured;
-                            DraggingState::Pressed(cursor_position.position().unwrap_or_default())
-                        }
-                        _ => DraggingState::None,
-                    }
-                }
-                DraggingState::Dragging(applet, copy) => match &event {
-                    event::Event::PlatformSpecific(PlatformSpecific::Wayland(
-                        wayland::Event::DataSource(wayland::DataSourceEvent::DndFinished),
-                    )) => {
-                        ret = event::Status::Captured;
-                        shell.publish(on_finish.as_ref()(copy));
-                        DraggingState::None
-                    }
-                    event::Event::PlatformSpecific(PlatformSpecific::Wayland(
-                        wayland::Event::DataSource(wayland::DataSourceEvent::Cancelled),
-                    )) => {
-                        ret = event::Status::Captured;
-                        shell.publish(on_cancel.clone());
-
-                        DraggingState::None
-                    }
-                    event::Event::PlatformSpecific(PlatformSpecific::Wayland(
-                        wayland::Event::DataSource(wayland::DataSourceEvent::DndActionAccepted(a)),
-                    )) => {
-                        ret = event::Status::Captured;
-                        DraggingState::Dragging(applet, a.contains(DndAction::Copy))
-                    }
-                    _ => DraggingState::Dragging(applet, copy),
-                },
-                DraggingState::Pressed(start) => {
-                    // if dragging state is pressed, listen for motion events or release events
-                    match &event {
-                        event::Event::Mouse(mouse::Event::CursorMoved { .. })
-                        | event::Event::Touch(touch::Event::FingerMoved { .. }) => {
-                            let pos = cursor_position.position().unwrap_or_default();
-                            let d_y = pos.y - start.y;
-                            let d_x = pos.x - start.x;
-                            let distance_squared = d_y * d_y + d_x * d_x;
-
-                            if distance_squared > DRAG_THRESHOLD {
-                                state.dragging_state =
-                                    DraggingState::Dragging(self.path.clone(), false);
-
-                                // TODO emit a dnd command
-                                shell.publish(on_create_dnd_source.clone());
-
-                                let p = self.path.to_path_buf();
-                                shell.publish((on_dnd_command_produced)(Box::new(move || {
-                                    platform_specific::wayland::data_device::ActionInner::StartDnd {
-                                        mime_types: vec![MIME_TYPE.to_string()],
-                                        actions: DndAction::Copy.union(DndAction::Move),
-                                        origin_id: WINDOW_ID.clone(),
-                                        icon_id: Some((
-                                            DndIcon::Custom(DND_ICON_ID.clone()),
-                                            cosmic::iced::Vector::default(),
-                                        )),
-                                        data: Box::new(AppletString(p.clone())),
-                                    }
-                                })));
-                                ret = event::Status::Captured;
-                                DraggingState::Dragging(self.path.clone(), false)
-                            } else {
-                                DraggingState::Pressed(start)
-                            }
-                        }
-                        _ => DraggingState::Pressed(start),
-                    }
-                }
-            };
         }
 
         ret
@@ -516,38 +387,49 @@ pub fn layout<'a, Renderer, M>(
 
 /// A string which can be sent to the clipboard or drag-and-dropped.
 #[derive(Debug, Clone)]
-pub struct AppletString(PathBuf);
+pub struct AppletString(pub PathBuf);
 
-impl DataFromMimeType for AppletString {
-    fn from_mime_type(&self, mime_type: &str) -> Option<Vec<u8>> {
-        if mime_type == MIME_TYPE {
-            let data = Some(
-                url::Url::from_file_path(self.0.clone())
-                    .ok()?
-                    .to_string()
-                    .as_bytes()
-                    .to_vec(),
-            );
-            data
+impl AllowedMimeTypes for AppletString {
+    fn allowed() -> std::borrow::Cow<'static, [String]> {
+        std::borrow::Cow::Owned(vec![MIME_TYPE.to_string()])
+    }
+}
+
+impl TryFrom<(Vec<u8>, String)> for AppletString {
+    type Error = anyhow::Error;
+
+    fn try_from((value, mime): (Vec<u8>, String)) -> Result<Self, Self::Error> {
+        if mime == MIME_TYPE {
+            Ok(AppletString(
+                url::Url::from_str(str::from_utf8(&value)?)?
+                    .to_file_path()
+                    .map_err(|_| anyhow::anyhow!("Invalid file path"))?,
+            ))
         } else {
-            None
+            Err(anyhow::anyhow!("Invalid mime"))
         }
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub enum DraggingState {
-    #[default]
-    /// No ongoing drag or press
-    None,
-    /// A draggable item was being pressed at the recorded point
-    Pressed(Point),
-    /// An item is being dragged
-    Dragging(PathBuf, bool),
+impl AsMimeTypes for AppletString {
+    fn available(&self) -> std::borrow::Cow<'static, [String]> {
+        std::borrow::Cow::Owned(vec![MIME_TYPE.to_string()])
+    }
+
+    fn as_bytes(&self, mime_type: &str) -> Option<std::borrow::Cow<'static, [u8]>> {
+        if mime_type != MIME_TYPE {
+            return None;
+        }
+        Some(Cow::Owned(
+            url::Url::from_file_path(self.0.clone())
+                .ok()?
+                .to_string()
+                .into_bytes(),
+        ))
+    }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct State {
-    dragging_state: DraggingState,
     right_press: bool,
 }
