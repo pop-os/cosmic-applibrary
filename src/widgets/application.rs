@@ -101,8 +101,8 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         };
         let path_ = path.clone();
         let image_clone = image.clone();
-        let content = button::custom(
-            dnd_source(
+        let content = dnd_source(
+            button::custom(
                 column![
                     image
                         .as_cosmic_icon()
@@ -119,26 +119,26 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                 .align_x(Alignment::Center)
                 .width(Length::Fill),
             )
-            .drag_icon(move || {
-                (
-                    image_clone
-                        .as_cosmic_icon()
-                        .width(Length::Fixed(72.0))
-                        .height(Length::Fixed(72.0))
-                        .into(),
-                    tree::State::None,
-                )
-            })
-            .drag_content(move || AppletString(path_.clone().unwrap()))
-            .on_start(on_start)
-            .on_cancel(on_cancel)
-            .on_finish(on_finish),
+            .selected(selected)
+            .width(Length::FillPortion(1))
+            .class(theme::Button::IconVertical)
+            .padding(space_s)
+            .on_press_maybe(on_pressed.clone()),
         )
-        .selected(selected)
-        .width(Length::FillPortion(1))
-        .class(theme::Button::IconVertical)
-        .padding(space_s)
-        .on_press_maybe(on_pressed.clone())
+        .drag_icon(move || {
+            (
+                image_clone
+                    .as_cosmic_icon()
+                    .width(Length::Fixed(72.0))
+                    .height(Length::Fixed(72.0))
+                    .into(),
+                tree::State::None,
+            )
+        })
+        .drag_content(move || AppletString(path_.clone().unwrap()))
+        .on_start(on_start)
+        .on_cancel(on_cancel)
+        .on_finish(on_finish)
         .into();
         Self {
             path: path.clone().unwrap(),
