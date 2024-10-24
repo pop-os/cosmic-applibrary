@@ -220,6 +220,7 @@ where
         cursor_position: mouse::Cursor,
         viewport: &Rectangle,
     ) {
+        use cosmic::iced_core::Renderer;
         self.content.as_widget().draw(
             &tree.children[0],
             renderer,
@@ -230,16 +231,23 @@ where
             viewport,
         );
 
-        if let Some(icon) = self.source_icon.as_ref() {
-            icon.as_widget().draw(
-                &tree.children[1],
-                renderer,
-                theme,
-                renderer_style,
-                layout.children().nth(1).unwrap(),
-                cursor_position,
-                viewport,
-            );
+        if let Some((icon, (l, bounds))) = self.source_icon.as_ref().zip(
+            layout
+                .children()
+                .nth(1)
+                .and_then(|l| viewport.intersection(&l.bounds()).map(|b| (l, b))),
+        ) {
+            renderer.with_layer(bounds, |renderer| {
+                icon.as_widget().draw(
+                    &tree.children[1],
+                    renderer,
+                    theme,
+                    renderer_style,
+                    l,
+                    cursor_position,
+                    viewport,
+                )
+            });
         }
     }
 
