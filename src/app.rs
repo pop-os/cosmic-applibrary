@@ -57,6 +57,7 @@ use cosmic::{
     },
     theme::{self, Button, TextInput},
     widget::{
+        autosize::autosize,
         button::{self, Catalog as ButtonStyleSheet},
         divider,
         dnd_destination::dnd_destination_for_data,
@@ -111,6 +112,8 @@ static NEW_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 static DELETE_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 pub(crate) static DND_ICON_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
 pub(crate) static MENU_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
+pub(crate) static MENU_AUTOSIZE_ID: Lazy<cosmic::widget::Id> =
+    Lazy::new(|| cosmic::widget::Id::unique());
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -889,26 +892,31 @@ impl cosmic::Application for CosmicAppLibrary {
                 );
             }
 
-            return container(scrollable(Column::with_children(list_column)))
-                .padding([8, 0])
-                .class(theme::Container::Custom(Box::new(|theme| {
-                    container::Style {
-                        text_color: Some(theme.cosmic().on_bg_color().into()),
-                        background: Some(Color::from(theme.cosmic().background.base).into()),
-                        border: Border {
-                            color: theme.cosmic().bg_divider().into(),
-                            radius: theme.cosmic().corner_radii.radius_m.into(),
-                            width: 1.0,
-                        },
-                        shadow: Shadow::default(),
-                        icon_color: Some(theme.cosmic().on_bg_color().into()),
-                    }
-                })))
-                .width(Length::Shrink)
-                .height(Length::Shrink)
-                .align_x(Horizontal::Center)
-                .align_y(Vertical::Top)
-                .into();
+            return autosize(
+                container(scrollable(Column::with_children(list_column)))
+                    .padding([8, 0])
+                    .class(theme::Container::Custom(Box::new(|theme| {
+                        container::Style {
+                            text_color: Some(theme.cosmic().on_bg_color().into()),
+                            background: Some(Color::from(theme.cosmic().background.base).into()),
+                            border: Border {
+                                color: theme.cosmic().bg_divider().into(),
+                                radius: theme.cosmic().corner_radii.radius_m.into(),
+                                width: 1.0,
+                            },
+                            shadow: Shadow::default(),
+                            icon_color: Some(theme.cosmic().on_bg_color().into()),
+                        }
+                    })))
+                    .width(Length::Shrink)
+                    .height(Length::Shrink)
+                    .align_x(Horizontal::Center)
+                    .align_y(Vertical::Top),
+                MENU_AUTOSIZE_ID.clone(),
+            )
+            .max_height(800.)
+            .max_width(300.)
+            .into();
         }
         if id == NEW_GROUP_WINDOW_ID.clone() {
             let Some(group_name) = self.new_group.as_ref() else {
