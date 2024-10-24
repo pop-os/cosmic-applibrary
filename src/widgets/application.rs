@@ -367,7 +367,7 @@ pub fn layout<'a, Renderer, M>(
     let content = layout_content(renderer, &limits);
     let size = limits.resolve(width, height, content.size());
     let mut children = vec![content];
-    let app_icon_node = &children[0].children()[0].children()[0];
+    let app_icon_node = &children[0].children()[0].children()[0].children()[0];
     if let Some(icon) = icon {
         let app_icon_size = app_icon_node.size();
         let mut icon_node = layout_icon(
