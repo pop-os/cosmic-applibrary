@@ -4,12 +4,12 @@ version = "0.1.0"
 authors = ["Ashley Wulber <ashley@system76.com>"]
 edition = "2021"
 [features]
-default = []
+default = ["wgpu"]
 wgpu = ["libcosmic/wgpu"]
 
 [dependencies]
 zbus = "4.2"
-libcosmic = { git = "https://github.com/pop-os/libcosmic/", branch = "notifications-card", features = [
+libcosmic = { git = "https://github.com/pop-os/libcosmic/", features = [
     "winit",
     "wayland",
     "tokio",
@@ -50,9 +50,9 @@ cosmic-app-list-config = { git = "https://github.com/pop-os/cosmic-applets" }
 [profile.release]
 lto = "thin"
 
-[patch."https://github.com/pop-os/libcosmic"]
-libcosmic = { git = "https://github.com/pop-os/libcosmic//", branch = "notifications-card" }
-cosmic-config = { git = "https://github.com/pop-os/libcosmic//", branch = "notifications-card" }
+# [patch."https://github.com/pop-os/libcosmic"]
+# libcosmic = { git = "https://github.com/pop-os/libcosmic//", branch = "notifications-card" }
+# cosmic-config = { git = "https://github.com/pop-os/libcosmic//", branch = "notifications-card" }
 
 # cosmic-config = { path = "../libcosmic/cosmic-config/" }
 # libcosmic = { path = "../libcosmic/" }
