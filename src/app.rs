@@ -263,7 +263,6 @@ impl CosmicAppLibrary {
                 cosmic::app::Message::App(Message::GpuUpdate(gpus))
             });
             return Task::batch(vec![
-                text_input::focus(SEARCH_ID.clone()),
                 get_layer_surface(SctkLayerSurfaceSettings {
                     id: WINDOW_ID.clone(),
                     keyboard_interactivity: KeyboardInteractivity::OnDemand,
@@ -273,7 +272,8 @@ impl CosmicAppLibrary {
                     ..Default::default()
                 }),
                 fetch_gpus,
-            ]);
+            ])
+            .chain(text_input::focus(SEARCH_ID.clone()));
         }
         Task::none()
     }
