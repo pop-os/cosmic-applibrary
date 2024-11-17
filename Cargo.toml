@@ -9,7 +9,8 @@ wgpu = ["libcosmic/wgpu"]
 
 [dependencies]
 zbus = "4.2"
-libcosmic = { git = "https://github.com/pop-os/libcosmic/", features = [
+libcosmic = { git = "https://github.com/jpttrssn/libcosmic/", branch = "launch-app-in-term", features = [
+    "autosize",
     "winit",
     "wayland",
     "tokio",
@@ -45,7 +46,7 @@ url = "2.4"
 nix = "0.28"
 clap = { version = "4.4.8", features = ["derive"] }
 switcheroo-control = { git = "https://github.com/pop-os/dbus-settings-bindings" }
-cosmic-app-list-config = { git = "https://github.com/pop-os/cosmic-applets" }
+cosmic-app-list-config = { git = "https://github.com/jpttrssn/cosmic-applets", branch = "launch-app-in-term" }
 
 [profile.release]
 lto = "thin"
