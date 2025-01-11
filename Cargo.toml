@@ -50,6 +50,9 @@ cosmic-app-list-config = { git = "https://github.com/pop-os/cosmic-applets" }
 [profile.release]
 lto = "thin"
 
+[patch."https://github.com/smithay/client-toolkit.git"]
+sctk = { package = "smithay-client-toolkit", version = "=0.19.2" }
+
 # [patch."https://github.com/pop-os/libcosmic"]
 # libcosmic = { git = "https://github.com/pop-os/libcosmic//", branch = "notifications-card" }
 # cosmic-config = { git = "https://github.com/pop-os/libcosmic//", branch = "notifications-card" }
