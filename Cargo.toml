@@ -39,7 +39,7 @@ ron = "0.8.0"
 notify = "*"
 anyhow = "1.0"
 itertools = "0.13"
-freedesktop-icons = "0.2.4"
+freedesktop-icons = { package = "cosmic-freedesktop-icons", git = "https://github.com/pop-os/freedesktop-icons" }
 current_locale = "0.1.1"
 url = "2.4"
 nix = "0.28"
