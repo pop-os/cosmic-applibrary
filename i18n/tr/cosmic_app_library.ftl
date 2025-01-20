@@ -1,4 +1,4 @@
-cosmic-app-library = Cosmic Uygulama Kitaplığı
+cosmic-app-library = COSMIC Uygulama Kitaplığı
 cosmic-library-home = Ana Sayfa
 cosmic-office = Ofis
 cosmic-system = Sistem

@@ -1,8 +1,8 @@
-cosmic-app-library = Cosmic Applikácíó könyvtár
+cosmic-app-library = COSMIC Applikácíó könyvtár
 cosmic-library-home = Könyvtár Kezdőlap
 cosmic-office = Office
 cosmic-system = Rendszer
-cosmic-utilities =  Segédprogramok 
+cosmic-utilities =  Segédprogramok
 new-group = Mappa készítése
 name = Név
 ok = Ok

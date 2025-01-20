@@ -1,4 +1,4 @@
-cosmic-app-library = کتابخانه برنامه Cosmic
+cosmic-app-library = کتابخانه برنامه COSMIC
 cosmic-library-home = خانه کتابخانه
 cosmic-office = آفیس
 cosmic-system = سیستم
