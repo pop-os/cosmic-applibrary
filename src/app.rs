@@ -920,7 +920,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .align_x(Horizontal::Left)
                     .width(Length::Fixed(432.0)),
                 text_input("", group_name)
-                    .label(&NEW_GROUP_PLACEHOLDER)
+                    .label(&*NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
                     .on_submit(Message::SubmitNewGroup)
                     .width(Length::Fixed(432.0))
