@@ -1,8 +1,10 @@
 [Desktop Entry]
 Name=Applications
 Name[pl]=Aplikacje
+Name[hu]=Alkalmazások
 Comment=COSMIC App Library shell application
 Comment[pl]=Aplikacja powłoki Biblioteka aplikacji COSMIC
+Comment[hu]=A COSMIC alkalmazáskönyvtár felületalkalmazása
 Type=Application
 Exec=cosmic-app-library
 Terminal=false
