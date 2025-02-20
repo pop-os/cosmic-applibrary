@@ -19,8 +19,8 @@
       <caption>Main window</caption>
     </screenshot>
   </screenshots> -->
-  <url type="homepage">https://gitlab.gnome.org/bilelmoussaoui/cosmic-app-library</url>
-  <url type="bugtracker">https://gitlab.gnome.org/bilelmoussaoui/cosmic-app-library/issues</url>
+  <url type="homepage">https://github.com/pop-os/cosmic-applibrary</url>
+  <url type="bugtracker">https://github.com/pop-os/cosmic-applibrary/issues</url>
   <content_rating type="oars-1.0" />
   <releases>
     <release version="0.1.0" date="2019-07-11" />
