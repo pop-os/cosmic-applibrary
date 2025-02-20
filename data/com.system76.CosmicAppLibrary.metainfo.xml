@@ -6,9 +6,12 @@
   <!-- Insert your license of choice here -->
   <!-- <project_license>MIT</project_license> -->
   <name>Cosmic App Library</name>
+  <name xml:lang="hu">COSMIC Alkalmazáskönyvtár</name>
   <summary>COSMIC desktop application library</summary>
+  <summary xml:lang="hu">A COSMIC asztali környezet alkalmazáskönyvtára</summary>
   <description>
     <p>The default application library for the COSMIC desktop</p>
+    <p xml:lang="hu">A COSMIC asztali környezet alapértelmezett alkalmazáskönyvtára</p>
   </description>
   <!-- <screenshots>
     <screenshot type="default">
