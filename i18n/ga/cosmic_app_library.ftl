@@ -1,8 +1,8 @@
 cosmic-app-library = Leabharlann Aipeanna COSMIC
-cosmic-library-home = Baile na Leabharlainne
+cosmic-library-home = Baile Leabharlainne
 cosmic-office = Oifig
 cosmic-system = Córas  
-cosmic-utilities = Uirlisí
+cosmic-utilities = Fóntais
 new-group = Cruthaigh Fillteán
 name = Ainm
 ok = Ceart go leor
