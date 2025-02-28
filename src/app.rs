@@ -574,6 +574,9 @@ impl cosmic::Application for CosmicAppLibrary {
                 return text_input::focus(EDIT_GROUP_ID.clone());
             }
             Message::StartNewGroup => {
+                if self.new_group.is_some() {
+                    return Task::none();
+                }
                 self.new_group = Some(String::new());
                 return Task::batch(vec![
                     get_layer_surface(SctkLayerSurfaceSettings {
