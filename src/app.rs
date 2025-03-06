@@ -8,7 +8,7 @@ use std::{
 
 use clap::Parser;
 use cosmic::{
-    app::{Core, CosmicFlags, DbusActivationDetails, DbusActivationMessage, Settings, Task},
+    app::{Core, CosmicFlags, Settings, Task},
     cctk::sctk::{
         self,
         data_device_manager::data_offer::DataDeviceOfferInner,
@@ -16,6 +16,7 @@ use cosmic::{
     },
     cosmic_config::{Config, CosmicConfigEntry},
     cosmic_theme::Spacing,
+    dbus_activation,
     desktop::{load_desktop_file, DesktopEntryData},
     iced::{
         self,
@@ -55,6 +56,7 @@ use cosmic::{
         layer_surface::{destroy_layer_surface, get_layer_surface},
         popup::destroy_popup,
     },
+    surface,
     theme::{self, Button, TextInput},
     widget::{
         autosize::autosize,
@@ -260,7 +262,7 @@ impl CosmicAppLibrary {
             self.cur_group = 0;
             self.load_apps();
             let fetch_gpus = Task::perform(try_get_gpus(), |gpus| {
-                cosmic::app::Message::App(Message::GpuUpdate(gpus))
+                cosmic::Action::App(Message::GpuUpdate(gpus))
             });
             return Task::batch(vec![
                 get_layer_surface(SctkLayerSurfaceSettings {
@@ -313,6 +315,7 @@ enum Message {
     PinToAppTray(usize),
     UnPinFromAppTray(usize),
     AppListConfig(AppListConfig),
+    Surface(surface::Action),
 }
 
 #[derive(Clone)]
@@ -417,7 +420,7 @@ impl CosmicAppLibrary {
                 },
                 |(input, apps)| Message::FilterApps(input, apps),
             )
-            .map(cosmic::app::Message::App)
+            .map(cosmic::Action::App)
         } else {
             iced::Task::none()
         }
@@ -428,7 +431,7 @@ impl CosmicAppLibrary {
         if self.dnd_icon.take().is_some() {
             return Task::batch(vec![
                 end_dnd(),
-                Task::perform(async {}, |_| cosmic::app::Message::App(Message::Hide)),
+                Task::perform(async {}, |_| cosmic::Action::App(Message::Hide)),
             ]);
         }
         self.active_surface = false;
@@ -505,7 +508,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         Some(WINDOW_ID.clone()),
                     )
                     .map(move |t| {
-                        cosmic::app::Message::App(Message::ActivationToken(
+                        cosmic::Action::App(Message::ActivationToken(
                             t,
                             app_id.clone(),
                             exec.clone(),
@@ -614,26 +617,28 @@ impl cosmic::Application for CosmicAppLibrary {
                 } else {
                     self.menu = Some(i);
                     return commands::popup::get_popup(SctkPopupSettings {
-                        parent: WINDOW_ID.clone(),
-                        id: MENU_ID.clone(),
-                        positioner: SctkPositioner {
-                            size: None,
-                            size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
-                            anchor_rect: Rectangle {
-                                x: rect.x as i32,
-                                y: rect.y as i32 - self.scroll_offset as i32,
-                                width: rect.width as i32,
-                                height: rect.height as i32,
-                            },
-                            anchor:
-                                sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
-                            gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
-                            reactive: true,
-                            ..Default::default()
-                        },
-                        grab: true,
-                        parent_size: None,
-                    });
+                                parent: WINDOW_ID.clone(),
+                                id: MENU_ID.clone(),
+                                positioner: SctkPositioner {
+                                    size: None,
+                                    size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
+                                    anchor_rect: Rectangle {
+                                        x: rect.x as i32,
+                                        y: rect.y as i32 - self.scroll_offset as i32,
+                                        width: rect.width as i32,
+                                        height: rect.height as i32,
+                                    },
+                                    anchor:
+                                        sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
+                                    gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
+                                    reactive: true,
+                                    ..Default::default()
+                                },
+                                grab: true,
+                                parent_size: None,
+                                close_with_children: true,
+                                input_zone: None,
+                            });
                 }
             }
             Message::CloseContextMenu => {
@@ -696,7 +701,6 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::CancelDrag => {
                 self.dnd_icon = None;
             }
-
             Message::StartDndOffer(i) => {
                 self.offer_group = Some(i);
             }
@@ -766,12 +770,17 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
             }
+            Message::Surface(a) => {
+                return cosmic::task::message(cosmic::Action::Cosmic(cosmic::app::Action::Surface(
+                    a,
+                )))
+            }
         }
         Task::none()
     }
 
-    fn dbus_activation(&mut self, msg: DbusActivationMessage) -> Task<Self::Message> {
-        if matches!(msg.msg, DbusActivationDetails::Activate) {
+    fn dbus_activation(&mut self, msg: dbus_activation::Message) -> Task<Self::Message> {
+        if matches!(msg.msg, dbus_activation::Details::Activate) {
             self.activate()
         } else {
             Task::none()
@@ -925,7 +934,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 text_input("", group_name)
                     .label(&*NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
-                    .on_submit(Message::SubmitNewGroup)
+                    .on_submit(|_| Message::SubmitNewGroup)
                     .width(Length::Fixed(432.0))
                     .size(14)
                     .id(NEW_GROUP_ID.clone()),
@@ -1072,7 +1081,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .on_input(Message::EditName)
                             .on_paste(Message::EditName)
                             .on_clear(Message::EditName(String::new()))
-                            .on_submit(Message::SubmitName)
+                            .on_submit(|_| Message::SubmitName)
                             .id(EDIT_GROUP_ID.clone())
                             .width(Length::Fixed(200.0))
                             .size(14),
@@ -1423,7 +1432,7 @@ impl cosmic::Application for CosmicAppLibrary {
         &mut self.core
     }
 
-    fn init(core: Core, _flags: Args) -> (Self, iced::Task<cosmic::app::Message<Self::Message>>) {
+    fn init(core: Core, _flags: Args) -> (Self, iced::Task<cosmic::Action<Self::Message>>) {
         let helper = AppLibraryConfig::helper();
 
         let mut config: AppLibraryConfig = helper
