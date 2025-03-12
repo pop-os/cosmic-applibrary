@@ -71,6 +71,7 @@ use cosmic::{
 use cosmic_app_list_config::AppListConfig;
 use freedesktop_desktop_entry::PathSource;
 use itertools::Itertools;
+use langtag::{LangTag, LangTagBuf};
 use log::error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -213,7 +214,7 @@ struct CosmicAppLibrary {
     config: AppLibraryConfig,
     cur_group: usize,
     active_surface: bool,
-    locale: Option<String>,
+    locale: Option<LangTagBuf>,
     edit_name: Option<String>,
     new_group: Option<String>,
     dnd_icon: Option<usize>,
@@ -347,22 +348,32 @@ pub fn menu_control_padding() -> Padding {
 
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
-        let locale = self.locale.as_deref();
         let xdg_current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
-        self.all_entries = cosmic::desktop::load_applications_filtered(locale, |entry| {
-            entry.exec().is_some()
-                && !entry.no_display()
-                && xdg_current_desktop
-                    .as_ref()
-                    .zip(entry.only_show_in())
-                    .map(|(xdg_current_desktop, only_show_in)| {
-                        only_show_in.contains(xdg_current_desktop)
-                    })
-                    .unwrap_or(true)
-        })
-        .into_iter()
-        .map(Arc::new)
-        .collect();
+        let locale = self.locale.as_ref().and_then(|l| {
+            let Some(primary) = l.language().map(|l| l.primary()) else {
+                return None;
+            };
+            Some(if let Some(region) = l.region() {
+                format!("{}_{}", primary.as_str(), region.as_str())
+            } else {
+                primary.as_str().into()
+            })
+        });
+        self.all_entries =
+            cosmic::desktop::load_applications_filtered(locale.as_deref(), |entry| {
+                entry.exec().is_some()
+                    && !entry.no_display()
+                    && xdg_current_desktop
+                        .as_ref()
+                        .zip(entry.only_show_in())
+                        .map(|(xdg_current_desktop, only_show_in)| {
+                            only_show_in.contains(&xdg_current_desktop.as_str())
+                        })
+                        .unwrap_or(true)
+            })
+            .into_iter()
+            .map(Arc::new)
+            .collect();
         self.all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
         self.entry_path_input =
@@ -1440,7 +1451,10 @@ impl cosmic::Application for CosmicAppLibrary {
         config.groups.sort();
 
         let self_ = Self {
-            locale: current_locale::current_locale().ok(),
+            // TODO proper conversion is
+            locale: current_locale::current_locale()
+                .ok()
+                .and_then(|l| LangTagBuf::new(l).ok()),
             config,
             core,
             helper,
