@@ -125,7 +125,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             .padding(space_s)
             .on_press_maybe(on_pressed.clone()),
         )
-        .drag_icon(move || {
+        .drag_icon(move |_| {
             (
                 image_clone
                     .as_cosmic_icon()
@@ -133,6 +133,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                     .height(Length::Fixed(72.0))
                     .into(),
                 tree::State::None,
+                cosmic::iced::Vector::ZERO,
             )
         })
         .drag_content(move || AppletString(path_.clone().unwrap()))
