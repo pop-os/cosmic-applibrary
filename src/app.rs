@@ -71,7 +71,6 @@ use cosmic::{
 use cosmic_app_list_config::AppListConfig;
 use freedesktop_desktop_entry::PathSource;
 use itertools::Itertools;
-use langtag::{LangTag, LangTagBuf};
 use log::error;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -214,7 +213,7 @@ struct CosmicAppLibrary {
     config: AppLibraryConfig,
     cur_group: usize,
     active_surface: bool,
-    locale: Option<LangTagBuf>,
+    locale: Option<String>,
     edit_name: Option<String>,
     new_group: Option<String>,
     dnd_icon: Option<usize>,
@@ -349,18 +348,8 @@ pub fn menu_control_padding() -> Padding {
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
         let xdg_current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
-        let locale = self.locale.as_ref().and_then(|l| {
-            let Some(primary) = l.language().map(|l| l.primary()) else {
-                return None;
-            };
-            Some(if let Some(region) = l.region() {
-                format!("{}_{}", primary.as_str(), region.as_str())
-            } else {
-                primary.as_str().into()
-            })
-        });
         self.all_entries =
-            cosmic::desktop::load_applications_filtered(locale.as_deref(), |entry| {
+            cosmic::desktop::load_applications_filtered(self.locale.as_deref(), |entry| {
                 entry.exec().is_some()
                     && !entry.no_display()
                     && xdg_current_desktop
@@ -1451,10 +1440,9 @@ impl cosmic::Application for CosmicAppLibrary {
         config.groups.sort();
 
         let self_ = Self {
-            // TODO proper conversion is
-            locale: current_locale::current_locale()
+            locale: std::env::var("LANG")
                 .ok()
-                .and_then(|l| LangTagBuf::new(l).ok()),
+                .and_then(|l| l.split(".").next().map(str::to_string)),
             config,
             core,
             helper,
