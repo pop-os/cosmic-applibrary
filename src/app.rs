@@ -274,6 +274,7 @@ impl CosmicAppLibrary {
                     anchor: Anchor::all(),
                     namespace: "app-library".into(),
                     size: Some((None, None)),
+                    exclusive_zone: -1,
                     ..Default::default()
                 }),
                 overlap_notify(WINDOW_ID.clone(), true),
