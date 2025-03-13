@@ -20,14 +20,15 @@ use cosmic::{
     iced::{
         self,
         alignment::Horizontal,
-        event::listen_with,
+        event::{listen_with, wayland::OverlapNotifyEvent},
         executor,
         id::Id,
         /*wayland::actions::{
             data_device::ActionInner,
         },*/
         widget::{column, container, horizontal_rule, row, scrollable, text},
-        Alignment, Color, Length, Limits, Subscription,
+        window::Event as WindowEvent,
+        Alignment, Color, Length, Limits, Size, Subscription,
     },
     iced_core::{
         alignment::Vertical,
@@ -53,6 +54,7 @@ use cosmic::{
         self,
         activation::request_token,
         layer_surface::{destroy_layer_surface, get_layer_surface},
+        overlap_notify::overlap_notify,
         popup::destroy_popup,
     },
     theme::{self, Button, TextInput},
@@ -226,6 +228,9 @@ struct CosmicAppLibrary {
     last_hide: Option<Instant>,
     duplicates: HashMap<PathBuf, AppSource>,
     app_list_config: AppListConfig,
+    overlap: HashMap<String, Rectangle>,
+    margin: f32,
+    height: f32,
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -271,11 +276,27 @@ impl CosmicAppLibrary {
                     size: Some((None, None)),
                     ..Default::default()
                 }),
+                overlap_notify(WINDOW_ID.clone(), true),
                 fetch_gpus,
             ])
             .chain(text_input::focus(SEARCH_ID.clone()));
         }
         Task::none()
+    }
+
+    fn handle_overlap(&mut self) {
+        if !self.active_surface {
+            return;
+        }
+        let mid_height = self.height / 2.;
+        self.margin = 0.;
+
+        for o in self.overlap.values() {
+            if self.margin + mid_height < o.y || self.margin > o.y + o.height {
+                continue;
+            }
+            self.margin = o.y + o.height;
+        }
     }
 }
 
@@ -313,6 +334,8 @@ enum Message {
     PinToAppTray(usize),
     UnPinFromAppTray(usize),
     AppListConfig(AppListConfig),
+    Size(Size, SurfaceId),
+    Overlap(OverlapNotifyEvent),
 }
 
 #[derive(Clone)]
@@ -766,6 +789,31 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
             }
+            Message::Size(size, window_id) => {
+                if window_id == WINDOW_ID.clone() {
+                    self.height = size.height;
+                    self.handle_overlap();
+                }
+            }
+            Message::Overlap(overlap_notify_event) => match overlap_notify_event {
+                OverlapNotifyEvent::OverlapLayerAdd {
+                    identifier,
+                    namespace,
+                    logical_rect,
+                    exclusive,
+                    ..
+                } => {
+                    if exclusive > 0 || namespace == "Dock" || namespace == "Panel" {
+                        self.overlap.insert(identifier, logical_rect);
+                        self.handle_overlap();
+                    }
+                }
+                OverlapNotifyEvent::OverlapLayerRemove { identifier } => {
+                    self.overlap.remove(&identifier);
+                    self.handle_overlap();
+                }
+                _ => {}
+            },
         }
         Task::none()
     }
@@ -1360,7 +1408,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     mouse_area(
                         container(vertical_space())
                             .width(Length::Fill)
-                            .height(Length::Fixed(16.0))
+                            .height(Length::Fixed(self.margin.max(16.)))
                     )
                     .on_press(Message::Hide),
                     container(
@@ -1398,15 +1446,21 @@ impl cosmic::Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 desktop_files(0).map(|_| Message::LoadApps),
-                listen_with(|e, _status, _| match e {
+                listen_with(|e, _status, id| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),
+                    cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
+                        wayland::Event::OverlapNotify(event),
+                    )) => Some(Message::Overlap(event)),
                     cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyReleased {
                         key: Key::Named(Named::Escape),
                         modifiers: _mods,
                         ..
                     }) => Some(Message::Hide),
+                    cosmic::iced::Event::Window(WindowEvent::Opened { position: _, size }) => {
+                        Some(Message::Size(size, id))
+                    }
                     _ => None,
                 }),
                 self.core
@@ -1447,6 +1501,9 @@ impl cosmic::Application for CosmicAppLibrary {
             core,
             helper,
             last_hide: None,
+            margin: 0.,
+            overlap: HashMap::new(),
+            height: 100.,
             ..Default::default()
         };
 
