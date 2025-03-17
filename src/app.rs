@@ -233,6 +233,7 @@ struct CosmicAppLibrary {
     overlap: HashMap<String, Rectangle>,
     margin: f32,
     height: f32,
+    needs_clear: bool,
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -266,6 +267,7 @@ impl CosmicAppLibrary {
             self.scroll_offset = 0.0;
             self.cur_group = 0;
             self.load_apps();
+            self.needs_clear = true;
             let fetch_gpus = Task::perform(try_get_gpus(), |gpus| {
                 cosmic::Action::App(Message::GpuUpdate(gpus))
             });
@@ -291,11 +293,15 @@ impl CosmicAppLibrary {
         if !self.active_surface {
             return;
         }
+
         let mid_height = self.height / 2.;
         self.margin = 0.;
 
         for o in self.overlap.values() {
-            if self.margin + mid_height < o.y || self.margin > o.y + o.height {
+            if self.margin + mid_height < o.y
+                || self.margin > o.y + o.height
+                || mid_height < o.y + o.height / 2.0
+            {
                 continue;
             }
             self.margin = o.y + o.height;
@@ -337,7 +343,7 @@ enum Message {
     PinToAppTray(usize),
     UnPinFromAppTray(usize),
     AppListConfig(AppListConfig),
-    Size(Size, SurfaceId),
+    Opened(Size, SurfaceId),
     Overlap(OverlapNotifyEvent),
     Surface(surface::Action),
 }
@@ -794,7 +800,7 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
             }
-            Message::Size(size, window_id) => {
+            Message::Opened(size, window_id) => {
                 if window_id == WINDOW_ID.clone() {
                     self.height = size.height;
                     self.handle_overlap();
@@ -808,10 +814,14 @@ impl cosmic::Application for CosmicAppLibrary {
                     exclusive,
                     ..
                 } => {
+                    if self.needs_clear {
+                        self.needs_clear = false;
+                        self.overlap.clear();
+                    }
                     if exclusive > 0 || namespace == "Dock" || namespace == "Panel" {
                         self.overlap.insert(identifier, logical_rect);
-                        self.handle_overlap();
                     }
+                    self.handle_overlap();
                 }
                 OverlapNotifyEvent::OverlapLayerRemove { identifier } => {
                     self.overlap.remove(&identifier);
@@ -1469,7 +1479,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         ..
                     }) => Some(Message::Hide),
                     cosmic::iced::Event::Window(WindowEvent::Opened { position: _, size }) => {
-                        Some(Message::Size(size, id))
+                        Some(Message::Opened(size, id))
                     }
                     _ => None,
                 }),
