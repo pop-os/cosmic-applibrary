@@ -1428,7 +1428,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     mouse_area(
                         container(vertical_space())
                             .width(Length::Fill)
-                            .height(Length::Fixed(self.margin.max(16.)))
+                            .height(Length::Fixed(self.margin + 16.))
                     )
                     .on_press(Message::Hide),
                     container(
