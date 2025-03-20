@@ -300,10 +300,11 @@ impl CosmicAppLibrary {
         for o in self.overlap.values() {
             if self.margin + mid_height < o.y
                 || self.margin > o.y + o.height
-                || mid_height < o.y + o.height / 2.0
+                || mid_height < o.y + o.height
             {
                 continue;
             }
+
             self.margin = o.y + o.height;
         }
     }
