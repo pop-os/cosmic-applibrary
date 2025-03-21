@@ -5,10 +5,13 @@
   <metadata_license>CC0</metadata_license>
   <!-- Insert your license of choice here -->
   <!-- <project_license>MIT</project_license> -->
-  <name>Cosmic App Library</name>
+  <name>COSMIC App Library</name>
+  <name xml:lang="hu">COSMIC Alkalmazáskönyvtár</name>
   <summary>COSMIC desktop application library</summary>
+  <summary xml:lang="hu">A COSMIC asztali környezet alkalmazáskönyvtára</summary>
   <description>
     <p>The default application library for the COSMIC desktop</p>
+    <p xml:lang="hu">A COSMIC asztali környezet alapértelmezett alkalmazáskönyvtára</p>
   </description>
   <!-- <screenshots>
     <screenshot type="default">
@@ -16,8 +19,8 @@
       <caption>Main window</caption>
     </screenshot>
   </screenshots> -->
-  <url type="homepage">https://gitlab.gnome.org/bilelmoussaoui/cosmic-app-library</url>
-  <url type="bugtracker">https://gitlab.gnome.org/bilelmoussaoui/cosmic-app-library/issues</url>
+  <url type="homepage">https://github.com/pop-os/cosmic-applibrary</url>
+  <url type="bugtracker">https://github.com/pop-os/cosmic-applibrary/issues</url>
   <content_rating type="oars-1.0" />
   <releases>
     <release version="0.1.0" date="2019-07-11" />

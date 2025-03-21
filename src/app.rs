@@ -8,7 +8,7 @@ use std::{
 
 use clap::Parser;
 use cosmic::{
-    app::{Core, CosmicFlags, DbusActivationDetails, DbusActivationMessage, Settings, Task},
+    app::{Core, CosmicFlags, Settings, Task},
     cctk::sctk::{
         self,
         data_device_manager::data_offer::DataDeviceOfferInner,
@@ -16,18 +16,20 @@ use cosmic::{
     },
     cosmic_config::{Config, CosmicConfigEntry},
     cosmic_theme::Spacing,
+    dbus_activation,
     desktop::{load_desktop_file, DesktopEntryData},
     iced::{
         self,
         alignment::Horizontal,
-        event::listen_with,
+        event::{listen_with, wayland::OverlapNotifyEvent},
         executor,
         id::Id,
         /*wayland::actions::{
             data_device::ActionInner,
         },*/
         widget::{column, container, horizontal_rule, row, scrollable, text},
-        Alignment, Color, Length, Limits, Subscription,
+        window::Event as WindowEvent,
+        Alignment, Color, Length, Limits, Size, Subscription,
     },
     iced_core::{
         alignment::Vertical,
@@ -53,8 +55,10 @@ use cosmic::{
         self,
         activation::request_token,
         layer_surface::{destroy_layer_surface, get_layer_surface},
+        overlap_notify::overlap_notify,
         popup::destroy_popup,
     },
+    surface,
     theme::{self, Button, TextInput},
     widget::{
         autosize::autosize,
@@ -226,6 +230,10 @@ struct CosmicAppLibrary {
     last_hide: Option<Instant>,
     duplicates: HashMap<PathBuf, AppSource>,
     app_list_config: AppListConfig,
+    overlap: HashMap<String, Rectangle>,
+    margin: f32,
+    height: f32,
+    needs_clear: bool,
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -259,8 +267,9 @@ impl CosmicAppLibrary {
             self.scroll_offset = 0.0;
             self.cur_group = 0;
             self.load_apps();
+            self.needs_clear = true;
             let fetch_gpus = Task::perform(try_get_gpus(), |gpus| {
-                cosmic::app::Message::App(Message::GpuUpdate(gpus))
+                cosmic::Action::App(Message::GpuUpdate(gpus))
             });
             return Task::batch(vec![
                 get_layer_surface(SctkLayerSurfaceSettings {
@@ -269,13 +278,35 @@ impl CosmicAppLibrary {
                     anchor: Anchor::all(),
                     namespace: "app-library".into(),
                     size: Some((None, None)),
+                    exclusive_zone: -1,
                     ..Default::default()
                 }),
+                overlap_notify(WINDOW_ID.clone(), true),
                 fetch_gpus,
             ])
             .chain(text_input::focus(SEARCH_ID.clone()));
         }
         Task::none()
+    }
+
+    fn handle_overlap(&mut self) {
+        if !self.active_surface {
+            return;
+        }
+
+        let mid_height = self.height / 2.;
+        self.margin = 0.;
+
+        for o in self.overlap.values() {
+            if self.margin + mid_height < o.y
+                || self.margin > o.y + o.height
+                || mid_height < o.y + o.height
+            {
+                continue;
+            }
+
+            self.margin = o.y + o.height;
+        }
     }
 }
 
@@ -313,6 +344,9 @@ enum Message {
     PinToAppTray(usize),
     UnPinFromAppTray(usize),
     AppListConfig(AppListConfig),
+    Opened(Size, SurfaceId),
+    Overlap(OverlapNotifyEvent),
+    Surface(surface::Action),
 }
 
 #[derive(Clone)]
@@ -347,22 +381,22 @@ pub fn menu_control_padding() -> Padding {
 
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
-        let locale = self.locale.as_deref();
         let xdg_current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
-        self.all_entries = cosmic::desktop::load_applications_filtered(locale, |entry| {
-            entry.exec().is_some()
-                && !entry.no_display()
-                && xdg_current_desktop
-                    .as_ref()
-                    .zip(entry.only_show_in())
-                    .map(|(xdg_current_desktop, only_show_in)| {
-                        only_show_in.contains(xdg_current_desktop)
-                    })
-                    .unwrap_or(true)
-        })
-        .into_iter()
-        .map(Arc::new)
-        .collect();
+        self.all_entries =
+            cosmic::desktop::load_applications_filtered(self.locale.as_deref(), |entry| {
+                entry.exec().is_some()
+                    && !entry.no_display()
+                    && xdg_current_desktop
+                        .as_ref()
+                        .zip(entry.only_show_in())
+                        .map(|(xdg_current_desktop, only_show_in)| {
+                            only_show_in.contains(&xdg_current_desktop.as_str())
+                        })
+                        .unwrap_or(true)
+            })
+            .into_iter()
+            .map(Arc::new)
+            .collect();
         self.all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
         self.entry_path_input =
@@ -417,7 +451,7 @@ impl CosmicAppLibrary {
                 },
                 |(input, apps)| Message::FilterApps(input, apps),
             )
-            .map(cosmic::app::Message::App)
+            .map(cosmic::Action::App)
         } else {
             iced::Task::none()
         }
@@ -428,7 +462,7 @@ impl CosmicAppLibrary {
         if self.dnd_icon.take().is_some() {
             return Task::batch(vec![
                 end_dnd(),
-                Task::perform(async {}, |_| cosmic::app::Message::App(Message::Hide)),
+                Task::perform(async {}, |_| cosmic::Action::App(Message::Hide)),
             ]);
         }
         self.active_surface = false;
@@ -505,7 +539,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         Some(WINDOW_ID.clone()),
                     )
                     .map(move |t| {
-                        cosmic::app::Message::App(Message::ActivationToken(
+                        cosmic::Action::App(Message::ActivationToken(
                             t,
                             app_id.clone(),
                             exec.clone(),
@@ -614,26 +648,28 @@ impl cosmic::Application for CosmicAppLibrary {
                 } else {
                     self.menu = Some(i);
                     return commands::popup::get_popup(SctkPopupSettings {
-                        parent: WINDOW_ID.clone(),
-                        id: MENU_ID.clone(),
-                        positioner: SctkPositioner {
-                            size: None,
-                            size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
-                            anchor_rect: Rectangle {
-                                x: rect.x as i32,
-                                y: rect.y as i32 - self.scroll_offset as i32,
-                                width: rect.width as i32,
-                                height: rect.height as i32,
-                            },
-                            anchor:
-                                sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
-                            gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
-                            reactive: true,
-                            ..Default::default()
-                        },
-                        grab: true,
-                        parent_size: None,
-                    });
+                                parent: WINDOW_ID.clone(),
+                                id: MENU_ID.clone(),
+                                positioner: SctkPositioner {
+                                    size: None,
+                                    size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
+                                    anchor_rect: Rectangle {
+                                        x: rect.x as i32,
+                                        y: rect.y as i32 - self.scroll_offset as i32,
+                                        width: rect.width as i32,
+                                        height: rect.height as i32,
+                                    },
+                                    anchor:
+                                        sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
+                                    gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
+                                    reactive: true,
+                                    ..Default::default()
+                                },
+                                grab: true,
+                                parent_size: None,
+                                close_with_children: true,
+                                input_zone: None,
+                            });
                 }
             }
             Message::CloseContextMenu => {
@@ -696,7 +732,6 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::CancelDrag => {
                 self.dnd_icon = None;
             }
-
             Message::StartDndOffer(i) => {
                 self.offer_group = Some(i);
             }
@@ -766,12 +801,46 @@ impl cosmic::Application for CosmicAppLibrary {
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
             }
+            Message::Opened(size, window_id) => {
+                if window_id == WINDOW_ID.clone() {
+                    self.height = size.height;
+                    self.handle_overlap();
+                }
+            }
+            Message::Overlap(overlap_notify_event) => match overlap_notify_event {
+                OverlapNotifyEvent::OverlapLayerAdd {
+                    identifier,
+                    namespace,
+                    logical_rect,
+                    exclusive,
+                    ..
+                } => {
+                    if self.needs_clear {
+                        self.needs_clear = false;
+                        self.overlap.clear();
+                    }
+                    if exclusive > 0 || namespace == "Dock" || namespace == "Panel" {
+                        self.overlap.insert(identifier, logical_rect);
+                    }
+                    self.handle_overlap();
+                }
+                OverlapNotifyEvent::OverlapLayerRemove { identifier } => {
+                    self.overlap.remove(&identifier);
+                    self.handle_overlap();
+                }
+                _ => {}
+            },
+            Message::Surface(a) => {
+                return cosmic::task::message(cosmic::Action::Cosmic(cosmic::app::Action::Surface(
+                    a,
+                )))
+            }
         }
         Task::none()
     }
 
-    fn dbus_activation(&mut self, msg: DbusActivationMessage) -> Task<Self::Message> {
-        if matches!(msg.msg, DbusActivationDetails::Activate) {
+    fn dbus_activation(&mut self, msg: dbus_activation::Message) -> Task<Self::Message> {
+        if matches!(msg.msg, dbus_activation::Details::Activate) {
             self.activate()
         } else {
             Task::none()
@@ -925,7 +994,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 text_input("", group_name)
                     .label(&*NEW_GROUP_PLACEHOLDER)
                     .on_input(Message::NewGroup)
-                    .on_submit(Message::SubmitNewGroup)
+                    .on_submit(|_| Message::SubmitNewGroup)
                     .width(Length::Fixed(432.0))
                     .size(14)
                     .id(NEW_GROUP_ID.clone()),
@@ -1072,7 +1141,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .on_input(Message::EditName)
                             .on_paste(Message::EditName)
                             .on_clear(Message::EditName(String::new()))
-                            .on_submit(Message::SubmitName)
+                            .on_submit(|_| Message::SubmitName)
                             .id(EDIT_GROUP_ID.clone())
                             .width(Length::Fixed(200.0))
                             .size(14),
@@ -1360,7 +1429,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     mouse_area(
                         container(vertical_space())
                             .width(Length::Fill)
-                            .height(Length::Fixed(16.0))
+                            .height(Length::Fixed(self.margin + 16.))
                     )
                     .on_press(Message::Hide),
                     container(
@@ -1398,15 +1467,21 @@ impl cosmic::Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 desktop_files(0).map(|_| Message::LoadApps),
-                listen_with(|e, _status, _| match e {
+                listen_with(|e, _status, id| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),
+                    cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
+                        wayland::Event::OverlapNotify(event),
+                    )) => Some(Message::Overlap(event)),
                     cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyReleased {
                         key: Key::Named(Named::Escape),
                         modifiers: _mods,
                         ..
                     }) => Some(Message::Hide),
+                    cosmic::iced::Event::Window(WindowEvent::Opened { position: _, size }) => {
+                        Some(Message::Opened(size, id))
+                    }
                     _ => None,
                 }),
                 self.core
@@ -1423,7 +1498,7 @@ impl cosmic::Application for CosmicAppLibrary {
         &mut self.core
     }
 
-    fn init(core: Core, _flags: Args) -> (Self, iced::Task<cosmic::app::Message<Self::Message>>) {
+    fn init(core: Core, _flags: Args) -> (Self, iced::Task<cosmic::Action<Self::Message>>) {
         let helper = AppLibraryConfig::helper();
 
         let mut config: AppLibraryConfig = helper
@@ -1440,11 +1515,16 @@ impl cosmic::Application for CosmicAppLibrary {
         config.groups.sort();
 
         let self_ = Self {
-            locale: current_locale::current_locale().ok(),
+            locale: std::env::var("LANG")
+                .ok()
+                .and_then(|l| l.split(".").next().map(str::to_string)),
             config,
             core,
             helper,
             last_hide: None,
+            margin: 0.,
+            overlap: HashMap::new(),
+            height: 100.,
             ..Default::default()
         };
 
