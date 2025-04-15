@@ -274,7 +274,7 @@ impl CosmicAppLibrary {
             return Task::batch(vec![
                 get_layer_surface(SctkLayerSurfaceSettings {
                     id: WINDOW_ID.clone(),
-                    keyboard_interactivity: KeyboardInteractivity::OnDemand,
+                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     anchor: Anchor::all(),
                     namespace: "app-library".into(),
                     size: Some((None, None)),
