@@ -177,18 +177,27 @@ impl AppLibraryConfig {
     }
 
     pub fn remove(&mut self, i: usize) {
+        if i == 0 {
+            return;
+        }
         if i - 1 < self.groups.len() {
             self.groups.remove(i - 1);
         }
     }
 
     pub fn set_name(&mut self, i: usize, name: String) {
+        if i == 0 {
+            return;
+        }
         if i - 1 < self.groups.len() {
             self.groups[i - 1].name = name;
         }
     }
 
     pub fn remove_entry(&mut self, i: usize, id: &str) {
+        if i == 0 {
+            return;
+        }
         if let Some(group) = self.groups.get_mut(i - 1) {
             match &mut group.filter {
                 FilterType::AppIds(ids) => ids.retain(|conf_id| conf_id != id),
@@ -210,7 +219,7 @@ impl AppLibraryConfig {
     }
 
     pub fn add_entry(&mut self, i: usize, id: &str) {
-        if i - 1 < self.groups.len() {
+        if i > 0 && i - 1 < self.groups.len() {
             if let FilterType::AppIds(ids) = &mut self.groups[i - 1].filter {
                 if ids.iter().all(|s| s != id) {
                     ids.push(id.to_string());
