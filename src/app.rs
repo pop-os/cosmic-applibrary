@@ -677,6 +677,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 return commands::popup::destroy_popup(MENU_ID.clone());
             }
             Message::SelectAction(action) => {
+                self.menu = None;
+                let mut tasks = vec![commands::popup::destroy_popup(MENU_ID.clone())];
                 if let Some(info) = self.menu.take().and_then(|i| self.entry_path_input.get(i)) {
                     match action {
                         MenuAction::Remove => {
@@ -686,7 +688,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                     error!("{:?}", err);
                                 }
                             }
-                            return self.filter_apps();
+                            tasks.push(self.filter_apps());
                         }
                         MenuAction::DesktopAction(exec) => {
                             let mut exec = shlex::Shlex::new(&exec);
@@ -708,6 +710,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         }
                     }
                 }
+                return cosmic::Task::batch(tasks);
             }
             Message::StartDrag(i) => {
                 self.dnd_icon = Some(i);
@@ -788,6 +791,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 {
                     self.app_list_config.add_pinned(pinned_id, &app_list_helper);
                 }
+                self.menu = None;
+                return commands::popup::destroy_popup(MENU_ID.clone());
             }
             Message::UnPinFromAppTray(usize) => {
                 let pinned_id = self.entry_path_input.get(usize).map(|e| e.id.clone());
@@ -797,6 +802,8 @@ impl cosmic::Application for CosmicAppLibrary {
                     self.app_list_config
                         .remove_pinned(&pinned_id, &app_list_helper);
                 }
+                self.menu = None;
+                return commands::popup::destroy_popup(MENU_ID.clone());
             }
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
