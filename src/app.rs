@@ -347,6 +347,7 @@ enum Message {
     Opened(Size, SurfaceId),
     Overlap(OverlapNotifyEvent),
     Surface(surface::Action),
+    Test,
 }
 
 #[derive(Clone)]
@@ -382,21 +383,14 @@ pub fn menu_control_padding() -> Padding {
 impl CosmicAppLibrary {
     pub fn load_apps(&mut self) {
         let xdg_current_desktop = std::env::var("XDG_CURRENT_DESKTOP").ok();
-        self.all_entries =
-            cosmic::desktop::load_applications_filtered(self.locale.as_deref(), |entry| {
-                entry.exec().is_some()
-                    && !entry.no_display()
-                    && xdg_current_desktop
-                        .as_ref()
-                        .zip(entry.only_show_in())
-                        .map(|(xdg_current_desktop, only_show_in)| {
-                            only_show_in.contains(&xdg_current_desktop.as_str())
-                        })
-                        .unwrap_or(true)
-            })
-            .into_iter()
-            .map(Arc::new)
-            .collect();
+        self.all_entries = cosmic::desktop::load_applications(
+            self.locale.as_slice(),
+            false,
+            xdg_current_desktop.as_deref(),
+        )
+        .into_iter()
+        .map(Arc::new)
+        .collect();
         self.all_entries.sort_by(|a, b| a.name.cmp(&b.name));
 
         self.entry_path_input =
@@ -495,12 +489,16 @@ impl cosmic::Application for CosmicAppLibrary {
 
     fn update(&mut self, message: Message) -> Task<Self::Message> {
         match message {
+            Message::Test => {
+                dbg!("hi");
+            }
             Message::InputChanged(value) => {
                 self.search_value = value;
                 return self.filter_apps();
             }
             Message::Layer(e, id) => match e {
                 LayerEvent::Focused => {
+                    dbg!("focused");
                     if id == WINDOW_ID.clone() {
                         return text_input::focus(SEARCH_ID.clone());
                     } else if id == DELETE_GROUP_WINDOW_ID.clone() {
@@ -1369,7 +1367,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         move |data, _| {
                             Message::FinishDndOffer(
                                 i,
-                                data.and_then(|data| load_desktop_file(None, data.0)),
+                                data.and_then(|data| load_desktop_file(&[], data.0)),
                             )
                         },
                     )
@@ -1438,11 +1436,13 @@ impl cosmic::Application for CosmicAppLibrary {
                             .width(Length::Fill)
                             .height(Length::Fixed(self.margin + 16.))
                     )
+                    .on_enter(Message::Test)
                     .on_press(Message::Hide),
                     container(
                         mouse_area(window)
                             .on_release(Message::CloseContextMenu)
                             .on_right_release(Message::CloseContextMenu)
+                            .on_enter(Message::Test)
                     )
                     .width(Length::Shrink)
                     .height(Length::Shrink),
@@ -1452,6 +1452,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .height(Length::Fill)
                     )
                     .on_press(Message::Hide)
+                    .on_enter(Message::Test)
                 ]
                 .height(Length::Fill)
             )
@@ -1463,6 +1464,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .width(Length::Fill)
                     .height(Length::Fill)
             )
+            .on_enter(Message::Test)
             .on_press(Message::Hide),
         ]
         .width(Length::Fill)
@@ -1474,7 +1476,7 @@ impl cosmic::Application for CosmicAppLibrary {
         Subscription::batch(
             vec![
                 desktop_files(0).map(|_| Message::LoadApps),
-                listen_with(|e, _status, id| match e {
+                listen_with(|e, status, id| match e {
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),

@@ -3,6 +3,7 @@
 use core::str;
 use std::{borrow::Cow, cell::RefCell, iter, path::PathBuf, str::FromStr};
 
+use cosmic::desktop::IconSourceExt;
 use cosmic::{
     iced::{
         alignment::Vertical,
