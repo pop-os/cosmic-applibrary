@@ -15,8 +15,8 @@ use cosmic::{
 };
 
 use cosmic::iced_core::{
-    event, layout, mouse, overlay, renderer, Alignment, Clipboard, Event, Length, Rectangle, Shell,
-    Widget,
+    event, layout, mouse, overlay, renderer, widget, Alignment, Clipboard, Event, Length,
+    Rectangle, Shell, Widget,
 };
 
 use cosmic::{
@@ -49,6 +49,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
     /// Creates a new [`ApplicationButton`].
     #[must_use]
     pub fn new(
+        widget_id: widget::Id,
         DesktopEntryData {
             name,
             icon: image,
@@ -120,6 +121,7 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                 .align_x(Alignment::Center)
                 .width(Length::Fill),
             )
+            .id(widget_id)
             .selected(selected)
             .width(Length::FillPortion(1))
             .class(theme::Button::IconVertical)

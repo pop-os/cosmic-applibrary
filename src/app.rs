@@ -34,9 +34,14 @@ use cosmic::{
     iced_core::{
         alignment::Vertical,
         keyboard::{key::Named, Key},
+        widget::operation::{
+            self,
+            focusable::{find_focused, focus},
+        },
         Border, Padding, Rectangle, Shadow,
     },
     iced_runtime::{
+        self,
         core::{
             event::{
                 wayland::{self, LayerEvent},
@@ -50,7 +55,7 @@ use cosmic::{
             popup::{SctkPopupSettings, SctkPositioner},
         },
     },
-    iced_widget::{horizontal_space, mouse_area, vertical_space},
+    iced_widget::{horizontal_space, mouse_area, scrollable::RelativeOffset, vertical_space},
     iced_winit::commands::{
         self,
         activation::request_token,
@@ -58,9 +63,10 @@ use cosmic::{
         overlap_notify::overlap_notify,
         popup::destroy_popup,
     },
-    surface,
+    keyboard_nav, surface,
     theme::{self, Button, TextInput},
     widget::{
+        self,
         autosize::autosize,
         button::{self, Catalog as ButtonStyleSheet},
         divider,
@@ -207,7 +213,6 @@ impl<'a> Display for AppSource {
     }
 }
 
-#[derive(Default)]
 struct CosmicAppLibrary {
     search_value: String,
     entry_path_input: Vec<Arc<DesktopEntryData>>,
@@ -234,6 +239,44 @@ struct CosmicAppLibrary {
     margin: f32,
     height: f32,
     needs_clear: bool,
+    focused_id: Option<widget::Id>,
+    entry_ids: Vec<widget::Id>,
+    scrollable_id: widget::Id,
+}
+
+impl Default for CosmicAppLibrary {
+    fn default() -> Self {
+        Self {
+            search_value: Default::default(),
+            entry_path_input: Default::default(),
+            all_entries: Default::default(),
+            menu: Default::default(),
+            helper: Default::default(),
+            config: Default::default(),
+            cur_group: Default::default(),
+            active_surface: Default::default(),
+            locale: Default::default(),
+            edit_name: Default::default(),
+            new_group: Default::default(),
+            dnd_icon: Default::default(),
+            offer_group: Default::default(),
+            waiting_for_filtered: Default::default(),
+            scroll_offset: Default::default(),
+            core: Default::default(),
+            group_to_delete: Default::default(),
+            gpus: Default::default(),
+            last_hide: Default::default(),
+            duplicates: Default::default(),
+            app_list_config: Default::default(),
+            overlap: Default::default(),
+            margin: Default::default(),
+            height: Default::default(),
+            needs_clear: Default::default(),
+            focused_id: Default::default(),
+            entry_ids: Default::default(),
+            scrollable_id: widget::Id::unique(),
+        }
+    }
 }
 
 async fn try_get_gpus() -> Option<Vec<Gpu>> {
@@ -312,10 +355,15 @@ impl CosmicAppLibrary {
 
 #[derive(Clone, Debug)]
 enum Message {
+    UpdateFocused(Option<widget::Id>),
     InputChanged(String),
+    KeyboardNav(keyboard_nav::Action),
+    PrevRow,
+    NextRow,
     Layer(LayerEvent, SurfaceId),
     Hide,
     ActivateApp(usize, Option<usize>),
+    StartCurAppFocus,
     ActivationToken(Option<String>, String, String, Option<usize>),
     SelectGroup(usize),
     Delete(usize),
@@ -347,7 +395,6 @@ enum Message {
     Opened(Size, SurfaceId),
     Overlap(OverlapNotifyEvent),
     Surface(surface::Action),
-    Test,
 }
 
 #[derive(Clone)]
@@ -428,6 +475,9 @@ impl CosmicAppLibrary {
                 },
             )
             .0;
+        self.entry_ids = (0..self.entry_path_input.len())
+            .map(|_| widget::Id::unique())
+            .collect();
     }
 
     fn filter_apps(&mut self) -> Task<Message> {
@@ -459,6 +509,8 @@ impl CosmicAppLibrary {
                 Task::perform(async {}, |_| cosmic::Action::App(Message::Hide)),
             ]);
         }
+        self.focused_id = None;
+        self.entry_ids.clear();
         self.active_surface = false;
         self.new_group = None;
         self.search_value.clear();
@@ -475,6 +527,32 @@ impl CosmicAppLibrary {
             destroy_layer_surface(WINDOW_ID.clone()),
         ])
     }
+
+    fn activate_app(
+        &mut self,
+        i: usize,
+        gpu_idx: Option<usize>,
+    ) -> Task<<Self as cosmic::Application>::Message> {
+        self.edit_name = None;
+        if let Some(de) = self.entry_path_input.get(i) {
+            let app_id = de.id.clone();
+            let exec = de.exec.clone().unwrap();
+            return request_token(
+                Some(String::from(<Self as cosmic::Application>::APP_ID)),
+                Some(WINDOW_ID.clone()),
+            )
+            .map(move |t| {
+                cosmic::Action::App(Message::ActivationToken(
+                    t,
+                    app_id.clone(),
+                    exec.clone(),
+                    gpu_idx,
+                ))
+            });
+        } else {
+            Task::none()
+        }
+    }
 }
 
 impl cosmic::Application for CosmicAppLibrary {
@@ -489,8 +567,110 @@ impl cosmic::Application for CosmicAppLibrary {
 
     fn update(&mut self, message: Message) -> Task<Self::Message> {
         match message {
-            Message::Test => {
-                dbg!("hi");
+            Message::UpdateFocused(id) => {
+                self.focused_id = id;
+                let i = self
+                    .focused_id
+                    .as_ref()
+                    .and_then(|focused| self.entry_ids.iter().position(|i| i == focused))
+                    .unwrap_or(0);
+                let y =
+                    ((i / 7) as f32 / ((self.entry_path_input.len() / 7) as f32).max(1.)).max(0.0);
+
+                return iced_runtime::task::widget(operation::scrollable::snap_to(
+                    self.scrollable_id.clone(),
+                    RelativeOffset { x: 0., y },
+                ));
+            }
+            Message::KeyboardNav(message) => match message {
+                keyboard_nav::Action::FocusNext => {
+                    return iced::Task::batch(vec![
+                        iced::widget::focus_next()
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(id))),
+                        iced_runtime::task::widget(find_focused())
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+                    ]);
+                }
+                keyboard_nav::Action::FocusPrevious => {
+                    return iced::Task::batch(vec![
+                        iced::widget::focus_previous()
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(id))),
+                        iced_runtime::task::widget(find_focused())
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+                    ]);
+                }
+                keyboard_nav::Action::Escape => return self.on_escape(),
+                keyboard_nav::Action::Search => return self.on_search(),
+
+                keyboard_nav::Action::Fullscreen => {}
+            },
+
+            Message::PrevRow => {
+                let mut i = self
+                    .focused_id
+                    .as_ref()
+                    .and_then(|focused| self.entry_ids.iter().position(|i| i == focused))
+                    .unwrap_or(self.entry_ids.len().saturating_add(6));
+                if i == 0 {
+                    self.focused_id = None;
+
+                    return iced::Task::batch(vec![
+                        iced::widget::focus_previous()
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(id))),
+                        iced_runtime::task::widget(find_focused())
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+                    ]);
+                }
+                i = i.saturating_sub(7);
+                let y =
+                    ((i / 7) as f32 / ((self.entry_path_input.len() / 7) as f32).max(1.)).max(0.0);
+
+                let Some(focused) = self.entry_ids.get(i).cloned() else {
+                    return Task::none();
+                };
+                self.focused_id = Some(focused.clone());
+                return Task::batch(vec![
+                    iced_runtime::task::widget(focus(focused))
+                        .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+                    iced_runtime::task::widget(operation::scrollable::snap_to(
+                        self.scrollable_id.clone(),
+                        RelativeOffset { x: 0., y },
+                    )),
+                ]);
+            }
+            Message::NextRow => {
+                let mut i: i32 = self
+                    .focused_id
+                    .as_ref()
+                    .and_then(|focused| self.entry_ids.iter().position(|i| i == focused))
+                    .map(|i| i as i32)
+                    .unwrap_or(-7);
+                if i == self.entry_ids.len() as i32 - 1 {
+                    self.focused_id = None;
+                    return iced::Task::batch(vec![
+                        iced::widget::focus_next()
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(id))),
+                        iced_runtime::task::widget(find_focused())
+                            .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+                    ]);
+                }
+                i += 7;
+                i = i.min(self.entry_ids.len() as i32 - 1);
+                let Some(focused) = self.entry_ids.get(i as usize).cloned() else {
+                    return Task::none();
+                };
+                self.focused_id = Some(focused.clone());
+                let y =
+                    ((i / 7) as f32 / ((self.entry_path_input.len() / 7) as f32).max(1.)).max(0.0);
+
+                return Task::batch(vec![
+                    iced_runtime::task::widget(operation::scrollable::snap_to(
+                        self.scrollable_id.clone(),
+                        RelativeOffset { x: 0., y },
+                    )),
+                    iced_runtime::task::widget(focus(focused))
+                        .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+                ]);
             }
             Message::InputChanged(value) => {
                 self.search_value = value;
@@ -498,7 +678,6 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::Layer(e, id) => match e {
                 LayerEvent::Focused => {
-                    dbg!("focused");
                     if id == WINDOW_ID.clone() {
                         return text_input::focus(SEARCH_ID.clone());
                     } else if id == DELETE_GROUP_WINDOW_ID.clone() {
@@ -528,23 +707,26 @@ impl cosmic::Application for CosmicAppLibrary {
                 return self.hide();
             }
             Message::ActivateApp(i, gpu_idx) => {
-                self.edit_name = None;
-                if let Some(de) = self.entry_path_input.get(i) {
-                    let app_id = de.id.clone();
-                    let exec = de.exec.clone().unwrap();
-                    return request_token(
-                        Some(String::from(Self::APP_ID)),
-                        Some(WINDOW_ID.clone()),
-                    )
-                    .map(move |t| {
-                        cosmic::Action::App(Message::ActivationToken(
-                            t,
-                            app_id.clone(),
-                            exec.clone(),
-                            gpu_idx,
-                        ))
-                    });
-                }
+                return self.activate_app(i, gpu_idx);
+            }
+            Message::StartCurAppFocus => {
+                let i = if self
+                    .focused_id
+                    .as_ref()
+                    .is_some_and(|cur_focus| cur_focus == &*SEARCH_ID)
+                {
+                    0
+                } else if let Some(i) = self
+                    .focused_id
+                    .as_ref()
+                    .and_then(|focus| self.entry_ids.iter().position(|id| focus == id))
+                {
+                    i
+                } else {
+                    return Task::none();
+                };
+                let gpu_idx = None;
+                return self.activate_app(i, gpu_idx);
             }
             Message::ActivationToken(token, app_id, exec, gpu_idx) => {
                 let mut env_vars = Vec::new();
@@ -565,6 +747,13 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.search_value.clear();
                 self.cur_group = i;
                 self.scroll_offset = 0.0;
+                self.scrollable_id = Id::new(
+                    self.config
+                        .groups()
+                        .get(self.cur_group)
+                        .map(|g| g.name.clone())
+                        .unwrap_or_else(|| "unknown-group".to_string()),
+                );
                 let mut cmds = vec![self.filter_apps()];
                 if self.cur_group == 0 {
                     cmds.push(text_input::focus(SEARCH_ID.clone()));
@@ -646,28 +835,28 @@ impl cosmic::Application for CosmicAppLibrary {
                 } else {
                     self.menu = Some(i);
                     return commands::popup::get_popup(SctkPopupSettings {
-                                parent: WINDOW_ID.clone(),
-                                id: MENU_ID.clone(),
-                                positioner: SctkPositioner {
-                                    size: None,
-                                    size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
-                                    anchor_rect: Rectangle {
-                                        x: rect.x as i32,
-                                        y: rect.y as i32 - self.scroll_offset as i32,
-                                        width: rect.width as i32,
-                                        height: rect.height as i32,
-                                    },
-                                    anchor:
-                                        sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
-                                    gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
-                                    reactive: true,
-                                    ..Default::default()
-                                },
-                                grab: true,
-                                parent_size: None,
-                                close_with_children: true,
-                                input_zone: None,
-                            });
+                                        parent: WINDOW_ID.clone(),
+                                        id: MENU_ID.clone(),
+                                        positioner: SctkPositioner {
+                                            size: None,
+                                            size_limits: Limits::NONE.min_width(1.0).min_height(1.0).max_width(300.0).max_height(800.0),
+                                            anchor_rect: Rectangle {
+                                                x: rect.x as i32,
+                                                y: rect.y as i32 - self.scroll_offset as i32,
+                                                width: rect.width as i32,
+                                                height: rect.height as i32,
+                                            },
+                                            anchor:
+                                                sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Anchor::Right,
+                                            gravity: sctk::reexports::protocols::xdg::shell::client::xdg_positioner::Gravity::Right,
+                                            reactive: true,
+                                            ..Default::default()
+                                        },
+                                        grab: true,
+                                        parent_size: None,
+                                        close_with_children: true,
+                                        input_zone: None,
+                                    });
                 }
             }
             Message::CloseContextMenu => {
@@ -774,6 +963,9 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::FilterApps(input, filtered_apps) => {
                 self.entry_path_input = filtered_apps;
+                self.entry_ids = (0..self.entry_path_input.len())
+                    .map(|_| widget::Id::unique())
+                    .collect();
                 self.waiting_for_filtered = false;
                 if self.search_value != input {
                     return self.filter_apps();
@@ -1128,6 +1320,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 search_input(SEARCH_PLACEHOLDER.as_str(), self.search_value.as_str())
                     .on_input(Message::InputChanged)
                     .on_paste(Message::InputChanged)
+                    .on_submit(|_| Message::StartCurAppFocus)
                     .style(TextInput::Search)
                     .width(Length::Fixed(400.0))
                     .size(14)
@@ -1203,8 +1396,9 @@ impl cosmic::Application for CosmicAppLibrary {
         let app_grid_list: Vec<_> = self
             .entry_path_input
             .iter()
+            .zip(self.entry_ids.iter())
             .enumerate()
-            .map(|(i, entry)| {
+            .map(|(i, (entry, id))| {
                 let gpu_idx = self.gpus.as_ref().map(|gpus| {
                     if entry.prefers_dgpu {
                         gpus.iter().position(|gpu| !gpu.default).unwrap_or(0)
@@ -1219,6 +1413,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 let selected = self.menu.is_some_and(|m| m == i);
 
                 let b = ApplicationButton::new(
+                    id.clone(),
                     &entry,
                     move |rect| Message::OpenContextMenu(rect, i),
                     if self.menu.is_none() {
@@ -1262,13 +1457,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     .padding([space_none, space_xxl, space_xxs, space_xxl]),
             )
             .on_scroll(|viewport| Message::ScrollYOffset(viewport.absolute_offset().y))
-            .id(Id::new(
-                self.config
-                    .groups()
-                    .get(self.cur_group)
-                    .map(|g| g.name.clone())
-                    .unwrap_or_else(|| "unknown-group".to_string()),
-            ))
+            .id(self.scrollable_id.clone())
             .height(Length::Fill),
         )
         .max_height(444.0);
@@ -1436,13 +1625,11 @@ impl cosmic::Application for CosmicAppLibrary {
                             .width(Length::Fill)
                             .height(Length::Fixed(self.margin + 16.))
                     )
-                    .on_enter(Message::Test)
                     .on_press(Message::Hide),
                     container(
                         mouse_area(window)
                             .on_release(Message::CloseContextMenu)
                             .on_right_release(Message::CloseContextMenu)
-                            .on_enter(Message::Test)
                     )
                     .width(Length::Shrink)
                     .height(Length::Shrink),
@@ -1452,7 +1639,6 @@ impl cosmic::Application for CosmicAppLibrary {
                             .height(Length::Fill)
                     )
                     .on_press(Message::Hide)
-                    .on_enter(Message::Test)
                 ]
                 .height(Length::Fill)
             )
@@ -1464,7 +1650,6 @@ impl cosmic::Application for CosmicAppLibrary {
                     .width(Length::Fill)
                     .height(Length::Fill)
             )
-            .on_enter(Message::Test)
             .on_press(Message::Hide),
         ]
         .width(Length::Fill)
@@ -1488,11 +1673,52 @@ impl cosmic::Application for CosmicAppLibrary {
                         modifiers: _mods,
                         ..
                     }) => Some(Message::Hide),
+                    cosmic::iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                        key,
+                        text: _,
+                        modifiers,
+                        ..
+                    }) => match key {
+                        Key::Character(c) if modifiers.control() && (c == "p" || c == "k") => {
+                            Some(Message::PrevRow)
+                        }
+                        Key::Character(c) if modifiers.control() && (c == "n" || c == "j") => {
+                            Some(Message::NextRow)
+                        }
+                        Key::Character(c) if modifiers.control() && (c == "f" || c == "l") => {
+                            Some(Message::KeyboardNav(keyboard_nav::Action::FocusNext))
+                        }
+                        Key::Character(c) if modifiers.control() && (c == "b" || c == "h") => {
+                            Some(Message::KeyboardNav(keyboard_nav::Action::FocusPrevious))
+                        }
+                        Key::Named(Named::ArrowUp)
+                            if matches!(status, iced::event::Status::Ignored) =>
+                        {
+                            Some(Message::PrevRow)
+                        }
+                        Key::Named(Named::ArrowDown)
+                            if matches!(status, iced::event::Status::Ignored) =>
+                        {
+                            Some(Message::NextRow)
+                        }
+                        Key::Named(Named::ArrowLeft)
+                            if matches!(status, iced::event::Status::Ignored) =>
+                        {
+                            Some(Message::KeyboardNav(keyboard_nav::Action::FocusPrevious))
+                        }
+                        Key::Named(Named::ArrowRight)
+                            if matches!(status, iced::event::Status::Ignored) =>
+                        {
+                            Some(Message::KeyboardNav(keyboard_nav::Action::FocusNext))
+                        }
+                        _ => None,
+                    },
                     cosmic::iced::Event::Window(WindowEvent::Opened { position: _, size }) => {
                         Some(Message::Opened(size, id))
                     }
                     _ => None,
                 }),
+                keyboard_nav::subscription().map(|a| Message::KeyboardNav(a)),
                 self.core
                     .watch_config::<cosmic_app_list_config::AppListConfig>(
                         cosmic_app_list_config::APP_ID,
@@ -1507,7 +1733,8 @@ impl cosmic::Application for CosmicAppLibrary {
         &mut self.core
     }
 
-    fn init(core: Core, _flags: Args) -> (Self, iced::Task<cosmic::Action<Self::Message>>) {
+    fn init(mut core: Core, _flags: Args) -> (Self, iced::Task<cosmic::Action<Self::Message>>) {
+        core.set_keyboard_nav(false);
         let helper = AppLibraryConfig::helper();
 
         let mut config: AppLibraryConfig = helper
@@ -1522,7 +1749,13 @@ impl cosmic::Application for CosmicAppLibrary {
             })
             .unwrap_or_default();
         config.groups.sort();
-
+        let scrollable_id = Id::new(
+            config
+                .groups()
+                .get(0)
+                .map(|g| g.name.clone())
+                .unwrap_or_else(|| "unknown-group".to_string()),
+        );
         let self_ = Self {
             locale: std::env::var("LANG")
                 .ok()
@@ -1534,6 +1767,7 @@ impl cosmic::Application for CosmicAppLibrary {
             margin: 0.,
             overlap: HashMap::new(),
             height: 100.,
+            scrollable_id,
             ..Default::default()
         };
 
