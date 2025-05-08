@@ -327,7 +327,11 @@ impl CosmicAppLibrary {
                 overlap_notify(WINDOW_ID.clone(), true),
                 fetch_gpus,
             ])
-            .chain(text_input::focus(SEARCH_ID.clone()));
+            .chain(text_input::focus(SEARCH_ID.clone()))
+            .chain(
+                iced_runtime::task::widget(find_focused())
+                    .map(|id| cosmic::Action::App(Message::UpdateFocused(Some(id)))),
+            );
         }
         Task::none()
     }
@@ -723,7 +727,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 {
                     i
                 } else {
-                    return Task::none();
+                    0
                 };
                 let gpu_idx = None;
                 return self.activate_app(i, gpu_idx);
