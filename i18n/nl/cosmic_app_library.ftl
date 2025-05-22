@@ -1,4 +1,4 @@
-cosmic-app-library = COSMIC-toepassingsmenu
+cosmic-app-library = COSMIC Appbibliotheek
 cosmic-library-home = Startpagina
 cosmic-office = Bureau
 cosmic-system = Systeem
