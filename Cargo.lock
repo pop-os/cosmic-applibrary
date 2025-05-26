@@ -1078,6 +1078,7 @@ dependencies = [
  "cosmic-app-list-config",
  "cosmic-freedesktop-icons",
  "current_locale",
+ "dirs 5.0.1",
  "freedesktop-desktop-entry",
  "futures",
  "glob",
