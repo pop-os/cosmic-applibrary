@@ -368,7 +368,7 @@ enum Message {
     Hide,
     ActivateApp(usize, Option<usize>),
     StartCurAppFocus,
-    ActivationToken(Option<String>, String, String, Option<usize>),
+    ActivationToken(Option<String>, String, String, Option<usize>, bool),
     SelectGroup(usize),
     Delete(usize),
     ConfirmDelete,
@@ -416,7 +416,7 @@ enum MenuAction {
     DesktopAction(String),
 }
 
-pub fn menu_button<'a, Message>(
+pub fn menu_button<'a, Message: Clone + 'a>(
     content: impl Into<Element<'a, Message>>,
 ) -> cosmic::widget::Button<'a, Message> {
     cosmic::widget::button::custom(content)
@@ -541,6 +541,7 @@ impl CosmicAppLibrary {
         if let Some(de) = self.entry_path_input.get(i) {
             let app_id = de.id.clone();
             let exec = de.exec.clone().unwrap();
+            let terminal = de.terminal;
             return request_token(
                 Some(String::from(<Self as cosmic::Application>::APP_ID)),
                 Some(WINDOW_ID.clone()),
@@ -551,6 +552,7 @@ impl CosmicAppLibrary {
                     app_id.clone(),
                     exec.clone(),
                     gpu_idx,
+                    terminal,
                 ))
             });
         } else {
@@ -732,7 +734,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 let gpu_idx = None;
                 return self.activate_app(i, gpu_idx);
             }
-            Message::ActivationToken(token, app_id, exec, gpu_idx) => {
+            Message::ActivationToken(token, app_id, exec, gpu_idx, terminal) => {
                 let mut env_vars = Vec::new();
                 if let Some(token) = token {
                     env_vars.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
@@ -742,7 +744,8 @@ impl cosmic::Application for CosmicAppLibrary {
                     env_vars.extend(gpus[idx].environment.clone().into_iter());
                 }
                 tokio::spawn(async move {
-                    cosmic::desktop::spawn_desktop_exec(exec, env_vars, Some(&app_id)).await
+                    cosmic::desktop::spawn_desktop_exec(exec, env_vars, Some(&app_id), terminal)
+                        .await
                 });
                 return self.update(Message::Hide);
             }
