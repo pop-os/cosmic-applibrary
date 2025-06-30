@@ -48,6 +48,7 @@ cosmic-app-list-config = { git = "https://github.com/pop-os/cosmic-applets" }
 
 [profile.release]
 lto = "thin"
+strip = true
 
 [patch.crates-io]
 sctk = { package = "smithay-client-toolkit", git = "https://github.com/smithay/client-toolkit//", rev = "c583de8" }
