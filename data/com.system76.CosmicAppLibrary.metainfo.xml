@@ -9,15 +9,18 @@
   <name xml:lang="hu">COSMIC Alkalmazáskönyvtár</name>
   <name xml:lang="pt_BR">Biblioteca de Aplicativos</name>
   <name xml:lang="pt">Biblioteca de Aplicativos</name>
+  <name xml:lang="ru">Библиотека приложений COSMIC</name>
   <summary>COSMIC desktop application library</summary>
   <summary xml:lang="hu">A COSMIC asztali környezet alkalmazáskönyvtára</summary>
   <summary xml:lang="pt_BR">Biblioteca de aplicativos do desktop COSMIC</summary>
   <summary xml:lang="pt">Biblioteca de aplicativos do desktop COSMIC</summary>
+  <summary xml:lang="ru">Библиотека приложений оболочки COSMIC</summary>
   <description>
     <p>The default application library for the COSMIC desktop</p>
     <p xml:lang="hu">A COSMIC asztali környezet alapértelmezett alkalmazáskönyvtára</p>
     <p xml:lang="pt_BR">A aplicação padrão de biblioteca de aplicativos do desktop COSMIC</p>
     <p xml:lang="pt">A aplicação padrão de biblioteca de aplicativos do desktop COSMIC</p>
+    <p xml:lang="ru">Библиотека приложений по умолчанию для оболочки COSMIC</p>
   </description>
   <!-- <screenshots>
     <screenshot type="default">
