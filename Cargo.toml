@@ -10,6 +10,7 @@ wgpu = ["libcosmic/wgpu"]
 [dependencies]
 zbus = "5.7"
 libcosmic = { git = "https://github.com/pop-os/libcosmic/", features = [
+    "dbus-config",
     "winit",
     "wayland",
     "tokio",
