@@ -684,12 +684,14 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::Layer(e, id) => match e {
                 LayerEvent::Focused => {
-                    if id == WINDOW_ID.clone() {
-                        return text_input::focus(SEARCH_ID.clone());
-                    } else if id == DELETE_GROUP_WINDOW_ID.clone() {
-                        return button::focus(SUBMIT_DELETE_ID.clone());
-                    } else if id == NEW_GROUP_WINDOW_ID.clone() {
-                        return text_input::focus(NEW_GROUP_ID.clone());
+                    if self.menu.is_none() {
+                        if id == WINDOW_ID.clone() {
+                            return text_input::focus(SEARCH_ID.clone());
+                        } else if id == DELETE_GROUP_WINDOW_ID.clone() {
+                            return button::focus(SUBMIT_DELETE_ID.clone());
+                        } else if id == NEW_GROUP_WINDOW_ID.clone() {
+                            return text_input::focus(NEW_GROUP_ID.clone());
+                        }
                     }
                 }
                 LayerEvent::Unfocused => {
@@ -859,7 +861,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                             reactive: true,
                                             ..Default::default()
                                         },
-                                        grab: true,
+                                        grab: false,
                                         parent_size: None,
                                         close_with_children: true,
                                         input_zone: None,
@@ -1680,6 +1682,11 @@ impl cosmic::Application for CosmicAppLibrary {
                         modifiers: _mods,
                         ..
                     }) => Some(Message::Hide),
+                    cosmic::iced::Event::Mouse(iced::mouse::Event::ButtonPressed(_))
+                        if id == WINDOW_ID.clone() =>
+                    {
+                        Some(Message::CloseContextMenu)
+                    }
                     cosmic::iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
                         key,
                         text: _,
