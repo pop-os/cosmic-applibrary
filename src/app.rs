@@ -395,6 +395,7 @@ enum Message {
     GpuUpdate(Option<Vec<Gpu>>),
     PinToAppTray(usize),
     UnPinFromAppTray(usize),
+    DesktopShortcut(usize),
     AppListConfig(AppListConfig),
     Opened(Size, SurfaceId),
     Overlap(OverlapNotifyEvent),
@@ -1004,6 +1005,20 @@ impl cosmic::Application for CosmicAppLibrary {
                 self.menu = None;
                 return commands::popup::destroy_popup(MENU_ID.clone());
             }
+            Message::DesktopShortcut(i) => {
+                if let Some(entry) = self.entry_path_input.get(i) {
+                    let entry = Arc::clone(entry);
+                    return Task::perform(
+                        async move {
+                            if let Err(e) = desktop_shortcut(entry).await {
+                                error!("Failed copying desktop entry to desktop: {e:?}");
+                            }
+                            cosmic::app::Message::None
+                        },
+                        |x| x,
+                    );
+                }
+            }
             Message::AppListConfig(config) => {
                 self.app_list_config = config;
             }
@@ -1125,6 +1140,14 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
             }
 
+            // Desktop shortcut
+            list_column.push(divider::horizontal::light().into());
+            list_column.push(
+                menu_button(body(fl!("add-desktop-shortcut")))
+                    .on_press(Message::DesktopShortcut(*i))
+                    .into(),
+            );
+
             // add to pinned
             let svg_accent = Rc::new(|theme: &cosmic::Theme| {
                 let color = theme.cosmic().accent_color().into();
@@ -1148,7 +1171,6 @@ impl cosmic::Application for CosmicAppLibrary {
             } else {
                 Message::PinToAppTray(*i)
             });
-            list_column.push(divider::horizontal::light().into());
             list_column.push(pin_to_app_tray.into());
 
             if self.cur_group > 0 {
@@ -1787,4 +1809,16 @@ impl cosmic::Application for CosmicAppLibrary {
 
         (self_, Task::none())
     }
+}
+
+/// Copy application desktop entry to the user's desktop
+async fn desktop_shortcut(entry: Arc<DesktopEntryData>) -> tokio::io::Result<u64> {
+    let source = entry
+        .path
+        .as_deref()
+        .ok_or(tokio::io::Error::other("Desktop entry doesn't have a path"))?;
+    let dest = dirs::desktop_dir()
+        .ok_or(tokio::io::Error::other("User doesn't have a desktop dir"))?
+        .join(format!("{}.desktop", &*entry.name));
+    tokio::fs::copy(source, dest).await
 }
