@@ -1,5 +1,5 @@
 use cosmic::{
-    iced::{stream, Subscription},
+    iced::{Subscription, stream},
     iced_futures::futures::{self, SinkExt},
 };
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
