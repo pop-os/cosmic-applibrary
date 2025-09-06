@@ -6,26 +6,26 @@ use std::{borrow::Cow, cell::RefCell, iter, path::PathBuf, str::FromStr};
 use cosmic::desktop::IconSourceExt;
 use cosmic::{
     iced::{
+        Size, Vector,
         alignment::Vertical,
         clipboard::mime::{AllowedMimeTypes, AsMimeTypes},
-        Size, Vector,
     },
     iced_core::alignment::Horizontal,
     widget::dnd_source,
 };
 
 use cosmic::iced_core::{
-    event, layout, mouse, overlay, renderer, widget, Alignment, Clipboard, Event, Length,
-    Rectangle, Shell, Widget,
+    Alignment, Clipboard, Event, Length, Rectangle, Shell, Widget, event, layout, mouse, overlay,
+    renderer, widget,
 };
 
 use cosmic::{
+    Element,
     desktop::DesktopEntryData,
     iced::widget::{column, text},
-    iced_core::widget::{tree, Operation, Tree},
+    iced_core::widget::{Operation, Tree, tree},
     theme,
     widget::{button, container},
-    Element,
 };
 
 use crate::app::AppSource;

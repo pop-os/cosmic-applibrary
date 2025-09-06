@@ -3,11 +3,13 @@ use std::{
     fmt::{Debug, Display},
     path::{Path, PathBuf},
     rc::Rc,
+    sync::{Arc, LazyLock},
     time::{Duration, Instant},
 };
 
 use clap::Parser;
 use cosmic::{
+    Element,
     app::{Core, CosmicFlags, Settings, Task},
     cctk::sctk::{
         self,
@@ -17,9 +19,9 @@ use cosmic::{
     cosmic_config::{Config, CosmicConfigEntry},
     cosmic_theme::Spacing,
     dbus_activation,
-    desktop::{load_desktop_file, DesktopEntryData},
+    desktop::{DesktopEntryData, load_desktop_file},
     iced::{
-        self,
+        self, Alignment, Color, Length, Limits, Size, Subscription,
         alignment::Horizontal,
         event::{listen_with, wayland::OverlapNotifyEvent},
         executor,
@@ -29,23 +31,22 @@ use cosmic::{
         },*/
         widget::{column, container, horizontal_rule, row, scrollable, text},
         window::Event as WindowEvent,
-        Alignment, Color, Length, Limits, Size, Subscription,
     },
     iced_core::{
+        Border, Padding, Rectangle, Shadow,
         alignment::Vertical,
-        keyboard::{key::Named, Key},
+        keyboard::{Key, key::Named},
         widget::operation::{
             self,
             focusable::{find_focused, focus},
         },
-        Border, Padding, Rectangle, Shadow,
     },
     iced_runtime::{
         self,
         core::{
             event::{
-                wayland::{self, LayerEvent},
                 PlatformSpecific,
+                wayland::{self, LayerEvent},
             },
             window::Id as SurfaceId,
         },
@@ -66,7 +67,7 @@ use cosmic::{
     keyboard_nav, surface,
     theme::{self, Button, TextInput},
     widget::{
-        self,
+        self, Column,
         autosize::autosize,
         button::{self, Catalog as ButtonStyleSheet},
         divider,
@@ -74,17 +75,14 @@ use cosmic::{
         icon::{self, from_name},
         search_input, svg,
         text::body,
-        text_input, tooltip, Column,
+        text_input, tooltip,
     },
-    Element,
 };
 use cosmic_app_list_config::AppListConfig;
 use freedesktop_desktop_entry::PathSource;
 use itertools::Itertools;
 use log::error;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use switcheroo_control::Gpu;
 
 use crate::{
@@ -98,34 +96,35 @@ use crate::{
 // should be a way to add apps to groups
 // should be a way to remove apps from groups
 
-static SEARCH_ID: Lazy<Id> = Lazy::new(|| Id::new("search"));
-static EDIT_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("edit_group"));
-static NEW_GROUP_ID: Lazy<Id> = Lazy::new(|| Id::new("new_group"));
-static SUBMIT_DELETE_ID: Lazy<Id> = Lazy::new(|| Id::new("cancel_delete"));
+static SEARCH_ID: LazyLock<Id> = LazyLock::new(|| Id::new("search"));
+static EDIT_GROUP_ID: LazyLock<Id> = LazyLock::new(|| Id::new("edit_group"));
+static NEW_GROUP_ID: LazyLock<Id> = LazyLock::new(|| Id::new("new_group"));
+static SUBMIT_DELETE_ID: LazyLock<Id> = LazyLock::new(|| Id::new("cancel_delete"));
 
-static CREATE_NEW: Lazy<String> = Lazy::new(|| fl!("create-new"));
-static ADD_GROUP: Lazy<String> = Lazy::new(|| fl!("add-group"));
-static SEARCH_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("search-placeholder"));
-static NEW_GROUP_PLACEHOLDER: Lazy<String> = Lazy::new(|| fl!("new-group-placeholder"));
-static SAVE: Lazy<String> = Lazy::new(|| fl!("save"));
-static CANCEL: Lazy<String> = Lazy::new(|| fl!("cancel"));
-static RUN: Lazy<String> = Lazy::new(|| fl!("run"));
-static REMOVE: Lazy<String> = Lazy::new(|| fl!("remove"));
-static FLATPAK: Lazy<String> = Lazy::new(|| fl!("flatpak"));
-static LOCAL: Lazy<String> = Lazy::new(|| fl!("local"));
-static NIX: Lazy<String> = Lazy::new(|| fl!("nix"));
-static SNAP: Lazy<String> = Lazy::new(|| fl!("snap"));
-static SYSTEM: Lazy<String> = Lazy::new(|| fl!("system"));
+static CREATE_NEW: LazyLock<String> = LazyLock::new(|| fl!("create-new"));
+static ADD_GROUP: LazyLock<String> = LazyLock::new(|| fl!("add-group"));
+static SEARCH_PLACEHOLDER: LazyLock<String> = LazyLock::new(|| fl!("search-placeholder"));
+static NEW_GROUP_PLACEHOLDER: LazyLock<String> = LazyLock::new(|| fl!("new-group-placeholder"));
+static SAVE: LazyLock<String> = LazyLock::new(|| fl!("save"));
+static CANCEL: LazyLock<String> = LazyLock::new(|| fl!("cancel"));
+static RUN: LazyLock<String> = LazyLock::new(|| fl!("run"));
+static REMOVE: LazyLock<String> = LazyLock::new(|| fl!("remove"));
+static FLATPAK: LazyLock<String> = LazyLock::new(|| fl!("flatpak"));
+static LOCAL: LazyLock<String> = LazyLock::new(|| fl!("local"));
+static NIX: LazyLock<String> = LazyLock::new(|| fl!("nix"));
+static SNAP: LazyLock<String> = LazyLock::new(|| fl!("snap"));
+static SYSTEM: LazyLock<String> = LazyLock::new(|| fl!("system"));
 
-pub(crate) static WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
-static NEW_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
-static NEW_GROUP_AUTOSIZE_ID: Lazy<cosmic::widget::Id> = Lazy::new(|| cosmic::widget::Id::unique());
-static DELETE_GROUP_WINDOW_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
-static DELETE_GROUP_AUTOSIZE_ID: Lazy<cosmic::widget::Id> =
-    Lazy::new(|| cosmic::widget::Id::unique());
-pub(crate) static MENU_ID: Lazy<SurfaceId> = Lazy::new(|| SurfaceId::unique());
-pub(crate) static MENU_AUTOSIZE_ID: Lazy<cosmic::widget::Id> =
-    Lazy::new(|| cosmic::widget::Id::unique());
+pub(crate) static WINDOW_ID: LazyLock<SurfaceId> = LazyLock::new(|| SurfaceId::unique());
+static NEW_GROUP_WINDOW_ID: LazyLock<SurfaceId> = LazyLock::new(|| SurfaceId::unique());
+static NEW_GROUP_AUTOSIZE_ID: LazyLock<cosmic::widget::Id> =
+    LazyLock::new(|| cosmic::widget::Id::unique());
+static DELETE_GROUP_WINDOW_ID: LazyLock<SurfaceId> = LazyLock::new(|| SurfaceId::unique());
+static DELETE_GROUP_AUTOSIZE_ID: LazyLock<cosmic::widget::Id> =
+    LazyLock::new(|| cosmic::widget::Id::unique());
+pub(crate) static MENU_ID: LazyLock<SurfaceId> = LazyLock::new(|| SurfaceId::unique());
+pub(crate) static MENU_AUTOSIZE_ID: LazyLock<cosmic::widget::Id> =
+    LazyLock::new(|| cosmic::widget::Id::unique());
 
 #[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -1037,9 +1036,9 @@ impl cosmic::Application for CosmicAppLibrary {
                 _ => {}
             },
             Message::Surface(a) => {
-                return cosmic::task::message(cosmic::Action::Cosmic(cosmic::app::Action::Surface(
-                    a,
-                )))
+                return cosmic::task::message(cosmic::Action::Cosmic(
+                    cosmic::app::Action::Surface(a),
+                ));
             }
         }
         Task::none()
@@ -1325,18 +1324,20 @@ impl cosmic::Application for CosmicAppLibrary {
 
         let cur_group = self.config.groups()[self.cur_group];
         let top_row = if self.cur_group == 0 {
-            row![container(
-                search_input(SEARCH_PLACEHOLDER.as_str(), self.search_value.as_str())
-                    .on_input(Message::InputChanged)
-                    .on_paste(Message::InputChanged)
-                    .on_submit(|_| Message::StartCurAppFocus)
-                    .style(TextInput::Search)
-                    .width(Length::Fixed(400.0))
-                    .size(14)
-                    .id(SEARCH_ID.clone())
-            )
-            .align_y(Vertical::Center)
-            .height(Length::Fixed(96.0))]
+            row![
+                container(
+                    search_input(SEARCH_PLACEHOLDER.as_str(), self.search_value.as_str())
+                        .on_input(Message::InputChanged)
+                        .on_paste(Message::InputChanged)
+                        .on_submit(|_| Message::StartCurAppFocus)
+                        .style(TextInput::Search)
+                        .width(Length::Fixed(400.0))
+                        .size(14)
+                        .id(SEARCH_ID.clone())
+                )
+                .align_y(Vertical::Center)
+                .height(Length::Fixed(96.0))
+            ]
             .align_y(Alignment::Center)
             .spacing(space_xxs)
         } else {

@@ -1,15 +1,15 @@
 use std::{sync::Arc, vec};
 
 use cosmic::{
-    cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, CosmicConfigEntry},
+    cosmic_config::{self, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry},
     desktop::DesktopEntryData,
 };
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 use crate::{config::APP_ID, fl};
 
-static HOME: Lazy<[AppGroup; 1]> = Lazy::new(|| {
+static HOME: LazyLock<[AppGroup; 1]> = LazyLock::new(|| {
     [AppGroup {
         name: "cosmic-library-home".to_string(),
         icon: "user-home-symbolic".to_string(),
