@@ -19,7 +19,7 @@ use cosmic::{
     cosmic_config::{Config, CosmicConfigEntry},
     cosmic_theme::Spacing,
     dbus_activation,
-    desktop::{DesktopEntryData, load_desktop_file},
+    desktop::{DesktopEntryData, fde::PathSource, load_desktop_file},
     iced::{
         self, Alignment, Color, Length, Limits, Size, Subscription,
         alignment::Horizontal,
@@ -79,7 +79,6 @@ use cosmic::{
     },
 };
 use cosmic_app_list_config::AppListConfig;
-use freedesktop_desktop_entry::PathSource;
 use itertools::Itertools;
 use log::error;
 use serde::{Deserialize, Serialize};
