@@ -6,12 +6,14 @@
   <!-- Insert your license of choice here -->
   <!-- <project_license>MIT</project_license> -->
   <name>COSMIC App Library</name>
+  <name xml:lang="ar">مكتبة تطبيقات COSMIC</name>
   <name xml:lang="hu">COSMIC Alkalmazáskönyvtár</name>
   <name xml:lang="pt_BR">Biblioteca de Aplicativos</name>
   <name xml:lang="pt">Biblioteca de Aplicativos</name>
   <name xml:lang="ru">Библиотека приложений COSMIC</name>
   <name xml:lang="sk">Knižnica aplikácií COSMIC</name>
   <summary>COSMIC desktop application library</summary>
+  <summary xml:lang="ar">مكتبة تطبيقات سطح المكتب COSMIC</summary>
   <summary xml:lang="hu">A COSMIC asztali környezet alkalmazáskönyvtára</summary>
   <summary xml:lang="pt_BR">Biblioteca de aplicativos do desktop COSMIC</summary>
   <summary xml:lang="pt">Biblioteca de aplicativos do desktop COSMIC</summary>
@@ -19,6 +21,7 @@
   <summary xml:lang="sk">Knižnica aplikácií pre pracovné prostredie COSMIC</summary>
   <description>
     <p>The default application library for the COSMIC desktop</p>
+    <p xml:lang="ar">مكتبة التطبيقات المبدئية لسطح مكتب COSMIC</p>
     <p xml:lang="hu">A COSMIC asztali környezet alapértelmezett alkalmazáskönyvtára</p>
     <p xml:lang="pt_BR">A aplicação padrão de biblioteca de aplicativos do desktop COSMIC</p>
     <p xml:lang="pt">A aplicação padrão de biblioteca de aplicativos do desktop COSMIC</p>
