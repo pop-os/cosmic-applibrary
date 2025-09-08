@@ -110,9 +110,9 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
                         .as_cosmic_icon()
                         .width(Length::Fixed(72.0))
                         .height(Length::Fixed(72.0)),
-                    text(name)
+                    container(text(name).size(14.0).width(Length::Shrink))
                         .align_x(Horizontal::Center)
-                        .size(14)
+                        .width(Length::Fill)
                         .height(Length::Fixed(40.0))
                 ]
                 .width(Length::Fixed(120.0))
