@@ -1,5 +1,6 @@
 [Desktop Entry]
 Name=Applications
+Name[ar]=تطبيقات
 Name[zh_CN]=应用程序库
 Name[pl]=Aplikacje
 Name[hu]=Alkalmazások
@@ -8,6 +9,7 @@ Name[pt]=Aplicativos
 Name[ru]=Приложения
 Name[sk]=Aplikácie
 Comment=COSMIC App Library shell application
+Comment[ar]=تطبيق صدفة مكتبة تطبيقات COSMIC
 Comment[zh_CN]=COSMIC应用程序库命令行程序
 Comment[pl]=Aplikacja powłoki Biblioteka aplikacji COSMIC
 Comment[hu]=A COSMIC alkalmazáskönyvtár felületalkalmazása
