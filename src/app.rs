@@ -1205,8 +1205,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 container(
                     row![
                         button::custom(
-                            text(CANCEL.to_string())
-                                .size(14.0)
+                            container(text(CANCEL.to_string()).size(14.0))
+                                .width(Length::Shrink)
                                 .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
@@ -1214,8 +1214,8 @@ impl cosmic::Application for CosmicAppLibrary {
                         .padding([space_xxs, space_s])
                         .width(142),
                         button::custom(
-                            text(SAVE.to_string())
-                                .size(14.0)
+                            container(text(SAVE.to_string()).size(14.0))
+                                .width(Length::Shrink)
                                 .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
@@ -1273,7 +1273,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 container(
                     row![
                         button::custom(
-                            text(CANCEL.as_str())
+                            container(text(CANCEL.to_string()).size(14.0))
+                                .width(Length::Shrink)
                                 .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
@@ -1281,7 +1282,8 @@ impl cosmic::Application for CosmicAppLibrary {
                         .padding([space_xxs, space_m])
                         .width(142),
                         button::custom(
-                            text(fl!("delete"))
+                            container(text(fl!("delete")).size(14.0))
+                                .width(Length::Shrink)
                                 .align_x(Horizontal::Center)
                                 .width(Length::Fill)
                         )
@@ -1489,9 +1491,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .height(Length::Fixed(group_icon_size))
                     )
                     .padding(space_xxs),
-                    text(fl!("add-group"))
-                        .size(14.0)
-                        .align_x(Horizontal::Center)
+                    text(fl!("add-group")).size(14.0).width(Length::Shrink)
                 ]
                 .align_x(Alignment::Center)
                 .width(Length::Fill),
@@ -1523,7 +1523,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                         .height(Length::Fixed(group_icon_size))
                                 )
                                 .padding(space_xxs),
-                                text(group.name()).align_x(Horizontal::Center).size(14)
+                                text(group.name()).size(14).width(Length::Shrink)
                             ]
                             .align_x(Alignment::Center)
                             .width(Length::Fill),
