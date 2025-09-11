@@ -1,8 +1,8 @@
-cosmic-app-library = مكتبة تطبيقات كُوزمِك
-cosmic-library-home = الصفحة الرئيسية لمكتبة كُوزمِك
-cosmic-office = كُوزمِك أوفيس
-cosmic-system = نظام كُوزمِك
-cosmic-utilities = أدوات كُوزمِك
+cosmic-app-library = مكتبة تطبيقات COSMIC
+cosmic-library-home = الصفحة الرئيسية لمكتبة COSMIC
+cosmic-office = COSMIC أوفيس
+cosmic-system = نظام COSMIC
+cosmic-utilities = أدوات COSMIC
 new-group = إنشاء مجموعة
 name = الاسم
 ok = موافق
