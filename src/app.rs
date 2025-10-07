@@ -438,6 +438,7 @@ impl CosmicAppLibrary {
             xdg_current_desktop.as_deref(),
         )
         .into_iter()
+        .filter(|d| d.exec.is_some())
         .map(Arc::new)
         .collect();
         self.all_entries.sort_by(|a, b| a.name.cmp(&b.name));
