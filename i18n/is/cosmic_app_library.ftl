@@ -22,3 +22,7 @@ snap = Snap
 system = Kerfi
 local = Staðbundið
 nix = Nix
+cosmic-library-home = Forritasafn - forsíða
+remove = Færa á forsíðu forritasafns
+delete-folder = Eyða möppu?
+    .msg = Ef möppunni er eytt er forritstáknið fært á forsíðu forritasafnsins.
