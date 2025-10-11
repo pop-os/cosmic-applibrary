@@ -20,3 +20,4 @@ flatpak = Flatpak
 snap = Snap
 system = Сістэма
 nix = Nix
+local = Лакальнае
