@@ -12,7 +12,7 @@ search-placeholder = Trykk for å søke etter apper...
 new-group-placeholder = Mappenavn
 pin-to-app-tray = Fest til appskuffen
 run = Kjør
-run-on = Kjør på {$gpu}
+run-on = Kjør på { $gpu }
 run-on-default = (Standard)
 remove = Flytt til hjem
 create-new = Lag ny mappe
@@ -20,7 +20,7 @@ add-group = Ny gruppe
 delete = Slett
 rename = Gi nytt navn
 delete-folder = Slett mappe?
-    .msg =     .msg = Sletter du mappen, havner programikonene på Bibliotekets hovedside.
+    .msg = { "." }msg = Sletter du mappen, havner programikonene på Bibliotekets hovedside.
 flatpak = Flatpak
 snap = Snap
 system = System
