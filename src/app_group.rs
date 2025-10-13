@@ -86,6 +86,20 @@ impl Ord for AppGroup {
             (FilterType::AppIds(_), FilterType::AppIds(_)) => {
                 self.name.to_lowercase().cmp(&other.name.to_lowercase())
             }
+            (FilterType::Categories {categories,..}, FilterType::AppIds(_)) => {
+                if let Some(cat_name) = categories.first() {
+                    cat_name.to_lowercase().cmp(&other.name.to_lowercase())
+                } else {
+                    self.name.to_lowercase().cmp(&other.name.to_lowercase())
+                }
+            },
+            (FilterType::AppIds(_), FilterType::Categories {categories,..}) => {
+                if let Some(other_name) = categories.first() {
+                    self.name.to_lowercase().cmp(&other_name.to_lowercase())
+                } else {
+                    self.name.to_lowercase().cmp(&other.name.to_lowercase())
+                }
+            },
             (a, b) => a.cmp(b),
         }
     }
