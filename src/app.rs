@@ -1676,7 +1676,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         wayland::Event::Layer(e, _, id),
                     )) => Some(Message::Layer(e, id)),
                     cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
-                        wayland::Event::OverlapNotify(event),
+                        wayland::Event::OverlapNotify(event, ..),
                     )) => Some(Message::Overlap(event)),
                     cosmic::iced::Event::Keyboard(cosmic::iced::keyboard::Event::KeyReleased {
                         key: Key::Named(Named::Escape),
