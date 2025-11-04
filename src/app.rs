@@ -211,6 +211,13 @@ impl<'a> Display for AppSource {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SurfaceState {
+    Visible,
+    Hidden,
+    WaitingToBeShown,
+}
+
 struct CosmicAppLibrary {
     search_value: String,
     entry_path_input: Vec<Arc<DesktopEntryData>>,
@@ -219,7 +226,6 @@ struct CosmicAppLibrary {
     helper: Option<Config>,
     config: AppLibraryConfig,
     cur_group: usize,
-    active_surface: bool,
     locale: Option<String>,
     edit_name: Option<String>,
     new_group: Option<String>,
@@ -240,6 +246,7 @@ struct CosmicAppLibrary {
     focused_id: Option<widget::Id>,
     entry_ids: Vec<widget::Id>,
     scrollable_id: widget::Id,
+    surface_state: SurfaceState,
 }
 
 impl Default for CosmicAppLibrary {
@@ -252,7 +259,6 @@ impl Default for CosmicAppLibrary {
             helper: Default::default(),
             config: Default::default(),
             cur_group: Default::default(),
-            active_surface: Default::default(),
             locale: Default::default(),
             edit_name: Default::default(),
             new_group: Default::default(),
@@ -273,6 +279,7 @@ impl Default for CosmicAppLibrary {
             focused_id: Default::default(),
             entry_ids: Default::default(),
             scrollable_id: widget::Id::unique(),
+            surface_state: SurfaceState::Hidden,
         }
     }
 }
@@ -296,15 +303,16 @@ async fn try_get_gpus() -> Option<Vec<Gpu>> {
 
 impl CosmicAppLibrary {
     pub fn activate(&mut self) -> Task<Message> {
-        if self.active_surface {
+        if matches!(self.surface_state, SurfaceState::Visible) {
             return self.hide();
-        } else if !self
-            .last_hide
-            .is_some_and(|i| i.elapsed() < Duration::from_millis(100))
+        } else if matches!(self.surface_state, SurfaceState::Hidden)
+            && !self
+                .last_hide
+                .is_some_and(|i| i.elapsed() < Duration::from_millis(100))
         {
+            self.surface_state = SurfaceState::WaitingToBeShown;
             self.edit_name = None;
             self.search_value = "".to_string();
-            self.active_surface = true;
             self.scroll_offset = 0.0;
             self.cur_group = 0;
             self.load_apps();
@@ -335,7 +343,7 @@ impl CosmicAppLibrary {
     }
 
     fn handle_overlap(&mut self) {
-        if !self.active_surface {
+        if !matches!(self.surface_state, SurfaceState::Visible) {
             return;
         }
 
@@ -505,6 +513,9 @@ impl CosmicAppLibrary {
     }
 
     pub fn hide(&mut self) -> Task<Message> {
+        if !matches!(self.surface_state, SurfaceState::Visible) {
+            return Task::none();
+        }
         // cancel existing dnd if it exists then try again...
         if self.dnd_icon.take().is_some() {
             return Task::batch(vec![
@@ -514,7 +525,6 @@ impl CosmicAppLibrary {
         }
         self.focused_id = None;
         self.entry_ids.clear();
-        self.active_surface = false;
         self.new_group = None;
         self.search_value.clear();
         self.edit_name = None;
@@ -522,6 +532,8 @@ impl CosmicAppLibrary {
         self.menu = None;
         self.group_to_delete = None;
         self.scroll_offset = 0.0;
+        self.surface_state = SurfaceState::Hidden;
+
         iced::Task::batch(vec![
             text_input::focus(SEARCH_ID.clone()),
             destroy_popup(MENU_ID.clone()),
@@ -695,7 +707,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
                 LayerEvent::Unfocused => {
                     self.last_hide = Some(Instant::now());
-                    if self.active_surface
+                    if matches!(self.surface_state, SurfaceState::Visible)
                         && id == WINDOW_ID.clone()
                         && self.menu.is_none()
                         && self.new_group.is_none()
@@ -1008,6 +1020,9 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::Opened(size, window_id) => {
                 if window_id == WINDOW_ID.clone() {
+                    if matches!(self.surface_state, SurfaceState::WaitingToBeShown) {
+                        self.surface_state = SurfaceState::Visible;
+                    }
                     self.height = size.height;
                     self.handle_overlap();
                 }
