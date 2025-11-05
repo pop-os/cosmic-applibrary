@@ -14,6 +14,7 @@
   <name xml:lang="ru">Библиотека приложений COSMIC</name>
   <name xml:lang="sk">Knižnica aplikácií COSMIC</name>
   <name xml:lang="es">Biblioteca de aplicaciones COSMIC</name>
+  <name xml:lang="sv">COSMIC Programbibliotek</name>
   <summary>COSMIC desktop application library</summary>
   <summary xml:lang="ar">مكتبة تطبيقات سطح المكتب COSMIC</summary>
   <summary xml:lang="cs">Knihovna aplikací pro prostředí COSMIC</summary>
@@ -23,6 +24,7 @@
   <summary xml:lang="ru">Библиотека приложений оболочки COSMIC</summary>
   <summary xml:lang="sk">Knižnica aplikácií pre pracovné prostredie COSMIC</summary>
   <summary xml:lang="es">Biblioteca de aplicaciones para el escritorio COSMIC</summary>
+  <summary xml:lang="sv">Programbibliotek för skrivbordsmiljön COSMIC</summary>
   <description>
     <p>The default application library for the COSMIC desktop</p>
     <p xml:lang="ar">مكتبة التطبيقات المبدئية لسطح مكتب COSMIC</p>
