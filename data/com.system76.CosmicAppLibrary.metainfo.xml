@@ -35,6 +35,7 @@
     <p xml:lang="ru">Библиотека приложений по умолчанию для оболочки COSMIC</p>
     <p xml:lang="sk">Predvolená knižnica aplikácií pre pracovné prostredie COSMIC</p>
     <p xml:lang="es">Biblioteca de aplicaciones para el escritorio COSMIC</p>
+    <p xml:lang="sv">Standard programbibliotek för skrivbordsmiljön COSMIC</p>
   </description>
   <!-- <screenshots>
     <screenshot type="default">
