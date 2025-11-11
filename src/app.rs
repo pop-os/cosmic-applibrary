@@ -1178,16 +1178,19 @@ impl cosmic::Application for CosmicAppLibrary {
                 container(scrollable(Column::with_children(list_column)))
                     .padding([8, 0])
                     .class(theme::Container::Custom(Box::new(|theme| {
+                        let t = theme.cosmic();
+                        let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+
                         container::Style {
-                            text_color: Some(theme.cosmic().on_bg_color().into()),
-                            background: Some(Color::from(theme.cosmic().background.base).into()),
+                            text_color: Some(t.on_bg_color().into()),
+                            icon_color: Some(t.on_bg_color().into()),
+                            background: Some(Color::from(t.background.base).into()),
                             border: Border {
-                                color: theme.cosmic().bg_divider().into(),
-                                radius: theme.cosmic().corner_radii.radius_m.into(),
+                                radius: radii.into(),
                                 width: 1.0,
+                                color: t.bg_divider().into(),
                             },
                             shadow: Shadow::default(),
-                            icon_color: Some(theme.cosmic().on_bg_color().into()),
                         }
                     })))
                     .width(Length::Shrink)
@@ -1250,14 +1253,17 @@ impl cosmic::Application for CosmicAppLibrary {
             return autosize(
                 container(dialog)
                     .class(theme::Container::Custom(Box::new(|theme| {
+                        let t = theme.cosmic();
+                        let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+
                         container::Style {
-                            text_color: Some(theme.cosmic().on_bg_color().into()),
-                            icon_color: Some(theme.cosmic().on_bg_color().into()),
-                            background: Some(Color::from(theme.cosmic().background.base).into()),
+                            text_color: Some(t.on_bg_color().into()),
+                            icon_color: Some(t.on_bg_color().into()),
+                            background: Some(Color::from(t.background.base).into()),
                             border: Border {
-                                color: theme.cosmic().bg_divider().into(),
-                                radius: theme.cosmic().corner_radii.radius_m.into(),
+                                radius: radii.into(),
                                 width: 1.0,
+                                color: t.bg_divider().into(),
                             },
                             shadow: Shadow::default(),
                         }
@@ -1319,14 +1325,17 @@ impl cosmic::Application for CosmicAppLibrary {
             return autosize(
                 container(dialog)
                     .class(theme::Container::Custom(Box::new(|theme| {
+                        let t = theme.cosmic();
+                        let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+
                         container::Style {
-                            text_color: Some(theme.cosmic().on_bg_color().into()),
-                            icon_color: Some(theme.cosmic().on_bg_color().into()),
-                            background: Some(Color::from(theme.cosmic().background.base).into()),
+                            text_color: Some(t.on_bg_color().into()),
+                            icon_color: Some(t.on_bg_color().into()),
+                            background: Some(Color::from(t.background.base).into()),
                             border: Border {
-                                color: theme.cosmic().bg_divider().into(),
-                                radius: theme.cosmic().corner_radii.radius_m.into(),
+                                radius: radii.into(),
                                 width: 1.0,
+                                color: t.bg_divider().into(),
                             },
                             shadow: Shadow::default(),
                         }
@@ -1623,16 +1632,19 @@ impl cosmic::Application for CosmicAppLibrary {
             .max_height(685)
             .max_width(1200.0)
             .class(theme::Container::Custom(Box::new(|theme| {
+                let t = theme.cosmic();
+                let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+
                 container::Style {
-                    text_color: Some(theme.cosmic().on_bg_color().into()),
-                    background: Some(Color::from(theme.cosmic().background.base).into()),
+                    text_color: Some(t.on_bg_color().into()),
+                    icon_color: Some(t.on_bg_color().into()),
+                    background: Some(Color::from(t.background.base).into()),
                     border: Border {
-                        radius: theme.cosmic().corner_radii.radius_m.into(),
+                        radius: radii.into(),
                         width: 1.0,
-                        color: theme.cosmic().bg_divider().into(),
+                        color: t.bg_divider().into(),
                     },
                     shadow: Shadow::default(),
-                    icon_color: Some(theme.cosmic().on_bg_color().into()),
                 }
             })))
             .center_x(Length::Fill);
