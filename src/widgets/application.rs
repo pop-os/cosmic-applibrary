@@ -88,12 +88,10 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
             } else {
                 format!("{name:.24}...")
             }
+        } else if let Some((source, ..)) = source {
+            format!("{name} ({source})")
         } else {
-            if let Some((source, ..)) = source {
-                format!("{name} ({source})")
-            } else {
-                name.to_string()
-            }
+            name.to_string()
         };
         let path_ = path.clone();
         let content = dnd_source(
