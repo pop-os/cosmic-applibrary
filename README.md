@@ -1,6 +1,6 @@
-# Cosmic App Library
+# COSMIC App Library
 
-Cosmic App Library is an application launcher for the COSMIC desktop that lists all installed applications in a grid.
+COSMIC App Library is an application launcher for the COSMIC desktop that lists all installed applications in a grid.
 
 ## Building/Installing
 
