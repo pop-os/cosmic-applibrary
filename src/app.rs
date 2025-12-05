@@ -22,14 +22,13 @@ use cosmic::{
     desktop::{DesktopEntryData, fde::PathSource, load_desktop_file},
     iced::{
         self, Alignment, Color, Length, Limits, Size, Subscription,
-        alignment::Horizontal,
         event::{listen_with, wayland::OverlapNotifyEvent},
         executor,
         id::Id,
         /*wayland::actions::{
             data_device::ActionInner,
         },*/
-        widget::{column, container, horizontal_rule, row, scrollable, text},
+        widget::{column, container, horizontal_rule, row, scrollable},
         window::Event as WindowEvent,
     },
     iced_core::{
@@ -73,9 +72,7 @@ use cosmic::{
         divider,
         dnd_destination::dnd_destination_for_data,
         icon::{self, from_name},
-        search_input, svg,
-        text::body,
-        text_input, tooltip,
+        search_input, svg, text, text_input, tooltip,
     },
 };
 use cosmic_app_list_config::AppListConfig;
@@ -426,7 +423,7 @@ pub fn menu_button<'a, Message: Clone + 'a>(
     content: impl Into<Element<'a, Message>>,
 ) -> cosmic::widget::Button<'a, Message> {
     cosmic::widget::button::custom(content)
-        .class(Button::AppletMenu)
+        .class(Button::MenuItem)
         .padding(menu_control_padding())
         .width(Length::Fill)
 }
@@ -1077,11 +1074,10 @@ impl cosmic::Application for CosmicAppLibrary {
             space_xxs,
             space_xs,
             space_s,
-            space_m,
             space_l,
             space_xxl,
             ..
-        } = theme::active().cosmic().spacing;
+        } = theme::spacing();
 
         if id == MENU_ID.clone() {
             let Some((menu, i)) = self
@@ -1105,7 +1101,7 @@ impl cosmic::Application for CosmicAppLibrary {
                         gpus.iter().position(|gpu| gpu.default).unwrap_or(0)
                     };
                     list_column.push(
-                        menu_button(body(format!(
+                        menu_button(text::body(format!(
                             "{} {}",
                             fl!("run-on", gpu = gpu.name.clone()),
                             if j == default_idx {
@@ -1120,7 +1116,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 }
             } else {
                 list_column.push(
-                    menu_button(body(RUN.clone()))
+                    menu_button(text::body(RUN.clone()))
                         .on_press(Message::ActivateApp(*i, None))
                         .into(),
                 );
@@ -1130,7 +1126,7 @@ impl cosmic::Application for CosmicAppLibrary {
                 list_column.push(divider::horizontal::light().into());
                 for action in menu.desktop_actions.iter() {
                     list_column.push(
-                        menu_button(body(&action.name))
+                        menu_button(text::body(&action.name))
                             .on_press(Message::SelectAction(
                                 MenuAction::DesktopAction(action.exec.clone()).into(),
                             ))
@@ -1150,10 +1146,13 @@ impl cosmic::Application for CosmicAppLibrary {
                     row![
                         icon::icon(icon::from_name("checkbox-checked-symbolic").size(16).into())
                             .class(cosmic::theme::Svg::Custom(svg_accent.clone())),
-                        body(fl!("pin-to-app-tray"))
+                        text::body(fl!("pin-to-app-tray"))
                     ]
                 } else {
-                    row![horizontal_space().width(16.0), body(fl!("pin-to-app-tray"))]
+                    row![
+                        horizontal_space().width(16.0),
+                        text::body(fl!("pin-to-app-tray"))
+                    ]
                 }
                 .spacing(space_xxs),
             )
@@ -1168,7 +1167,7 @@ impl cosmic::Application for CosmicAppLibrary {
             if self.cur_group > 0 {
                 list_column.push(divider::horizontal::light().into());
                 list_column.push(
-                    menu_button(body(REMOVE.clone()))
+                    menu_button(text::body(REMOVE.clone()))
                         .on_press(Message::SelectAction(MenuAction::Remove))
                         .into(),
                 );
@@ -1176,27 +1175,22 @@ impl cosmic::Application for CosmicAppLibrary {
 
             return autosize(
                 container(scrollable(Column::with_children(list_column)))
-                    .padding([8, 0])
-                    .class(theme::Container::Custom(Box::new(|theme| {
-                        let t = theme.cosmic();
-                        let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
-
+                    .padding(1)
+                    .class(theme::Container::custom(|theme| {
+                        let cosmic = theme.cosmic();
+                        let component = &cosmic.background.component;
                         container::Style {
-                            text_color: Some(t.on_bg_color().into()),
-                            icon_color: Some(t.on_bg_color().into()),
-                            background: Some(Color::from(t.background.base).into()),
+                            icon_color: Some(component.on.into()),
+                            text_color: Some(component.on.into()),
+                            background: Some(iced::Background::Color(component.base.into())),
                             border: Border {
-                                radius: radii.into(),
+                                radius: cosmic.radius_s().map(|x| x + 1.0).into(),
                                 width: 1.0,
-                                color: t.bg_divider().into(),
+                                color: component.divider.into(),
                             },
-                            shadow: Shadow::default(),
+                            ..Default::default()
                         }
-                    })))
-                    .width(Length::Shrink)
-                    .height(Length::Shrink)
-                    .align_x(Horizontal::Center)
-                    .align_y(Vertical::Top),
+                    })),
                 MENU_AUTOSIZE_ID.clone(),
             )
             .max_height(800.)
@@ -1210,142 +1204,56 @@ impl cosmic::Application for CosmicAppLibrary {
                     .height(Length::Fixed(1.0))
                     .into();
             };
-            let dialog = column![
-                container(text(CREATE_NEW.as_str()).size(24))
-                    .align_x(Horizontal::Left)
-                    .width(Length::Fixed(432.0)),
-                text_input("", group_name)
-                    .label(&*NEW_GROUP_PLACEHOLDER)
-                    .on_input(Message::NewGroup)
-                    .on_submit(|_| Message::SubmitNewGroup)
-                    .width(Length::Fixed(432.0))
-                    .size(14)
-                    .id(NEW_GROUP_ID.clone()),
-                container(
-                    row![
-                        button::custom(
-                            container(text(CANCEL.to_string()).size(14.0))
-                                .width(Length::Shrink)
-                                .align_x(Horizontal::Center)
-                                .width(Length::Fill)
-                        )
-                        .on_press(Message::CancelNewGroup)
-                        .padding([space_xxs, space_s])
-                        .width(142),
-                        button::custom(
-                            container(text(SAVE.to_string()).size(14.0))
-                                .width(Length::Shrink)
-                                .align_x(Horizontal::Center)
-                                .width(Length::Fill)
-                        )
+            let dialog = widget::dialog::dialog()
+                .title(CREATE_NEW.as_str())
+                .control(
+                    text_input("", group_name)
+                        .label(&*NEW_GROUP_PLACEHOLDER)
+                        .on_input(Message::NewGroup)
+                        .on_submit(|_| Message::SubmitNewGroup)
+                        .width(Length::Fixed(432.0))
+                        .size(14)
+                        .id(NEW_GROUP_ID.clone()),
+                )
+                .primary_action(
+                    button::custom(text::body(SAVE.as_str()).center().width(Length::Fill))
                         .class(Button::Suggested)
                         .on_press(Message::SubmitNewGroup)
                         .padding([space_xxs, space_s])
                         .width(142),
-                    ]
-                    .spacing(space_s)
                 )
-                .width(Length::Fixed(432.0))
-                .align_x(Horizontal::Right)
-            ]
-            .align_x(Alignment::Center)
-            .spacing(space_s);
-            return autosize(
-                container(dialog)
-                    .class(theme::Container::Custom(Box::new(|theme| {
-                        let t = theme.cosmic();
-                        let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+                .secondary_action(
+                    button::custom(text::body(CANCEL.as_str()).center().width(Length::Fill))
+                        .on_press(Message::CancelNewGroup)
+                        .padding([space_xxs, space_s])
+                        .width(142),
+                )
+                .width(Length::Fixed(432.0));
 
-                        container::Style {
-                            text_color: Some(t.on_bg_color().into()),
-                            icon_color: Some(t.on_bg_color().into()),
-                            background: Some(Color::from(t.background.base).into()),
-                            border: Border {
-                                radius: radii.into(),
-                                width: 1.0,
-                                color: t.bg_divider().into(),
-                            },
-                            shadow: Shadow::default(),
-                        }
-                    })))
-                    .width(Length::Shrink)
-                    .height(Length::Shrink)
-                    .padding(space_s),
-                NEW_GROUP_AUTOSIZE_ID.clone(),
-            )
-            .into();
+            return autosize(dialog, NEW_GROUP_AUTOSIZE_ID.clone()).into();
         }
         if id == DELETE_GROUP_WINDOW_ID.clone() {
-            let dialog = column![
-                row![
-                    container(
-                        icon::icon(icon::from_name("edit-delete-symbolic").into())
-                            .width(Length::Fixed(48.0))
-                            .height(Length::Fixed(48.0))
-                    )
-                    .padding(8),
-                    column![
-                        text(fl!("delete-folder")).size(24),
-                        text(fl!("delete-folder", "msg"))
-                    ]
-                    .spacing(8)
-                    .width(Length::Fixed(360.0))
-                ]
-                .spacing(16),
-                container(
-                    row![
-                        button::custom(
-                            container(text(CANCEL.to_string()).size(14.0))
-                                .width(Length::Shrink)
-                                .align_x(Horizontal::Center)
-                                .width(Length::Fill)
-                        )
-                        .on_press(Message::CancelDelete)
-                        .padding([space_xxs, space_m])
-                        .width(142),
-                        button::custom(
-                            container(text(fl!("delete")).size(14.0))
-                                .width(Length::Shrink)
-                                .align_x(Horizontal::Center)
-                                .width(Length::Fill)
-                        )
+            let dialog = widget::dialog::dialog()
+                .icon(icon::from_name("edit-delete-symbolic").size(48))
+                .title(fl!("delete-folder"))
+                .body(fl!("delete-folder", "msg"))
+                .primary_action(
+                    button::custom(text::body(fl!("delete")).center().width(Length::Fill))
                         .id(SUBMIT_DELETE_ID.clone())
                         .class(Button::Destructive)
                         .on_press(Message::ConfirmDelete)
-                        .padding([space_xxs, space_m])
+                        .padding([space_xxs, space_s])
                         .width(142),
-                    ]
-                    .spacing(space_s)
                 )
-                .width(Length::Fixed(432.0))
-                .align_x(Horizontal::Right)
-            ]
-            .align_x(Alignment::Center)
-            .spacing(space_l);
-            return autosize(
-                container(dialog)
-                    .class(theme::Container::Custom(Box::new(|theme| {
-                        let t = theme.cosmic();
-                        let radii = t.radius_s().map(|x| if x < 4.0 { x } else { x + 4.0 });
+                .secondary_action(
+                    button::custom(text::body(CANCEL.to_string()).center().width(Length::Fill))
+                        .on_press(Message::CancelDelete)
+                        .padding([space_xxs, space_s])
+                        .width(142),
+                )
+                .width(Length::Fixed(432.0));
 
-                        container::Style {
-                            text_color: Some(t.on_bg_color().into()),
-                            icon_color: Some(t.on_bg_color().into()),
-                            background: Some(Color::from(t.background.base).into()),
-                            border: Border {
-                                radius: radii.into(),
-                                width: 1.0,
-                                color: t.bg_divider().into(),
-                            },
-                            shadow: Shadow::default(),
-                        }
-                    })))
-                    .width(Length::Shrink)
-                    .height(Length::Shrink)
-                    .padding(space_m),
-                DELETE_GROUP_AUTOSIZE_ID.clone(),
-            )
-            .into();
+            return autosize(dialog, DELETE_GROUP_AUTOSIZE_ID.clone()).into();
         }
 
         let cur_group = self.config.groups()[self.cur_group];
@@ -1490,7 +1398,8 @@ impl cosmic::Application for CosmicAppLibrary {
                 column(app_grid_list)
                     .width(Length::Fill)
                     .spacing(space_xxs)
-                    .padding([space_none, space_xxl, space_xxs, space_xxl]),
+                    // padding on top needed to avoid focus highlight clipping
+                    .padding([4, space_xxl, space_xxs, space_xxl]),
             )
             .on_scroll(|viewport| Message::ScrollYOffset(viewport.absolute_offset().y))
             .id(self.scrollable_id.clone())
@@ -1505,7 +1414,7 @@ impl cosmic::Application for CosmicAppLibrary {
             (32.0, space_s, 128.0, 8)
         };
         let group_height =
-            group_icon_size + 20.0 + (space_none as f32) + (space_xxs as f32) + (space_s as f32);
+            group_icon_size + 21.0 + (space_none as f32) + (space_xxs as f32) + (space_s as f32);
 
         let mut add_group_btn = Some(
             button::custom(
@@ -1516,7 +1425,7 @@ impl cosmic::Application for CosmicAppLibrary {
                             .height(Length::Fixed(group_icon_size))
                     )
                     .padding(space_xxs),
-                    text(fl!("add-group")).size(14.0).width(Length::Shrink)
+                    text::body(ADD_GROUP.as_str()).width(Length::Shrink)
                 ]
                 .align_x(Alignment::Center)
                 .width(Length::Fill),
@@ -1548,7 +1457,7 @@ impl cosmic::Application for CosmicAppLibrary {
                                         .height(Length::Fixed(group_icon_size))
                                 )
                                 .padding(space_xxs),
-                                text(group.name()).size(14).width(Length::Shrink)
+                                text::body(group.name()).width(Length::Shrink)
                             ]
                             .align_x(Alignment::Center)
                             .width(Length::Fill),
@@ -1629,7 +1538,7 @@ impl cosmic::Application for CosmicAppLibrary {
 
         let window = container(content)
             .height(Length::Fill)
-            .max_height(685)
+            .max_height(690)
             .max_width(1200.0)
             .class(theme::Container::Custom(Box::new(|theme| {
                 let t = theme.cosmic();
