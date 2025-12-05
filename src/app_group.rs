@@ -225,10 +225,10 @@ impl AppLibraryConfig {
                 FilterType::None => {}
             }
         }
-        if i - 1 < self.groups.len() {
-            if let FilterType::AppIds(ids) = &mut self.groups[i - 1].filter {
-                ids.retain(|x| x != id);
-            }
+        if i - 1 < self.groups.len()
+            && let FilterType::AppIds(ids) = &mut self.groups[i - 1].filter
+        {
+            ids.retain(|x| x != id);
         }
     }
 
@@ -277,7 +277,7 @@ impl AppLibraryConfig {
         &self,
         i: usize,
         input_value: &str,
-        entries: &Vec<Arc<DesktopEntryData>>,
+        entries: &[Arc<DesktopEntryData>],
     ) -> Vec<Arc<DesktopEntryData>> {
         if i == 0 {
             HOME[0].filtered(input_value, &self.groups, entries)
@@ -290,7 +290,7 @@ impl AppLibraryConfig {
         &self,
         i: usize,
         input_value: &str,
-        entries: &Vec<Arc<DesktopEntryData>>,
+        entries: &[Arc<DesktopEntryData>],
     ) -> Vec<Arc<DesktopEntryData>> {
         self.groups
             .get(i)
