@@ -31,12 +31,9 @@ use cosmic::{
 use crate::app::AppSource;
 
 pub const MIME_TYPE: &str = "text/uri-list";
-const DRAG_THRESHOLD: f32 = 25.0;
 /// A widget that can be dragged and dropped.
 #[allow(missing_debug_implementations)]
 pub struct ApplicationButton<'a, Message> {
-    path: PathBuf,
-
     content: Element<'a, Message>,
 
     on_right_release: Box<dyn Fn(Rectangle) -> Message + 'a>,
@@ -145,7 +142,6 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         .on_finish(on_finish)
         .into();
         Self {
-            path: path.clone().unwrap(),
             content,
             on_right_release: Box::new(on_right_release),
 

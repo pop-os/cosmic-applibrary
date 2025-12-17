@@ -1,5 +1,6 @@
 cosmic-app-library = Biblioteka Aplikacji COSMIC
-cosmic-library-home = Strona Domowa Biblioteki
+cosmic-all-programs = Wszystkie programy
+cosmic-library-home = Inne
 cosmic-office = Biuro
 cosmic-system = System
 cosmic-utilities = Użytkowe
