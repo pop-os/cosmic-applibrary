@@ -1,9 +1,10 @@
 //! A widget that can be dragged and dropped.
 
 use core::str;
+use std::rc::Rc;
 use std::{borrow::Cow, cell::RefCell, iter, path::PathBuf, str::FromStr};
 
-use cosmic::desktop::IconSourceExt;
+use cosmic::widget::{self, icon};
 use cosmic::{
     iced::{
         Size, Vector,
@@ -16,12 +17,11 @@ use cosmic::{
 
 use cosmic::iced_core::{
     Alignment, Clipboard, Event, Length, Rectangle, Shell, Widget, event, layout, mouse, overlay,
-    renderer, widget,
+    renderer,
 };
 
 use cosmic::{
     Element,
-    desktop::DesktopEntryData,
     iced::widget::{column, text},
     iced_core::widget::{Operation, Tree, tree},
     theme,
@@ -35,10 +35,7 @@ const DRAG_THRESHOLD: f32 = 25.0;
 /// A widget that can be dragged and dropped.
 #[allow(missing_debug_implementations)]
 pub struct ApplicationButton<'a, Message> {
-    path: PathBuf,
-
     content: Element<'a, Message>,
-
     on_right_release: Box<dyn Fn(Rectangle) -> Message + 'a>,
 
     // Optional icon, and text
@@ -50,15 +47,12 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
     #[must_use]
     pub fn new(
         widget_id: widget::Id,
-        DesktopEntryData {
-            name,
-            icon: image,
-            path,
-            ..
-        }: &'a DesktopEntryData,
+        name: &str,
+        icon_handle: icon::Handle,
+        path: &Option<PathBuf>,
         on_right_release: impl Fn(Rectangle) -> Message + 'a,
         on_pressed: Option<Message>,
-        source: Option<&AppSource>,
+        source: Option<&(AppSource, Option<icon::Handle>)>,
         selected: bool,
         on_start: Option<Message>,
         on_finish: Option<Message>,
@@ -69,12 +63,12 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         } = theme::active().cosmic().spacing;
 
         let (source_icon, source_suffix_len) = match source {
-            Some(source) => {
+            Some((source, source_icon_handle)) => {
                 let source_name = source.to_string();
                 (
-                    source.as_icon().map(|i| {
+                    source_icon_handle.as_ref().map(|i| {
                         Element::from(
-                            container(i)
+                            container(app_source_icon(i.clone()))
                                 .class(cosmic::theme::Container::Card)
                                 .width(Length::Fixed(24.0))
                                 .height(Length::Fixed(24.0))
@@ -89,25 +83,25 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         };
         let max_name_len = 27 - source_suffix_len;
         let name = if name.len() > max_name_len {
-            if let Some(source) = source {
+            if let Some((source, ..)) = source {
                 format!("{name:.17}... ({source})")
             } else {
                 format!("{name:.24}...")
             }
         } else {
-            if let Some(source) = source {
+            if let Some((source, ..)) = source {
                 format!("{name} ({source})")
             } else {
                 name.to_string()
             }
         };
         let path_ = path.clone();
-        let image_clone = image.clone();
         let content = dnd_source(
             button::custom(
                 column![
-                    image
-                        .as_cosmic_icon()
+                    icon_handle
+                        .clone()
+                        .icon()
                         .width(Length::Fixed(72.0))
                         .height(Length::Fixed(72.0)),
                     container(text(name).size(14.0).width(Length::Shrink))
@@ -130,8 +124,9 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         )
         .drag_icon(move |_| {
             (
-                image_clone
-                    .as_cosmic_icon()
+                icon_handle
+                    .clone()
+                    .icon()
                     .width(Length::Fixed(72.0))
                     .height(Length::Fixed(72.0))
                     .into(),
@@ -145,10 +140,8 @@ impl<'a, Message: Clone + 'static> ApplicationButton<'a, Message> {
         .on_finish(on_finish)
         .into();
         Self {
-            path: path.clone().unwrap(),
             content,
             on_right_release: Box::new(on_right_release),
-
             source_icon,
         }
     }
@@ -444,4 +437,16 @@ impl AsMimeTypes for AppletString {
 #[derive(Debug, Default, Clone)]
 pub struct State {
     right_press: bool,
+}
+
+pub fn app_source_icon(handle: widget::icon::Handle) -> widget::Icon {
+    let symbolic = handle.symbolic;
+    handle.icon().size(16).class(if symbolic {
+        cosmic::theme::Svg::Custom(Rc::new(|t| {
+            let color = t.cosmic().on_primary_component_color().into();
+            widget::svg::Style { color: Some(color) }
+        }))
+    } else {
+        cosmic::theme::Svg::Default
+    })
 }

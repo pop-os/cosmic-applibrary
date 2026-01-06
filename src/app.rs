@@ -19,7 +19,7 @@ use cosmic::{
     cosmic_config::{Config, CosmicConfigEntry},
     cosmic_theme::Spacing,
     dbus_activation,
-    desktop::{DesktopEntryData, fde::PathSource, load_desktop_file},
+    desktop::{DesktopEntryData, IconSourceExt, fde::PathSource, load_desktop_file},
     iced::{
         self, Alignment, Color, Length, Limits, Size, Subscription,
         alignment::Horizontal,
@@ -165,7 +165,7 @@ pub fn run() -> cosmic::iced::Result {
 pub struct AppSource(PathSource);
 
 impl AppSource {
-    pub fn as_icon(&self) -> Option<icon::Icon> {
+    pub fn as_icon(&self) -> Option<widget::icon::Handle> {
         let name = match &self.0 {
             PathSource::Local | PathSource::LocalDesktop => "app-source-local-symbolic",
             PathSource::System | PathSource::SystemLocal => "app-source-system-symbolic",
@@ -175,16 +175,7 @@ impl AppSource {
             PathSource::Other(_) => return None,
         };
         let handle = crate::icon_cache::icon_cache_handle(name, 16);
-        let symbolic = handle.symbolic;
-
-        Some(icon::icon(handle).size(16).class(if symbolic {
-            cosmic::theme::Svg::Custom(Rc::new(|t| {
-                let color = t.cosmic().on_primary_component_color().into();
-                svg::Style { color: Some(color) }
-            }))
-        } else {
-            cosmic::theme::Svg::Default
-        }))
+        Some(handle)
     }
 }
 
@@ -237,7 +228,7 @@ struct CosmicAppLibrary {
     group_to_delete: Option<usize>,
     gpus: Option<Vec<Gpu>>,
     last_hide: Option<Instant>,
-    duplicates: HashMap<PathBuf, AppSource>,
+    duplicates: HashMap<PathBuf, (AppSource, Option<widget::icon::Handle>)>,
     app_list_config: AppListConfig,
     overlap: HashMap<String, Rectangle>,
     margin: f32,
@@ -245,6 +236,7 @@ struct CosmicAppLibrary {
     needs_clear: bool,
     focused_id: Option<widget::Id>,
     entry_ids: Vec<widget::Id>,
+    entry_icon_handles: Vec<widget::icon::Handle>,
     scrollable_id: widget::Id,
     surface_state: SurfaceState,
 }
@@ -278,6 +270,7 @@ impl Default for CosmicAppLibrary {
             needs_clear: Default::default(),
             focused_id: Default::default(),
             entry_ids: Default::default(),
+            entry_icon_handles: Default::default(),
             scrollable_id: widget::Id::unique(),
             surface_state: SurfaceState::Hidden,
         }
@@ -360,6 +353,19 @@ impl CosmicAppLibrary {
 
             self.margin = o.y + o.height;
         }
+    }
+
+    /// Update entry IDs and their icon handles.
+    fn update_entry_metadata(&mut self) {
+        self.entry_ids = (0..self.entry_path_input.len())
+            .map(|_| widget::Id::unique())
+            .collect();
+
+        self.entry_icon_handles = self
+            .entry_path_input
+            .iter()
+            .map(|e| e.icon.as_cosmic_icon())
+            .collect();
     }
 }
 
@@ -472,12 +478,14 @@ impl CosmicAppLibrary {
                             // insert previous entry
                             if let Some(path) = self.all_entries[i - 1].path.as_ref() {
                                 let source = AppSource::from(path.as_ref());
-                                dups.insert(path.clone(), source);
+                                let icon_handle = source.as_icon();
+                                dups.insert(path.clone(), (source, icon_handle));
                             }
                         }
                         if let Some(path) = e.path.as_ref() {
                             let source = AppSource::from(path.as_ref());
-                            dups.insert(path.clone(), source);
+                            let icon_handle = source.as_icon();
+                            dups.insert(path.clone(), (source, icon_handle));
                         }
                         (dups, cur_count + 1, cur_name, cur_id)
                     } else {
@@ -486,9 +494,7 @@ impl CosmicAppLibrary {
                 },
             )
             .0;
-        self.entry_ids = (0..self.entry_path_input.len())
-            .map(|_| widget::Id::unique())
-            .collect();
+        self.update_entry_metadata();
     }
 
     fn filter_apps(&mut self) -> Task<Message> {
@@ -525,6 +531,7 @@ impl CosmicAppLibrary {
         }
         self.focused_id = None;
         self.entry_ids.clear();
+        self.entry_icon_handles.clear();
         self.new_group = None;
         self.search_value.clear();
         self.edit_name = None;
@@ -983,9 +990,8 @@ impl cosmic::Application for CosmicAppLibrary {
             }
             Message::FilterApps(input, filtered_apps) => {
                 self.entry_path_input = filtered_apps;
-                self.entry_ids = (0..self.entry_path_input.len())
-                    .map(|_| widget::Id::unique())
-                    .collect();
+                self.update_entry_metadata();
+
                 self.waiting_for_filtered = false;
                 if self.search_value != input {
                     return self.filter_apps();
@@ -1067,11 +1073,11 @@ impl cosmic::Application for CosmicAppLibrary {
         }
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view<'a>(&'a self) -> Element<'a, Message> {
         unimplemented!()
     }
 
-    fn view_window(&self, id: SurfaceId) -> Element<Message> {
+    fn view_window<'a>(&'a self, id: SurfaceId) -> Element<'a, Message> {
         let Spacing {
             space_none,
             space_xxs,
@@ -1107,7 +1113,7 @@ impl cosmic::Application for CosmicAppLibrary {
                     list_column.push(
                         menu_button(body(format!(
                             "{} {}",
-                            fl!("run-on", gpu = gpu.name.clone()),
+                            fl!("run-on", gpu = (&gpu.name)),
                             if j == default_idx {
                                 fl!("run-on-default")
                             } else {
@@ -1433,8 +1439,9 @@ impl cosmic::Application for CosmicAppLibrary {
             .entry_path_input
             .iter()
             .zip(self.entry_ids.iter())
+            .zip(self.entry_icon_handles.iter())
             .enumerate()
-            .map(|(i, (entry, id))| {
+            .map(|(i, ((entry, id), icon_handle))| {
                 let gpu_idx = self.gpus.as_ref().map(|gpus| {
                     if entry.prefers_dgpu {
                         gpus.iter().position(|gpu| !gpu.default).unwrap_or(0)
@@ -1450,7 +1457,9 @@ impl cosmic::Application for CosmicAppLibrary {
 
                 let b = ApplicationButton::new(
                     id.clone(),
-                    &entry,
+                    &entry.name,
+                    icon_handle.clone(),
+                    &entry.path,
                     move |rect| Message::OpenContextMenu(rect, i),
                     if self.menu.is_none() {
                         Some(Message::ActivateApp(i, gpu_idx))
